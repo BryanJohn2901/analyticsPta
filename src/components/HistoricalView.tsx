@@ -1,0 +1,736 @@
+"use client";
+
+import { useRef, useState, useMemo, useCallback, useEffect } from "react";
+import {
+  Area, AreaChart, Bar, BarChart, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, ComposedChart, Line,
+} from "recharts";
+import {
+  Upload, TrendingUp, ShoppingCart, DollarSign, Target,
+  ArrowRight, CheckCircle2, XCircle, Plus, Pencil, Trash2, X,
+  BarChart2, Package, Cloud, CloudOff, Loader2,
+} from "lucide-react";
+import { HistoricalMeta, HistoricalRow } from "@/types/historical";
+import { parseHistoricalCsvFile } from "@/utils/parseHistoricalCsv";
+import { formatCurrency, formatNumber, formatPercent } from "@/utils/metrics";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import {
+  fetchHistoricalRows, fetchHistoricalMetas,
+  insertHistoricalRow, updateHistoricalRow, deleteHistoricalRowById,
+  replaceHistoricalData,
+} from "@/utils/supabaseHistorical";
+
+type SyncStatus = "idle" | "loading" | "synced" | "local" | "error";
+
+// ─── Persistence ──────────────────────────────────────────────────────────────
+
+const ROWS_KEY  = "pta_hist_rows_v1";
+const METAS_KEY = "pta_hist_metas_v1";
+
+function loadRows(): HistoricalRow[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(ROWS_KEY) ?? "[]"); } catch { return []; }
+}
+function loadMetas(): HistoricalMeta[] {
+  if (typeof window === "undefined") return [];
+  try { return JSON.parse(localStorage.getItem(METAS_KEY) ?? "[]"); } catch { return []; }
+}
+function saveRows(r: HistoricalRow[])  { try { localStorage.setItem(ROWS_KEY,  JSON.stringify(r)); } catch {} }
+function saveMetas(m: HistoricalMeta[]) { try { localStorage.setItem(METAS_KEY, JSON.stringify(m)); } catch {} }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const MONTHS = [
+  "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
+  "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO",
+] as const;
+
+const MONTH_ABBR: Record<string, string> = {
+  JANEIRO: "Jan", FEVEREIRO: "Fev", "MARÇO": "Mar", ABRIL: "Abr",
+  MAIO: "Mai", JUNHO: "Jun", JULHO: "Jul", AGOSTO: "Ago",
+  SETEMBRO: "Set", OUTUBRO: "Out", NOVEMBRO: "Nov", DEZEMBRO: "Dez",
+};
+const MONTH_LABELS: Record<string, string> = {
+  JANEIRO: "Janeiro", FEVEREIRO: "Fevereiro", "MARÇO": "Março", ABRIL: "Abril",
+  MAIO: "Maio", JUNHO: "Junho", JULHO: "Julho", AGOSTO: "Agosto",
+  SETEMBRO: "Setembro", OUTUBRO: "Outubro", NOVEMBRO: "Novembro", DEZEMBRO: "Dezembro",
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface FormState {
+  product: string; month: string; year: string;
+  investment: string; cpm: string; reach: string; clicks: string;
+  pageViews: string; preCheckouts: string; sales: string; revenue: string;
+}
+
+const EMPTY_FORM: FormState = {
+  product: "", month: "JANEIRO", year: String(new Date().getFullYear()),
+  investment: "", cpm: "", reach: "", clicks: "",
+  pageViews: "", preCheckouts: "", sales: "", revenue: "",
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const p = (s: string): number => {
+  if (!s.trim()) return 0;
+  const cleaned = s.replace(/[R$\s]/g, "").replace(/\./g, "").replace(",", ".");
+  return parseFloat(cleaned) || 0;
+};
+
+const buildRow = (form: FormState): HistoricalRow => {
+  const investment = p(form.investment), revenue = p(form.revenue);
+  const reach = p(form.reach), clicks = p(form.clicks);
+  const pageViews = p(form.pageViews), preCheckouts = p(form.preCheckouts);
+  const sales = p(form.sales);
+  const monthNum = MONTHS.indexOf(form.month as typeof MONTHS[number]) + 1 || 1;
+  const year = parseInt(form.year) || new Date().getFullYear();
+  const monthKey = `${year}-${String(monthNum).padStart(2, "0")}`;
+  const abbr = MONTH_ABBR[form.month] ?? form.month.slice(0, 3);
+  return {
+    product: form.product.trim(), month: form.month, year, monthKey,
+    monthLabel: `${abbr}/${String(year).slice(2)}`,
+    investment, cpm: p(form.cpm), reach,
+    ctr: reach > 0 ? (clicks / reach) * 100 : 0, clicks,
+    pageViewRate: clicks > 0 ? (pageViews / clicks) * 100 : 0, pageViews,
+    preCheckoutRate: pageViews > 0 ? (preCheckouts / pageViews) * 100 : 0, preCheckouts,
+    salesRate: preCheckouts > 0 ? (sales / preCheckouts) * 100 : 0, sales, revenue,
+    cac: sales > 0 ? investment / sales : 0,
+    roas: investment > 0 && revenue > 0 ? revenue / investment : 0,
+  };
+};
+
+const rowToForm = (r: HistoricalRow): FormState => ({
+  product: r.product, month: r.month, year: String(r.year),
+  investment: r.investment > 0 ? String(r.investment) : "",
+  cpm: r.cpm > 0 ? String(r.cpm) : "",
+  reach: r.reach > 0 ? String(r.reach) : "",
+  clicks: r.clicks > 0 ? String(r.clicks) : "",
+  pageViews: r.pageViews > 0 ? String(r.pageViews) : "",
+  preCheckouts: r.preCheckouts > 0 ? String(r.preCheckouts) : "",
+  sales: r.sales > 0 ? String(r.sales) : "",
+  revenue: r.revenue > 0 ? String(r.revenue) : "",
+});
+
+// ─── Entry Form modal ─────────────────────────────────────────────────────────
+
+interface EntryFormProps {
+  form: FormState; products: string[]; isEditing: boolean;
+  onChange: (f: FormState) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onClose: () => void;
+}
+
+function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: EntryFormProps) {
+  const set = (key: keyof FormState) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      onChange({ ...form, [key]: e.target.value });
+
+  const preview = useMemo(() => {
+    const inv = p(form.investment), rev = p(form.revenue);
+    const reach = p(form.reach), clicks = p(form.clicks);
+    const pageViews = p(form.pageViews), preCheckouts = p(form.preCheckouts);
+    const sales = p(form.sales);
+    return {
+      ctr: reach > 0 ? (clicks / reach) * 100 : null,
+      pageViewRate: clicks > 0 ? (pageViews / clicks) * 100 : null,
+      preCheckoutRate: pageViews > 0 ? (preCheckouts / pageViews) * 100 : null,
+      salesRate: preCheckouts > 0 ? (sales / preCheckouts) * 100 : null,
+      cac: sales > 0 && inv > 0 ? inv / sales : null,
+      roas: inv > 0 && rev > 0 ? rev / inv : null,
+    };
+  }, [form]);
+
+  const fieldCls = "h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
+  const labelCls = "flex flex-col gap-1 text-xs font-medium text-slate-600";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-8 sm:p-8">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+          <h2 className="text-base font-semibold text-slate-900">
+            {isEditing ? "Editar Registro" : "Adicionar Registro"}
+          </h2>
+          <button onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={onSubmit} className="divide-y divide-slate-100">
+          <div className="px-6 py-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Identificação</p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <label className={labelCls}>
+                Produto / Campanha *
+                <input list="products-list" required value={form.product} onChange={set("product")} placeholder="Ex: Biomecânica" className={fieldCls} />
+                <datalist id="products-list">{products.map((pr) => <option key={pr} value={pr} />)}</datalist>
+              </label>
+              <label className={labelCls}>
+                Mês *
+                <select required value={form.month} onChange={set("month")} className={fieldCls}>
+                  {MONTHS.map((m) => <option key={m} value={m}>{MONTH_LABELS[m] ?? m}</option>)}
+                </select>
+              </label>
+              <label className={labelCls}>
+                Ano *
+                <input type="number" required min={2020} max={2099} value={form.year} onChange={set("year")} className={fieldCls} />
+              </label>
+            </div>
+          </div>
+
+          <div className="px-6 py-5">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Funil de tráfego</p>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} placeholder="8544.26" className={fieldCls} /></label>
+              <label className={labelCls}>CPM (R$)<input value={form.cpm} onChange={set("cpm")} placeholder="11.47" className={fieldCls} /></label>
+              <label className={labelCls}>Alcance<input value={form.reach} onChange={set("reach")} placeholder="744957" className={fieldCls} /></label>
+              <label className={labelCls}>Cliques<input value={form.clicks} onChange={set("clicks")} placeholder="4074" className={fieldCls} /></label>
+              <label className={labelCls}>Visualiz. de Página<input value={form.pageViews} onChange={set("pageViews")} placeholder="2107" className={fieldCls} /></label>
+              <label className={labelCls}>Pré-checkout<input value={form.preCheckouts} onChange={set("preCheckouts")} placeholder="717" className={fieldCls} /></label>
+              <label className={labelCls}>Vendas *<input required value={form.sales} onChange={set("sales")} placeholder="46" className={fieldCls} /></label>
+              <label className={labelCls}>Faturamento (R$)<input value={form.revenue} onChange={set("revenue")} placeholder="16309.00" className={fieldCls} /></label>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 px-6 py-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Calculado automaticamente</p>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { label: "CTR",        val: preview.ctr !== null              ? `${preview.ctr.toFixed(2)}%`              : "—" },
+                { label: "Tx. Página", val: preview.pageViewRate !== null      ? `${preview.pageViewRate.toFixed(1)}%`      : "—" },
+                { label: "Tx. Pré-chk",val: preview.preCheckoutRate !== null  ? `${preview.preCheckoutRate.toFixed(1)}%`  : "—" },
+                { label: "Tx. Vendas", val: preview.salesRate !== null         ? `${preview.salesRate.toFixed(1)}%`         : "—" },
+                { label: "CAC",        val: preview.cac !== null               ? formatCurrency(preview.cac)               : "—" },
+                { label: "ROAS",       val: preview.roas !== null              ? `${preview.roas.toFixed(2)}x`              : "—" },
+              ].map(({ label, val }) => (
+                <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5">
+                  <p className="text-xs text-slate-400">{label}</p>
+                  <p className="text-sm font-semibold text-slate-800">{val}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 px-6 py-4">
+            <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+              Cancelar
+            </button>
+            <button type="submit" className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
+              {isEditing ? "Salvar alterações" : "Adicionar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stat card ────────────────────────────────────────────────────────────────
+
+interface StatCardProps {
+  label: string; value: string; sub?: string;
+  icon: React.ElementType; accent: string; iconColor: string;
+}
+
+function StatCard({ label, value, sub, icon: Icon, accent, iconColor }: StatCardProps) {
+  return (
+    <article className={`relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm`}>
+      <div className={`absolute left-0 top-0 h-full w-1 rounded-l-xl ${accent}`} />
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-slate-500">{label}</p>
+          <p className="mt-1 text-xl font-bold text-slate-900">{value}</p>
+          {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
+        </div>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 ${iconColor}`}>
+          <Icon size={18} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function HistoricalView() {
+  const [rows,  setRowsState]  = useState<HistoricalRow[]>(loadRows);
+  const [metas, setMetasState] = useState<HistoricalMeta[]>(loadMetas);
+  const [selectedProduct, setSelectedProduct] = useState("all");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>(
+    isSupabaseConfigured ? "loading" : "local",
+  );
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Form state
+  const [showForm, setShowForm]     = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+  const [form, setForm]             = useState<FormState>(EMPTY_FORM);
+
+  // Persist helpers
+  const setRows = useCallback((updater: HistoricalRow[] | ((prev: HistoricalRow[]) => HistoricalRow[])) => {
+    setRowsState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveRows(next);
+      return next;
+    });
+  }, []);
+
+  const setMetas = useCallback((updater: HistoricalMeta[] | ((prev: HistoricalMeta[]) => HistoricalMeta[])) => {
+    setMetasState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      saveMetas(next);
+      return next;
+    });
+  }, []);
+
+  // ── Initial Supabase load ──
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    setSyncStatus("loading");
+    Promise.all([fetchHistoricalRows(), fetchHistoricalMetas()])
+      .then(([remoteRows, remoteMetas]) => {
+        setRowsState(remoteRows);
+        setMetasState(remoteMetas);
+        saveRows(remoteRows);
+        saveMetas(remoteMetas);
+        setSyncStatus("synced");
+      })
+      .catch(() => {
+        setSyncStatus("error");
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const products = useMemo(() => Array.from(new Set(rows.map((r) => r.product))).sort(), [rows]);
+
+  const filtered = useMemo(
+    () => (selectedProduct === "all" ? rows : rows.filter((r) => r.product === selectedProduct)),
+    [rows, selectedProduct],
+  );
+
+  const activeMeta = useMemo(
+    () => metas.find((m) => m.product === selectedProduct) ?? metas[0] ?? null,
+    [metas, selectedProduct],
+  );
+
+  // ── CSV upload ──
+  const handleFile = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith(".csv")) { setError("Envie um arquivo .csv"); return; }
+    setLoading(true); setError(null);
+    try {
+      const result = await parseHistoricalCsvFile(file);
+      if (result.rows.length === 0) { setError("Nenhum dado encontrado. Verifique o formato."); return; }
+      if (isSupabaseConfigured) {
+        setSyncStatus("loading");
+        const saved = await replaceHistoricalData(result.rows, result.metas);
+        setRowsState(saved.rows);
+        setMetasState(saved.metas);
+        saveRows(saved.rows);
+        saveMetas(saved.metas);
+        setSyncStatus("synced");
+      } else {
+        setRows(result.rows);
+        setMetas(result.metas);
+      }
+      setSelectedProduct("all");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Erro ao processar arquivo.");
+      if (isSupabaseConfigured) setSyncStatus("error");
+    } finally { setLoading(false); }
+  };
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) void handleFile(file);
+    e.target.value = "";
+  };
+
+  // ── Manual entry ──
+  const openAdd = useCallback(() => { setForm(EMPTY_FORM); setEditingIdx(null); setShowForm(true); }, []);
+
+  const openEdit = useCallback((idx: number) => {
+    setForm(rowToForm(rows[idx])); setEditingIdx(idx); setShowForm(true);
+  }, [rows]);
+
+  const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newRow = buildRow(form);
+    if (isSupabaseConfigured) {
+      setSyncStatus("loading");
+      try {
+        if (editingIdx !== null && rows[editingIdx]?.id) {
+          const saved = await updateHistoricalRow(rows[editingIdx].id!, newRow);
+          setRows((prev) => prev.map((r, i) => (i === editingIdx ? saved : r)));
+        } else {
+          const saved = await insertHistoricalRow(newRow);
+          setRows((prev) => [...prev, saved]);
+        }
+        setSyncStatus("synced");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao salvar.");
+        setSyncStatus("error");
+        return;
+      }
+    } else {
+      setRows((prev) =>
+        editingIdx !== null ? prev.map((r, i) => (i === editingIdx ? newRow : r)) : [...prev, newRow],
+      );
+    }
+    setShowForm(false); setEditingIdx(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, editingIdx, rows, setRows]);
+
+  const handleDelete = useCallback(async (idx: number) => {
+    if (!confirm("Remover este registro?")) return;
+    if (isSupabaseConfigured && rows[idx]?.id) {
+      setSyncStatus("loading");
+      try {
+        await deleteHistoricalRowById(rows[idx].id!);
+        setRows((prev) => prev.filter((_, i) => i !== idx));
+        setSyncStatus("synced");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao remover.");
+        setSyncStatus("error");
+      }
+    } else {
+      setRows((prev) => prev.filter((_, i) => i !== idx));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, setRows]);
+
+  // ── Aggregates ──
+  const totals = useMemo(() => {
+    const inv = filtered.reduce((s, r) => s + r.investment, 0);
+    const rev = filtered.reduce((s, r) => s + r.revenue, 0);
+    const sales = filtered.reduce((s, r) => s + r.sales, 0);
+    const cacRows = filtered.filter((r) => r.cac > 0);
+    const avgCac = cacRows.length ? cacRows.reduce((s, r) => s + r.cac, 0) / cacRows.length : 0;
+    return { inv, rev, sales, avgCac, roas: inv > 0 && rev > 0 ? rev / inv : 0 };
+  }, [filtered]);
+
+  const chartData = useMemo(() => {
+    const map = new Map<string, { label: string; investment: number; revenue: number; sales: number }>();
+    filtered.forEach((r) => {
+      const cur = map.get(r.monthKey) ?? { label: r.monthLabel, investment: 0, revenue: 0, sales: 0 };
+      cur.investment += r.investment;
+      cur.revenue    += r.revenue;
+      cur.sales      += r.sales;
+      map.set(r.monthKey, cur);
+    });
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([, v]) => v);
+  }, [filtered]);
+
+  const funnel = useMemo(() => {
+    if (filtered.length === 0) return [];
+    const reach        = filtered.reduce((s, r) => s + r.reach, 0);
+    const clicks       = filtered.reduce((s, r) => s + r.clicks, 0);
+    const pageViews    = filtered.reduce((s, r) => s + r.pageViews, 0);
+    const preCheckouts = filtered.reduce((s, r) => s + r.preCheckouts, 0);
+    const sales        = filtered.reduce((s, r) => s + r.sales, 0);
+    return [
+      { label: "Alcance",         value: reach,        rate: 100,                                           fromLabel: "" },
+      { label: "Cliques",         value: clicks,       rate: reach > 0        ? (clicks / reach) * 100        : 0, fromLabel: "do alcance" },
+      { label: "Visualiz. Página",value: pageViews,    rate: clicks > 0       ? (pageViews / clicks) * 100    : 0, fromLabel: "dos cliques" },
+      { label: "Pré-checkout",    value: preCheckouts, rate: pageViews > 0    ? (preCheckouts / pageViews) * 100 : 0, fromLabel: "das páginas" },
+      { label: "Vendas",          value: sales,        rate: preCheckouts > 0 ? (sales / preCheckouts) * 100  : 0, fromLabel: "dos pré-checkout" },
+    ];
+  }, [filtered]);
+
+  const sortedFiltered = useMemo(
+    () => [...filtered].sort((a, b) => a.monthKey.localeCompare(b.monthKey)),
+    [filtered],
+  );
+
+  const hasData = rows.length > 0;
+
+  return (
+    <>
+      {showForm && (
+        <EntryForm
+          form={form}
+          products={products}
+          isEditing={editingIdx !== null}
+          onChange={setForm}
+          onSubmit={handleFormSubmit}
+          onClose={() => { setShowForm(false); setEditingIdx(null); }}
+        />
+      )}
+
+      <div className="space-y-5">
+        {/* ── Dashboard header ── */}
+        <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Histórico de Lançamentos</h2>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {hasData
+                ? `${rows.length} registro${rows.length !== 1 ? "s" : ""} · ${products.length} produto${products.length !== 1 ? "s" : ""}`
+                : "Nenhum dado ainda. Importe um CSV ou adicione manualmente."}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Sync status badge */}
+            {syncStatus === "loading" && (
+              <span className="flex items-center gap-1 text-xs text-slate-400">
+                <Loader2 size={12} className="animate-spin" /> Sincronizando…
+              </span>
+            )}
+            {syncStatus === "synced" && (
+              <span className="flex items-center gap-1 text-xs text-emerald-600">
+                <Cloud size={12} /> Sincronizado
+              </span>
+            )}
+            {syncStatus === "local" && (
+              <span className="flex items-center gap-1 text-xs text-slate-400">
+                <CloudOff size={12} /> Local
+              </span>
+            )}
+            {syncStatus === "error" && (
+              <span className="flex items-center gap-1 text-xs text-red-500">
+                <CloudOff size={12} /> Falha na sync
+              </span>
+            )}
+            <button
+              onClick={openAdd}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
+            >
+              <Plus size={13} /> Adicionar
+            </button>
+            <button
+              onClick={() => inputRef.current?.click()}
+              disabled={loading}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            >
+              <Upload size={13} /> {loading ? "Importando…" : "Importar CSV"}
+            </button>
+            <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
+          </div>
+        </div>
+
+        {error && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
+        )}
+
+        {/* ── Product filter tabs ── */}
+        {hasData && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedProduct("all")}
+              className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition ${selectedProduct === "all" ? "border-blue-200 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"}`}
+            >
+              <Package size={11} /> Todos
+            </button>
+            {products.map((pr) => (
+              <button
+                key={pr}
+                onClick={() => setSelectedProduct(pr)}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${selectedProduct === pr ? "border-blue-200 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"}`}
+              >
+                {pr}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* ── Stat cards ── */}
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+          <StatCard label="Total Investido"    value={formatCurrency(totals.inv)}   icon={DollarSign} accent="bg-blue-500"    iconColor="text-blue-500" />
+          <StatCard label="Total Faturamento"  value={formatCurrency(totals.rev)}   icon={TrendingUp} accent="bg-emerald-500" iconColor="text-emerald-500" sub={totals.roas > 0 ? `ROAS ${totals.roas.toFixed(2)}x` : undefined} />
+          <StatCard label="Total de Vendas"    value={formatNumber(totals.sales)}   icon={ShoppingCart} accent="bg-violet-500" iconColor="text-violet-500" />
+          <StatCard label="ROAS"               value={totals.roas > 0 ? `${totals.roas.toFixed(2)}x` : "—"} icon={Target} accent="bg-amber-500" iconColor="text-amber-500" />
+          <StatCard label="CAC Médio"          value={totals.avgCac > 0 ? formatCurrency(totals.avgCac) : "—"} icon={BarChart2} accent="bg-slate-400" iconColor="text-slate-500" />
+        </div>
+
+        {/* ── Empty-state prompt (shown inline when no data) ── */}
+        {!hasData && (
+          <div className="grid gap-4 sm:grid-cols-2">
+            <article
+              className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 bg-white p-8 text-center transition hover:border-blue-400 hover:bg-blue-50"
+              onClick={() => inputRef.current?.click()}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
+                <Upload size={22} className="text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Importar via CSV</p>
+                <p className="mt-1 text-xs text-slate-500">Planilha histórica com funil mensal por produto</p>
+              </div>
+              <span className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">Escolher arquivo</span>
+            </article>
+
+            <article
+              className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 bg-white p-8 text-center transition hover:border-violet-400 hover:bg-violet-50"
+              onClick={openAdd}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100">
+                <Plus size={22} className="text-violet-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Adicionar Manualmente</p>
+                <p className="mt-1 text-xs text-slate-500">Preencha os dados mês a mês diretamente no dashboard</p>
+              </div>
+              <span className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white">Adicionar registro</span>
+            </article>
+          </div>
+        )}
+
+        {/* ── Charts (only when data loaded) ── */}
+        {hasData && chartData.length > 0 && (
+          <div className="grid gap-5 xl:grid-cols-5">
+            {/* Monthly trend — takes 3 cols */}
+            <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3">
+              <h3 className="mb-4 text-sm font-semibold text-slate-800">Evolução Mensal</h3>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                    <defs>
+                      <linearGradient id="gradInv" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#2563eb" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradRev" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor="#059669" stopOpacity={0.15} />
+                        <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                    <YAxis yAxisId="left"  stroke="#94a3b8" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 10 }} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                    <Tooltip
+                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
+                      formatter={(value, name) =>
+                        name === "Vendas" ? [String(value), name] : [formatCurrency(Number(value)), name]
+                      }
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar yAxisId="left" dataKey="investment" name="Investimento" fill="#2563eb" opacity={0.8} radius={[3, 3, 0, 0]} />
+                    <Bar yAxisId="left" dataKey="revenue"    name="Faturamento"  fill="#059669" opacity={0.8} radius={[3, 3, 0, 0]} />
+                    <Line yAxisId="right" type="monotone" dataKey="sales" name="Vendas" stroke="#8b5cf6" strokeWidth={2} dot={{ r: 3, fill: "#8b5cf6" }} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </article>
+
+            {/* Funnel — takes 2 cols */}
+            {funnel.length > 0 && funnel[0].value > 0 && (
+              <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
+                <h3 className="mb-4 text-sm font-semibold text-slate-800">Funil de Conversão</h3>
+                <div className="space-y-3">
+                  {funnel.map((stage, idx) => {
+                    const maxVal = funnel[0].value;
+                    const widthPct = maxVal > 0 ? (stage.value / maxVal) * 100 : 0;
+                    const colors = ["bg-blue-500", "bg-blue-400", "bg-violet-400", "bg-violet-500", "bg-emerald-500"];
+                    return (
+                      <div key={stage.label}>
+                        <div className="mb-1 flex items-center justify-between text-xs">
+                          <span className="font-medium text-slate-700">{stage.label}</span>
+                          <span className="text-slate-500">{formatNumber(stage.value)}{idx > 0 ? ` · ${formatPercent(stage.rate)}` : ""}</span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                          <div className={`h-full rounded-full ${colors[idx]}`} style={{ width: `${widthPct.toFixed(1)}%` }} />
+                        </div>
+                        {idx < funnel.length - 1 && (
+                          <div className="mt-1 flex justify-center">
+                            <ArrowRight size={10} className="text-slate-300" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </article>
+            )}
+          </div>
+        )}
+
+        {/* ── META comparison ── */}
+        {hasData && activeMeta && (
+          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h3 className="mb-3 text-sm font-semibold text-slate-800">Comparativo vs META</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              {[
+                { label: "Invest./mês",  actual: totals.inv / Math.max(1, chartData.length), target: activeMeta.investment,      fmt: formatCurrency,                         lowerIsBetter: false },
+                { label: "CPM (R$)",     actual: filtered.reduce((s, r) => s + r.cpm, 0) / Math.max(1, filtered.length),         target: activeMeta.cpm, fmt: (v: number) => `R$ ${v.toFixed(2)}`, lowerIsBetter: true },
+                { label: "CTR (%)",      actual: filtered.reduce((s, r) => s + r.ctr, 0) / Math.max(1, filtered.length),         target: activeMeta.ctr, fmt: (v: number) => `${v.toFixed(2)}%`, lowerIsBetter: false },
+                { label: "Tx. Página",   actual: filtered.reduce((s, r) => s + r.pageViewRate, 0) / Math.max(1, filtered.length),    target: activeMeta.pageViewRate, fmt: (v: number) => `${v.toFixed(1)}%`, lowerIsBetter: false },
+                { label: "Tx. Pré-chk", actual: filtered.reduce((s, r) => s + r.preCheckoutRate, 0) / Math.max(1, filtered.length), target: activeMeta.preCheckoutRate, fmt: (v: number) => `${v.toFixed(1)}%`, lowerIsBetter: false },
+                { label: "Vendas/mês",  actual: totals.sales / Math.max(1, chartData.length), target: activeMeta.salesTarget, fmt: (v: number) => v.toFixed(0), lowerIsBetter: false },
+              ].map(({ label, actual, target, fmt, lowerIsBetter }) => {
+                if (target === 0) return null;
+                const beating = lowerIsBetter ? actual <= target : actual >= target;
+                const pct = target > 0 ? (actual / target) * 100 : 0;
+                return (
+                  <div key={label} className={`rounded-lg border p-3 ${beating ? "border-emerald-200 bg-emerald-50" : "border-red-100 bg-red-50"}`}>
+                    <p className="text-xs text-slate-500">{label}</p>
+                    <p className="text-sm font-bold text-slate-800">{fmt(actual)}</p>
+                    <div className="mt-1 flex items-center gap-1">
+                      {beating ? <CheckCircle2 size={11} className="text-emerald-500" /> : <XCircle size={11} className="text-red-400" />}
+                      <p className="text-xs text-slate-500">meta: {fmt(target)}</p>
+                    </div>
+                    <div className="mt-1.5 h-1 w-full rounded-full bg-slate-200">
+                      <div className={`h-1 rounded-full ${beating ? "bg-emerald-500" : "bg-red-400"}`} style={{ width: `${Math.min(100, pct).toFixed(0)}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+        )}
+
+        {/* ── Data table ── */}
+        {hasData && (
+          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-800">Dados Mensais Detalhados</h3>
+              <p className="text-xs text-slate-400">{sortedFiltered.length} registros</p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 text-xs">
+                <thead className="bg-slate-50 text-left uppercase tracking-wide text-slate-500">
+                  <tr>
+                    {["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Vendas","Faturamento","CAC","ROAS",""].map((h) => (
+                      <th key={h} className="px-3 py-2 font-semibold">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-slate-700">
+                  {sortedFiltered.map((r, i) => {
+                    const realIdx = rows.indexOf(r);
+                    return (
+                      <tr key={i} className="group hover:bg-slate-50">
+                        <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{r.product}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{formatCurrency(r.investment)}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{formatNumber(r.reach)}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{formatNumber(r.clicks)}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{r.ctr.toFixed(2)}%</td>
+                        <td className="whitespace-nowrap px-3 py-2">{formatNumber(r.pageViews)}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{formatNumber(r.preCheckouts)}</td>
+                        <td className="whitespace-nowrap px-3 py-2 font-semibold">{formatNumber(r.sales)}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{r.revenue > 0 ? formatCurrency(r.revenue) : "—"}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{r.cac > 0 ? formatCurrency(r.cac) : "—"}</td>
+                        <td className="whitespace-nowrap px-3 py-2">{r.roas > 0 ? `${r.roas.toFixed(2)}x` : "—"}</td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
+                            <button onClick={() => openEdit(realIdx)} className="rounded p-1 text-slate-400 hover:bg-blue-50 hover:text-blue-600" title="Editar">
+                              <Pencil size={13} />
+                            </button>
+                            <button onClick={() => handleDelete(realIdx)} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500" title="Excluir">
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </article>
+        )}
+      </div>
+    </>
+  );
+}

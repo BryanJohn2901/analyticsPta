@@ -53,3 +53,17 @@ export interface BudgetDistributionPoint {
   campaignName: string;
   investment: number;
 }
+
+export interface AggregatedCampaign {
+  campaignName: string;
+  investment: number;
+  revenue: number;
+  clicks: number;
+  impressions: number;
+  conversions: number;
+  roas: number;
+  roi: number;
+  ctr: number;
+  cpa: number;
+  conversionRate: number;
+}

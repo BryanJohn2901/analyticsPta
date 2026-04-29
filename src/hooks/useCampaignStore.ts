@@ -1,0 +1,93 @@
+"use client";
+
+import { useCallback, useState } from "react";
+
+const STORAGE_KEY = "pta_campaign_store_v1";
+
+export interface CampaignConfig {
+  adAccountId: string;
+}
+
+interface StoreState {
+  activeCampaigns: Record<string, boolean>;
+  selectedGroup: string;
+  selectedTurma: string;
+  campaignConfigs: Record<string, CampaignConfig>;
+}
+
+const DEFAULT_STATE: StoreState = {
+  activeCampaigns: {},
+  selectedGroup: "all",
+  selectedTurma: "all",
+  campaignConfigs: {},
+};
+
+function loadStore(): StoreState {
+  if (typeof window === "undefined") return DEFAULT_STATE;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_STATE;
+    return { ...DEFAULT_STATE, ...JSON.parse(raw) };
+  } catch {
+    return DEFAULT_STATE;
+  }
+}
+
+function persist(state: StoreState): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch { /* storage unavailable */ }
+}
+
+export function useCampaignStore() {
+  const [state, setState] = useState<StoreState>(loadStore);
+
+  const setSelectedGroup = useCallback((group: string) => {
+    setState((prev) => {
+      const next = { ...prev, selectedGroup: group, selectedTurma: "all" };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const setSelectedTurma = useCallback((turma: string) => {
+    setState((prev) => {
+      const next = { ...prev, selectedTurma: turma };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const toggleActive = useCallback((group: string, isActive: boolean) => {
+    setState((prev) => {
+      const next = {
+        ...prev,
+        activeCampaigns: { ...prev.activeCampaigns, [group]: isActive },
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const setCampaignConfig = useCallback((group: string, config: CampaignConfig) => {
+    setState((prev) => {
+      const next = {
+        ...prev,
+        campaignConfigs: { ...prev.campaignConfigs, [group]: config },
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  return {
+    selectedGroup: state.selectedGroup,
+    selectedTurma: state.selectedTurma,
+    activeCampaigns: state.activeCampaigns,
+    campaignConfigs: state.campaignConfigs,
+    setSelectedGroup,
+    setSelectedTurma,
+    toggleActive,
+    setCampaignConfig,
+  };
+}

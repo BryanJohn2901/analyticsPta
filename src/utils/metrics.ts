@@ -1,4 +1,5 @@
 import {
+  AggregatedCampaign,
   BudgetDistributionPoint,
   CampaignComparisonPoint,
   CampaignData,
@@ -138,6 +139,36 @@ export const formatNumber = (value: number): string => {
 
 export const formatPercent = (value: number): string => {
   return `${value.toFixed(2)}%`;
+};
+
+export const aggregateByCampaign = (campaigns: CampaignData[]): AggregatedCampaign[] => {
+  const map = new Map<string, Omit<AggregatedCampaign, "roas" | "roi" | "ctr" | "cpa" | "conversionRate">>();
+
+  campaigns.forEach((c) => {
+    const current = map.get(c.campaignName) ?? {
+      campaignName: c.campaignName,
+      investment: 0,
+      revenue: 0,
+      clicks: 0,
+      impressions: 0,
+      conversions: 0,
+    };
+    current.investment += c.investment;
+    current.revenue += c.revenue;
+    current.clicks += c.clicks;
+    current.impressions += c.impressions;
+    current.conversions += c.conversions;
+    map.set(c.campaignName, current);
+  });
+
+  return Array.from(map.values()).map((agg) => ({
+    ...agg,
+    roas: safeDivide(agg.revenue, agg.investment),
+    roi: (safeDivide(agg.revenue, agg.investment) - 1) * 100,
+    ctr: safeDivide(agg.clicks, agg.impressions) * 100,
+    cpa: safeDivide(agg.investment, agg.conversions),
+    conversionRate: safeDivide(agg.conversions, agg.clicks) * 100,
+  }));
 };
 
 export const formatDatePtBr = (value: string): string => {
