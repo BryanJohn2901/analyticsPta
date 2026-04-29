@@ -6,15 +6,17 @@ import { DatabaseZap, FileUp, Link2, Loader2 } from "lucide-react";
 interface HeroInputProps {
   onSubmitUrl: (url: string) => Promise<void>;
   onSubmitCsv: (file: File) => Promise<void>;
-  onConnectRealtime: () => Promise<void>;
-  realtimeActive: boolean;
+  onConnectRealtime?: () => Promise<void>;
+  realtimeActive?: boolean;
+  showRealtime?: boolean;
 }
 
 export function HeroInput({
   onSubmitUrl,
   onSubmitCsv,
   onConnectRealtime,
-  realtimeActive,
+  realtimeActive = false,
+  showRealtime = true,
 }: HeroInputProps) {
   const [url, setUrl] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -50,6 +52,9 @@ export function HeroInput({
   };
 
   const handleConnectRealtime = async () => {
+    if (!onConnectRealtime) {
+      return;
+    }
     setLoadingMode("realtime");
     setLoading(true);
     try {
@@ -71,32 +76,34 @@ export function HeroInput({
         </p>
       </div>
 
-      <div className="mb-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
-        <p className="text-xs text-blue-800">
-          Modo Supabase Realtime:{" "}
-          <span className="font-semibold">
-            {realtimeActive ? "conectado" : "desconectado"}
-          </span>
-        </p>
-        <button
-          type="button"
-          onClick={handleConnectRealtime}
-          disabled={loading}
-          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {loading && loadingMode === "realtime" ? (
-            <>
-              <Loader2 size={14} className="animate-spin" />
-              Conectando...
-            </>
-          ) : (
-            <>
-              <DatabaseZap size={14} />
-              Conectar Realtime
-            </>
-          )}
-        </button>
-      </div>
+      {showRealtime ? (
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2">
+          <p className="text-xs text-blue-800">
+            Modo Supabase Realtime:{" "}
+            <span className="font-semibold">
+              {realtimeActive ? "conectado" : "desconectado"}
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={handleConnectRealtime}
+            disabled={loading}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {loading && loadingMode === "realtime" ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Conectando...
+              </>
+            ) : (
+              <>
+                <DatabaseZap size={14} />
+                Conectar Realtime
+              </>
+            )}
+          </button>
+        </div>
+      ) : null}
 
       <form onSubmit={handleSubmitUrl} className="flex flex-col gap-3 sm:flex-row">
         <div className="relative flex-1">
