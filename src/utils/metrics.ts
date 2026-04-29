@@ -1,0 +1,150 @@
+import {
+  BudgetDistributionPoint,
+  CampaignComparisonPoint,
+  CampaignData,
+  DashboardTotals,
+  DailyTrendPoint,
+} from "@/types/campaign";
+
+const safeDivide = (numerator: number, denominator: number): number => {
+  if (denominator === 0) {
+    return 0;
+  }
+  return numerator / denominator;
+};
+
+export const calculateDerivedMetrics = (
+  row: Omit<
+    CampaignData,
+    "id" | "ctr" | "cpc" | "cpa" | "roas" | "conversionRate"
+  >,
+  index: number,
+): CampaignData => {
+  const ctr = safeDivide(row.clicks, row.impressions) * 100;
+  const cpc = safeDivide(row.investment, row.clicks);
+  const cpa = safeDivide(row.investment, row.conversions);
+  const roas = safeDivide(row.revenue, row.investment);
+  const conversionRate = safeDivide(row.conversions, row.clicks) * 100;
+
+  return {
+    ...row,
+    id: `${row.campaignName}-${row.date}-${index}`,
+    ctr,
+    cpc,
+    cpa,
+    roas,
+    conversionRate,
+  };
+};
+
+export const aggregateTotals = (campaigns: CampaignData[]): DashboardTotals => {
+  const totals = campaigns.reduce(
+    (acc, campaign) => {
+      acc.totalInvestment += campaign.investment;
+      acc.totalRevenue += campaign.revenue;
+      acc.totalClicks += campaign.clicks;
+      acc.totalImpressions += campaign.impressions;
+      acc.totalConversions += campaign.conversions;
+      return acc;
+    },
+    {
+      totalInvestment: 0,
+      totalRevenue: 0,
+      totalClicks: 0,
+      totalImpressions: 0,
+      totalConversions: 0,
+    },
+  );
+
+  const roas = safeDivide(totals.totalRevenue, totals.totalInvestment);
+  const roi = (roas - 1) * 100;
+  const averageCpa = safeDivide(totals.totalInvestment, totals.totalConversions);
+  const averageCtr = safeDivide(totals.totalClicks, totals.totalImpressions) * 100;
+  const averageConversionRate =
+    safeDivide(totals.totalConversions, totals.totalClicks) * 100;
+
+  return {
+    ...totals,
+    roi,
+    roas,
+    averageCpa,
+    averageCtr,
+    averageConversionRate,
+  };
+};
+
+export const buildDailyTrend = (campaigns: CampaignData[]): DailyTrendPoint[] => {
+  const map = new Map<string, DailyTrendPoint>();
+
+  campaigns.forEach((campaign) => {
+    const current = map.get(campaign.date) ?? {
+      date: campaign.date,
+      clicks: 0,
+      conversions: 0,
+    };
+
+    current.clicks += campaign.clicks;
+    current.conversions += campaign.conversions;
+    map.set(campaign.date, current);
+  });
+
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+  );
+};
+
+export const buildCampaignComparison = (
+  campaigns: CampaignData[],
+): CampaignComparisonPoint[] => {
+  const map = new Map<string, CampaignComparisonPoint>();
+
+  campaigns.forEach((campaign) => {
+    const current = map.get(campaign.campaignName) ?? {
+      campaignName: campaign.campaignName,
+      investment: 0,
+      revenue: 0,
+    };
+
+    current.investment += campaign.investment;
+    current.revenue += campaign.revenue;
+    map.set(campaign.campaignName, current);
+  });
+
+  return Array.from(map.values()).sort((a, b) => b.investment - a.investment);
+};
+
+export const buildBudgetDistribution = (
+  campaigns: CampaignData[],
+): BudgetDistributionPoint[] => {
+  return buildCampaignComparison(campaigns).map((item) => ({
+    campaignName: item.campaignName,
+    investment: item.investment,
+  }));
+};
+
+export const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 2,
+  }).format(value);
+};
+
+export const formatNumber = (value: number): string => {
+  return new Intl.NumberFormat("pt-BR", {
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+export const formatPercent = (value: number): string => {
+  return `${value.toFixed(2)}%`;
+};
+
+export const formatDatePtBr = (value: string): string => {
+  const parsedDate = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return value;
+  }
+
+  return new Intl.DateTimeFormat("pt-BR").format(parsedDate);
+};
