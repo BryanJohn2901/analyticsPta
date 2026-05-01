@@ -3,8 +3,9 @@
 import { FormEvent, useMemo, useRef, useState } from "react";
 import {
   Activity, BadgeDollarSign, BarChart2, BookOpen, CircleDollarSign,
-  Dumbbell, FileUp, Filter, ImageIcon, Link2, Loader2, Target,
-  TrendingUp, Trophy, Upload, Users, Wallet, X, Zap,
+  Dumbbell, FileUp, Filter, ImageIcon, Link2, Loader2, Menu,
+  SlidersHorizontal, Target, TrendingUp, Trophy, Upload, Users,
+  Wallet, X, Zap,
 } from "lucide-react";
 import { CampaignData } from "@/types/campaign";
 import { CampaignConfig, useCampaignStore } from "@/hooks/useCampaignStore";
@@ -34,28 +35,30 @@ type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles";
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
-const MAIN_TABS: Array<{ id: MainTab; label: string; icon: React.ElementType }> = [
-  { id: "overview",  label: "Visão Geral",             icon: TrendingUp },
-  { id: "history",   label: "Histórico de Lançamento", icon: Wallet },
-  { id: "analysis",  label: "Análise da Campanha",     icon: BarChart2 },
-  { id: "creatives", label: "Melhores Criativos",      icon: ImageIcon },
-  { id: "profiles",  label: "Análise por Perfil",      icon: Users },
+const MAIN_TABS: Array<{ id: MainTab; label: string; shortLabel: string; icon: React.ElementType }> = [
+  { id: "overview",  label: "Visão Geral",      shortLabel: "Visão Geral",  icon: TrendingUp },
+  { id: "history",   label: "Histórico",         shortLabel: "Histórico",    icon: Wallet },
+  { id: "analysis",  label: "Análise",           shortLabel: "Análise",      icon: BarChart2 },
+  { id: "creatives", label: "Criativos",         shortLabel: "Criativos",    icon: ImageIcon },
+  { id: "profiles",  label: "Perfil de Anúncio", shortLabel: "Perfil",       icon: Users },
 ];
 
 // ─── Campaign groups ──────────────────────────────────────────────────────────
 
 interface GroupConfig {
   id: string; label: string; icon: React.ElementType;
-  iconBg: string; iconColor: string; dotActive: string; selectedBg: string; selectedText: string;
+  iconBg: string; iconColor: string;
+  activeDot: string; activePulse: string;
+  selectedBg: string; selectedText: string; selectedBorder: string;
 }
 
 const CAMPAIGN_GROUPS: GroupConfig[] = [
-  { id: "biomecanica",  label: "Biomecânica",        icon: BookOpen,  iconBg: "bg-blue-100",    iconColor: "text-blue-600",    dotActive: "bg-blue-500",    selectedBg: "bg-blue-50",    selectedText: "text-blue-700" },
-  { id: "musculacao",   label: "Musculação",          icon: Dumbbell,  iconBg: "bg-purple-100",  iconColor: "text-purple-600",  dotActive: "bg-purple-500",  selectedBg: "bg-purple-50",  selectedText: "text-purple-700" },
-  { id: "fisiologia",   label: "Fisiologia",          icon: Activity,  iconBg: "bg-emerald-100", iconColor: "text-emerald-600", dotActive: "bg-emerald-500", selectedBg: "bg-emerald-50", selectedText: "text-emerald-700" },
-  { id: "bodybuilding", label: "Bodybuilding",        icon: Trophy,    iconBg: "bg-orange-100",  iconColor: "text-orange-600",  dotActive: "bg-orange-500",  selectedBg: "bg-orange-50",  selectedText: "text-orange-700" },
-  { id: "feminino",     label: "Trein. Feminino",     icon: Users,     iconBg: "bg-pink-100",    iconColor: "text-pink-600",    dotActive: "bg-pink-500",    selectedBg: "bg-pink-50",    selectedText: "text-pink-700" },
-  { id: "funcional",    label: "Trein. Funcional",    icon: Zap,       iconBg: "bg-teal-100",    iconColor: "text-teal-600",    dotActive: "bg-teal-500",    selectedBg: "bg-teal-50",    selectedText: "text-teal-700" },
+  { id: "biomecanica",  label: "Biomecânica",     icon: BookOpen,  iconBg: "bg-blue-100",    iconColor: "text-blue-600",    activeDot: "bg-blue-500",    activePulse: "bg-blue-400",    selectedBg: "bg-blue-50",    selectedText: "text-blue-700",   selectedBorder: "border-blue-200" },
+  { id: "musculacao",   label: "Musculação",       icon: Dumbbell,  iconBg: "bg-purple-100",  iconColor: "text-purple-600",  activeDot: "bg-purple-500",  activePulse: "bg-purple-400",  selectedBg: "bg-purple-50",  selectedText: "text-purple-700", selectedBorder: "border-purple-200" },
+  { id: "fisiologia",   label: "Fisiologia",       icon: Activity,  iconBg: "bg-emerald-100", iconColor: "text-emerald-600", activeDot: "bg-emerald-500", activePulse: "bg-emerald-400", selectedBg: "bg-emerald-50", selectedText: "text-emerald-700",selectedBorder: "border-emerald-200" },
+  { id: "bodybuilding", label: "Bodybuilding",     icon: Trophy,    iconBg: "bg-orange-100",  iconColor: "text-orange-600",  activeDot: "bg-orange-500",  activePulse: "bg-orange-400",  selectedBg: "bg-orange-50",  selectedText: "text-orange-700", selectedBorder: "border-orange-200" },
+  { id: "feminino",     label: "Trein. Feminino",  icon: Users,     iconBg: "bg-pink-100",    iconColor: "text-pink-600",    activeDot: "bg-pink-500",    activePulse: "bg-pink-400",    selectedBg: "bg-pink-50",    selectedText: "text-pink-700",   selectedBorder: "border-pink-200" },
+  { id: "funcional",    label: "Trein. Funcional", icon: Zap,       iconBg: "bg-teal-100",    iconColor: "text-teal-600",    activeDot: "bg-teal-500",    activePulse: "bg-teal-400",    selectedBg: "bg-teal-50",    selectedText: "text-teal-700",   selectedBorder: "border-teal-200" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -79,6 +82,30 @@ const getSubLaunchCode = (name: string): string => {
   return match[1].replace(/[\s-]/g, "").toUpperCase();
 };
 
+// ─── Toggle Switch ────────────────────────────────────────────────────────────
+
+function ToggleSwitch({
+  checked, onChange, activeBg,
+}: { checked: boolean; onChange: (v: boolean) => void; activeBg: string }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={(e) => { e.stopPropagation(); onChange(!checked); }}
+      className={`relative h-4 w-7 flex-shrink-0 rounded-full transition-colors duration-200 focus:outline-none ${
+        checked ? activeBg : "bg-slate-200"
+      }`}
+    >
+      <span
+        className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all duration-200 ${
+          checked ? "left-[14px]" : "left-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
 // ─── Import popover ───────────────────────────────────────────────────────────
 
 type ImportTab = "sheets" | "csv" | "meta";
@@ -94,15 +121,15 @@ interface ImportPopoverProps {
 function ImportPopover({
   onImportCsv, onImportUrl, campaignConfigs, onSaveCampaignConfig, onClose,
 }: ImportPopoverProps) {
-  const [tab, setTab]           = useState<ImportTab>("sheets");
-  const [url, setUrl]           = useState("");
-  const [loading, setLoading]   = useState<"url" | "csv" | null>(null);
-  const [accessToken, setAccessToken] = useState(() => loadMetaCredentials().accessToken);
-  const [adAccountIds, setAdAccountIds] = useState<Record<string, string>>(() =>
+  const [tab, setTab]                     = useState<ImportTab>("sheets");
+  const [url, setUrl]                     = useState("");
+  const [loading, setLoading]             = useState<"url" | "csv" | null>(null);
+  const [accessToken, setAccessToken]     = useState(() => loadMetaCredentials().accessToken);
+  const [adAccountIds, setAdAccountIds]   = useState<Record<string, string>>(() =>
     Object.fromEntries(CAMPAIGN_GROUPS.map((g) => [g.id, campaignConfigs[g.id]?.adAccountId ?? ""])),
   );
-  const [metaSaved, setMetaSaved] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [metaSaved, setMetaSaved]         = useState(false);
+  const fileRef                           = useRef<HTMLInputElement>(null);
 
   const handleUrl = async (e: FormEvent) => {
     e.preventDefault();
@@ -133,90 +160,307 @@ function ImportPopover({
       tab === t ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-800"
     }`;
 
-  const inputCls = "h-8 w-full rounded-md border border-slate-300 px-2.5 text-xs text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200";
+  const inputCls = "h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100";
 
   return (
-    <div className="absolute right-0 top-full z-50 mt-1 w-96 rounded-xl border border-slate-200 bg-white p-4 shadow-xl">
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Importar dados</p>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
-      </div>
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 z-40" onClick={onClose} />
 
-      {/* Tabs */}
-      <div className="mb-4 flex gap-1 rounded-lg bg-slate-100 p-0.5">
-        <button className={tabCls("sheets")} onClick={() => setTab("sheets")}>Google Sheets</button>
-        <button className={tabCls("csv")}    onClick={() => setTab("csv")}>CSV</button>
-        <button className={tabCls("meta")}   onClick={() => setTab("meta")}>Meta Ads API</button>
-      </div>
-
-      {tab === "sheets" && (
-        <form onSubmit={handleUrl}>
-          <p className="mb-1.5 text-xs font-medium text-slate-600">URL da planilha</p>
-          <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Link2 size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              <input
-                type="url" required value={url} onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://docs.google.com/..."
-                className="h-8 w-full rounded-md border border-slate-300 pl-7 pr-2 text-xs text-slate-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-              />
-            </div>
-            <button type="submit" disabled={!!loading}
-              className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-600 text-white transition hover:bg-blue-700 disabled:opacity-60">
-              {loading === "url" ? <Loader2 size={12} className="animate-spin" /> : <TrendingUp size={12} />}
-            </button>
+      <div className="absolute right-0 top-full z-50 mt-2 w-[360px] rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:w-[420px]">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-bold text-slate-900">Importar dados</p>
+            <p className="text-[11px] text-slate-400">Conecte sua fonte de dados</p>
           </div>
-        </form>
-      )}
-
-      {tab === "csv" && (
-        <>
-          <p className="mb-1.5 text-xs font-medium text-slate-600">Arquivo CSV de campanhas</p>
-          <button type="button" onClick={() => fileRef.current?.click()} disabled={!!loading}
-            className="flex w-full items-center justify-center gap-2 rounded-md border border-dashed border-slate-300 py-3 text-xs font-medium text-slate-600 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-60">
-            {loading === "csv" ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-            {loading === "csv" ? "Importando…" : "Escolher arquivo .csv"}
+          <button
+            onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+          >
+            <X size={15} />
           </button>
-          <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
-        </>
-      )}
+        </div>
 
-      {tab === "meta" && (
-        <form onSubmit={handleSaveMeta} className="space-y-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-slate-600">
-              Access Token
-            </label>
-            <input
-              type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)}
-              placeholder="EAAxxxxx…" className={inputCls}
-            />
-            <p className="mt-0.5 text-[10px] text-slate-400">
-              Gere em Meta for Developers → Graph API Explorer
-            </p>
-          </div>
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-slate-600">Ad Account ID por campanha</p>
-            <div className="space-y-1.5">
-              {CAMPAIGN_GROUPS.map((g) => (
-                <label key={g.id} className="flex items-center gap-2">
-                  <span className="w-32 truncate text-xs text-slate-500">{g.label}</span>
+        {/* Tabs */}
+        <div className="mb-4 flex gap-1 rounded-xl bg-slate-100 p-1">
+          <button className={tabCls("sheets")} onClick={() => setTab("sheets")}>Google Sheets</button>
+          <button className={tabCls("csv")}    onClick={() => setTab("csv")}>CSV</button>
+          <button className={tabCls("meta")}   onClick={() => setTab("meta")}>Meta Ads</button>
+        </div>
+
+        {tab === "sheets" && (
+          <form onSubmit={handleUrl} className="space-y-3">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">URL da planilha pública</label>
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Link2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
-                    value={adAccountIds[g.id] ?? ""}
-                    onChange={(e) => setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }))}
-                    placeholder="act_123456789"
-                    className={`${inputCls} flex-1`}
+                    type="url" required value={url} onChange={(e) => setUrl(e.target.value)}
+                    placeholder="https://docs.google.com/spreadsheets/..."
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
                   />
-                </label>
-              ))}
+                </div>
+                <button type="submit" disabled={!!loading}
+                  className="flex h-9 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-semibold text-white transition hover:bg-blue-700 disabled:opacity-60">
+                  {loading === "url" ? <Loader2 size={12} className="animate-spin" /> : <TrendingUp size={12} />}
+                  {loading === "url" ? "Carregando…" : "Carregar"}
+                </button>
+              </div>
+              <p className="mt-1.5 text-[10px] text-slate-400">A planilha precisa estar com acesso público (Qualquer pessoa com o link)</p>
             </div>
+          </form>
+        )}
+
+        {tab === "csv" && (
+          <div className="space-y-3">
+            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Arquivo CSV exportado</label>
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={!!loading}
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50 disabled:opacity-60">
+              {loading === "csv"
+                ? <Loader2 size={20} className="animate-spin text-blue-500" />
+                : <Upload size={20} className="text-slate-400" />}
+              <div>
+                <p className="text-xs font-semibold text-slate-700">
+                  {loading === "csv" ? "Importando arquivo…" : "Clique para selecionar"}
+                </p>
+                <p className="text-[10px] text-slate-400">Somente arquivos .csv</p>
+              </div>
+            </button>
+            <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
           </div>
-          <button type="submit"
-            className={`flex w-full items-center justify-center gap-1.5 rounded-md py-2 text-xs font-semibold text-white transition ${metaSaved ? "bg-emerald-600" : "bg-blue-600 hover:bg-blue-700"}`}>
-            {metaSaved ? "Salvo!" : "Salvar credenciais"}
-          </button>
-        </form>
-      )}
+        )}
+
+        {tab === "meta" && (
+          <form onSubmit={handleSaveMeta} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Access Token</label>
+              <input
+                type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)}
+                placeholder="EAAxxxxx…" className={inputCls}
+              />
+              <p className="mt-1 text-[10px] text-slate-400">
+                Obtenha em <span className="font-medium text-slate-600">Meta for Developers → Graph API Explorer</span>
+              </p>
+            </div>
+            <div>
+              <label className="mb-2 block text-xs font-semibold text-slate-700">Ad Account ID por campanha</label>
+              <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+                {CAMPAIGN_GROUPS.map((g) => (
+                  <div key={g.id} className="flex items-center gap-2">
+                    <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${g.iconBg}`}>
+                      <g.icon size={10} className={g.iconColor} />
+                    </div>
+                    <span className="w-28 flex-shrink-0 truncate text-[11px] text-slate-500">{g.label}</span>
+                    <input
+                      value={adAccountIds[g.id] ?? ""}
+                      onChange={(e) => setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }))}
+                      placeholder="act_123456789"
+                      className="h-7 flex-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+            <button type="submit"
+              className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold text-white transition ${metaSaved ? "bg-emerald-600" : "bg-blue-600 hover:bg-blue-700"}`}>
+              {metaSaved ? "✓ Credenciais salvas!" : "Salvar credenciais"}
+            </button>
+          </form>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ─── Campaign sidebar content ─────────────────────────────────────────────────
+
+interface CampaignPanelProps {
+  selectedGroup: string;
+  selectedTurma: string;
+  activeCampaigns: Record<string, boolean>;
+  turmasByGroup: Record<string, string[]>;
+  dateFrom: string;
+  dateTo: string;
+  searchCampaign: string;
+  onSelectGroup: (id: string) => void;
+  onSelectTurma: (t: string) => void;
+  onToggleActive: (id: string, v: boolean) => void;
+  onDateFrom: (v: string) => void;
+  onDateTo: (v: string) => void;
+  onSearch: (v: string) => void;
+  onClearFilters: () => void;
+  hasActiveFilters: boolean;
+}
+
+function CampaignPanel({
+  selectedGroup, selectedTurma, activeCampaigns, turmasByGroup,
+  dateFrom, dateTo, searchCampaign,
+  onSelectGroup, onSelectTurma, onToggleActive,
+  onDateFrom, onDateTo, onSearch, onClearFilters, hasActiveFilters,
+}: CampaignPanelProps) {
+  const activeCount = Object.values(activeCampaigns).filter(Boolean).length;
+
+  return (
+    <div className="flex h-full flex-col">
+      {/* Header */}
+      <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-100 px-4">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Campanhas</p>
+        {activeCount > 0 && (
+          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-600">
+            {activeCount} ativa{activeCount !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Campaign list */}
+      <div className="flex-1 overflow-y-auto py-1">
+        {/* "All" option */}
+        <button
+          onClick={() => onSelectGroup("all")}
+          className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition ${
+            selectedGroup === "all" ? "bg-slate-100" : "hover:bg-slate-50"
+          }`}
+        >
+          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-slate-300" />
+          <span className={`text-xs font-semibold ${selectedGroup === "all" ? "text-slate-800" : "text-slate-500"}`}>
+            Todas as campanhas
+          </span>
+        </button>
+
+        <div className="mx-4 my-1 h-px bg-slate-100" />
+
+        {CAMPAIGN_GROUPS.map((group) => {
+          const isSelected = selectedGroup === group.id;
+          const isActive   = activeCampaigns[group.id] ?? false;
+          const turmaList  = turmasByGroup[group.id] ?? [];
+
+          return (
+            <div key={group.id}>
+              <button
+                onClick={() => onSelectGroup(isSelected ? "all" : group.id)}
+                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition ${
+                  isSelected
+                    ? `${group.selectedBg} border-r-2 ${group.selectedBorder}`
+                    : "hover:bg-slate-50"
+                }`}
+              >
+                {/* Active dot with pulse */}
+                <span className="relative flex h-2 w-2 flex-shrink-0 items-center justify-center">
+                  {isActive && (
+                    <span className={`absolute h-3 w-3 animate-ping rounded-full opacity-40 ${group.activePulse}`} />
+                  )}
+                  <span className={`relative h-2 w-2 rounded-full ${isActive ? group.activeDot : "bg-slate-200"}`} />
+                </span>
+
+                {/* Icon */}
+                <div className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ${group.iconBg}`}>
+                  <group.icon size={12} className={group.iconColor} />
+                </div>
+
+                {/* Label */}
+                <span className={`flex-1 truncate text-xs font-medium ${isSelected ? group.selectedText : "text-slate-700"}`}>
+                  {group.label}
+                </span>
+
+                {/* Toggle switch */}
+                <ToggleSwitch
+                  checked={isActive}
+                  onChange={(v) => onToggleActive(group.id, v)}
+                  activeBg={group.activeDot}
+                />
+              </button>
+
+              {/* Turma sub-list */}
+              {isSelected && (
+                <div className={`${group.selectedBg} px-4 pb-2.5 pt-1`}>
+                  <p className="mb-1.5 ml-[38px] text-[10px] font-semibold uppercase tracking-wider text-slate-400">Turmas</p>
+                  <div className="ml-[38px] flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => onSelectTurma("all")}
+                      className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
+                        selectedTurma === "all"
+                          ? "bg-blue-600 text-white shadow-sm"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      Todas
+                    </button>
+                    {turmaList.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => onSelectTurma(t)}
+                        className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
+                          selectedTurma === t
+                            ? "bg-blue-600 text-white shadow-sm"
+                            : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                    {turmaList.length === 0 && (
+                      <span className="text-[11px] italic text-slate-400">Sem turmas carregadas</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Filters */}
+      <div className="flex-shrink-0 border-t border-slate-100 p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+            <SlidersHorizontal size={10} /> Filtros
+          </p>
+          {hasActiveFilters && (
+            <button
+              onClick={onClearFilters}
+              className="text-[10px] font-semibold text-red-500 transition hover:text-red-700"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold text-slate-500">De</span>
+            <input
+              type="date" value={dateFrom} onChange={(e) => onDateFrom(e.target.value)}
+              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span className="text-[10px] font-semibold text-slate-500">Até</span>
+            <input
+              type="date" value={dateTo} onChange={(e) => onDateTo(e.target.value)}
+              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white"
+            />
+          </label>
+        </div>
+
+        <div className="relative">
+          <input
+            type="text"
+            value={searchCampaign}
+            onChange={(e) => onSearch(e.target.value)}
+            placeholder="Buscar campanha…"
+            className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white"
+          />
+          {searchCampaign && (
+            <button
+              onClick={() => onSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -224,18 +468,19 @@ function ImportPopover({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: DashboardProps) {
-  const [mainTab, setMainTab]           = useState<MainTab>("overview");
-  const [dateFrom, setDateFrom]         = useState("");
-  const [dateTo, setDateTo]             = useState("");
+  const [mainTab, setMainTab]               = useState<MainTab>("overview");
+  const [dateFrom, setDateFrom]             = useState("");
+  const [dateTo, setDateTo]                 = useState("");
   const [searchCampaign, setSearchCampaign] = useState("");
-  const [showImport, setShowImport]     = useState(false);
+  const [showImport, setShowImport]         = useState(false);
+  const [showMobileNav, setShowMobileNav]   = useState(false);
+  const [showMobilePanel, setShowMobilePanel] = useState(false);
 
   const {
     selectedGroup, selectedTurma, activeCampaigns, campaignConfigs,
     setSelectedGroup, setSelectedTurma, toggleActive, setCampaignConfig,
   } = useCampaignStore();
 
-  // Turmas per group derived from loaded data
   const turmasByGroup = useMemo<Record<string, string[]>>(() => {
     const map: Record<string, Set<string>> = {};
     campaigns.forEach((item) => {
@@ -270,124 +515,220 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
   const budgetDistribution = buildBudgetDistribution(filteredCampaigns);
   const aggregated         = useMemo(() => aggregateByCampaign(filteredCampaigns), [filteredCampaigns]);
 
-  // Right panel is only shown on tabs where campaign filter is relevant
-  const showRightPanel = mainTab !== "history" && mainTab !== "profiles";
+  const showRightPanel   = mainTab !== "history" && mainTab !== "profiles";
+  const currentTab       = MAIN_TABS.find((t) => t.id === mainTab)!;
+  const hasActiveFilters = !!(dateFrom || dateTo || searchCampaign || selectedGroup !== "all");
 
-  const currentTabLabel = MAIN_TABS.find((t) => t.id === mainTab)?.label ?? "";
+  const handleClearFilters = () => {
+    setDateFrom(""); setDateTo(""); setSearchCampaign(""); setSelectedGroup("all");
+  };
+
+  const handleSelectGroup = (id: string) => {
+    setSelectedGroup(id);
+    setShowMobilePanel(false);
+  };
+
+  const navContent = (
+    <nav className="flex-1 overflow-y-auto px-3 py-4">
+      <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Menu</p>
+      <ul className="space-y-0.5">
+        {MAIN_TABS.map(({ id, label, icon: Icon }) => (
+          <li key={id}>
+            <button
+              onClick={() => { setMainTab(id); setShowMobileNav(false); }}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+                mainTab === id
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <Icon size={16} className="flex-shrink-0" />
+              <span className="truncate">{label}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+
+  const campaignPanelProps: CampaignPanelProps = {
+    selectedGroup, selectedTurma, activeCampaigns, turmasByGroup,
+    dateFrom, dateTo, searchCampaign,
+    onSelectGroup: handleSelectGroup,
+    onSelectTurma: (t) => { setSelectedTurma(t); setShowMobilePanel(false); },
+    onToggleActive: toggleActive,
+    onDateFrom: setDateFrom,
+    onDateTo: setDateTo,
+    onSearch: setSearchCampaign,
+    onClearFilters: handleClearFilters,
+    hasActiveFilters,
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-100">
 
+      {/* ── Mobile nav overlay ── */}
+      {showMobileNav && (
+        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setShowMobileNav(false)}>
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+        </div>
+      )}
+
+      {/* ── Mobile campaign panel overlay ── */}
+      {showMobilePanel && (
+        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setShowMobilePanel(false)}>
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+        </div>
+      )}
+
       {/* ── Left sidebar ── */}
-      <aside className="flex w-[220px] flex-shrink-0 flex-col border-r border-slate-200 bg-white">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r border-slate-200 bg-white transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto ${
+          showMobileNav ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+        } lg:flex lg:w-[220px] lg:flex-shrink-0`}
+      >
         {/* Brand */}
-        <div className="flex h-14 items-center gap-2.5 border-b border-slate-200 px-5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600">
-            <TrendingUp size={14} className="text-white" />
+        <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 shadow-sm">
+              <TrendingUp size={15} className="text-white" />
+            </div>
+            <span className="text-sm font-bold text-slate-900">Analytics PTA</span>
           </div>
-          <span className="text-sm font-bold text-slate-900">Analytics PTA</span>
+          <button
+            onClick={() => setShowMobileNav(false)}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 lg:hidden"
+          >
+            <X size={14} />
+          </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3">
-          <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Menu</p>
-          <ul className="space-y-0.5">
-            {MAIN_TABS.map(({ id, label, icon: Icon }) => (
-              <li key={id}>
-                <button
-                  onClick={() => setMainTab(id)}
-                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-medium transition ${
-                    mainTab === id
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                  }`}
-                >
-                  <Icon size={15} />
-                  {label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {navContent}
 
-        {/* Sidebar footer */}
-        <div className="border-t border-slate-200 p-4">
-          <p className="text-xs text-slate-400">
-            {campaigns.length > 0
-              ? `${campaigns.length} registros carregados`
-              : "Nenhum dado importado"}
-          </p>
+        {/* Footer */}
+        <div className="border-t border-slate-100 px-5 py-4">
+          <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${campaigns.length > 0 ? "bg-emerald-50" : "bg-slate-50"}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${campaigns.length > 0 ? "bg-emerald-500" : "bg-slate-300"}`} />
+            <p className={`text-[11px] font-medium ${campaigns.length > 0 ? "text-emerald-700" : "text-slate-400"}`}>
+              {campaigns.length > 0
+                ? `${campaigns.length} registros carregados`
+                : "Nenhum dado importado"}
+            </p>
+          </div>
         </div>
       </aside>
 
-      {/* ── Center: header + content ── */}
+      {/* ── Center ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* Top header */}
-        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
-            <span className="text-slate-400">Dashboard</span>
-            <span>/</span>
-            <span className="font-semibold text-slate-800">{currentTabLabel}</span>
+        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
+          <div className="flex items-center gap-3">
+            {/* Hamburger (mobile) */}
+            <button
+              onClick={() => setShowMobileNav(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 lg:hidden"
+            >
+              <Menu size={18} />
+            </button>
+
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1.5 text-sm">
+              <span className="hidden text-slate-400 md:inline">Dashboard</span>
+              <span className="hidden text-slate-300 md:inline">/</span>
+              <span className="font-semibold text-slate-800">{currentTab.label}</span>
+            </div>
           </div>
 
-          <div className="relative">
-            <button
-              onClick={() => setShowImport((v) => !v)}
-              className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              <FileUp size={13} />
-              Importar dados
-            </button>
-            {showImport && (
-              <ImportPopover
-                onImportCsv={onImportCsv}
-                onImportUrl={onImportUrl}
-                campaignConfigs={campaignConfigs}
-                onSaveCampaignConfig={setCampaignConfig}
-                onClose={() => setShowImport(false)}
-              />
+          <div className="flex items-center gap-2">
+            {/* Mobile campaign panel button */}
+            {showRightPanel && (
+              <button
+                onClick={() => setShowMobilePanel(true)}
+                className="relative flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 lg:hidden"
+              >
+                <Filter size={13} />
+                Filtros
+                {hasActiveFilters && (
+                  <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-blue-600" />
+                )}
+              </button>
             )}
+
+            {/* Import button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowImport((v) => !v)}
+                className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
+                  showImport
+                    ? "border-blue-300 bg-blue-50 text-blue-700"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <FileUp size={13} />
+                <span className="hidden sm:inline">Importar dados</span>
+                <span className="sm:hidden">Importar</span>
+              </button>
+              {showImport && (
+                <ImportPopover
+                  onImportCsv={onImportCsv}
+                  onImportUrl={onImportUrl}
+                  campaignConfigs={campaignConfigs}
+                  onSaveCampaignConfig={setCampaignConfig}
+                  onClose={() => setShowImport(false)}
+                />
+              )}
+            </div>
           </div>
         </header>
 
         {/* Error banner */}
         {error && (
-          <div className="mx-6 mt-4 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-            <span className="font-semibold">Erro:</span> {error}
+          <div className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 md:mx-6">
+            <span className="font-bold">Erro:</span> {error}
           </div>
         )}
 
         {/* Main scrollable content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6">
 
           {mainTab === "overview" && (
             campaigns.length === 0 ? (
-              <div className="flex flex-col items-center gap-4 rounded-xl border border-slate-200 bg-white py-20 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-                  <TrendingUp size={24} className="text-slate-300" />
+              /* Empty state */
+              <div className="flex flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm md:py-24">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+                  <TrendingUp size={28} className="text-slate-300" />
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-600">Nenhum dado de campanha carregado</p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Clique em <strong>Importar dados</strong> no canto superior direito para começar.
+                <div className="space-y-1">
+                  <p className="text-base font-bold text-slate-700">Nenhuma campanha carregada</p>
+                  <p className="text-sm text-slate-400">
+                    Clique em <span className="font-semibold text-blue-600">Importar dados</span> para começar
                   </p>
                 </div>
+                <button
+                  onClick={() => setShowImport(true)}
+                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                >
+                  <FileUp size={15} /> Importar dados
+                </button>
               </div>
             ) : (
-              <div className="space-y-6">
-                {campaigns.length > 0 && filteredCampaigns.length === 0 && (
-                  <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-700">
-                    <Filter size={15} />
-                    <p className="text-sm">Nenhum dado para os filtros aplicados.</p>
+              <div className="space-y-5">
+                {filteredCampaigns.length === 0 && (
+                  <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                    <Filter size={15} className="flex-shrink-0" />
+                    Nenhuma campanha encontrada com os filtros aplicados.
+                    <button onClick={handleClearFilters} className="ml-auto text-xs font-semibold underline">
+                      Limpar filtros
+                    </button>
                   </div>
                 )}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                  <KpiCard title="Total Investido"     value={formatCurrency(totals.totalInvestment)} subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}               icon={Wallet} />
-                  <KpiCard title="Total de Receita"    value={formatCurrency(totals.totalRevenue)}    subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}                              icon={CircleDollarSign} />
-                  <KpiCard title="Total de Conversões" value={formatNumber(totals.totalConversions)}  subtitle={`Tx. Conversão: ${formatPercent(totals.averageConversionRate)}`} icon={Target} />
-                  <KpiCard title="ROI Geral"           value={formatPercent(totals.roi)}             subtitle="Retorno sobre investimento"                                       icon={TrendingUp} />
-                  <KpiCard title="CPA Médio"           value={formatCurrency(totals.averageCpa)}     subtitle="Custo por aquisição"                                              icon={BadgeDollarSign} />
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+                  <KpiCard title="Investido"     value={formatCurrency(totals.totalInvestment)} subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}               icon={Wallet} />
+                  <KpiCard title="Receita"        value={formatCurrency(totals.totalRevenue)}    subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}                              icon={CircleDollarSign} />
+                  <KpiCard title="Conversões"     value={formatNumber(totals.totalConversions)}  subtitle={`Tx.: ${formatPercent(totals.averageConversionRate)}`}            icon={Target} />
+                  <KpiCard title="ROI"            value={formatPercent(totals.roi)}              subtitle="Retorno sobre investimento"                                       icon={TrendingUp} />
+                  <KpiCard title="CPA Médio"      value={formatCurrency(totals.averageCpa)}      subtitle="Custo por aquisição"                                              icon={BadgeDollarSign} />
                 </div>
                 <ChartsSection dailyTrend={dailyTrend} campaignComparison={campaignComparison} budgetDistribution={budgetDistribution} />
                 <CampaignTable campaigns={filteredCampaigns} />
@@ -409,147 +750,17 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
         </main>
       </div>
 
-      {/* ── Right sidebar: campaign panel ── */}
+      {/* ── Right sidebar — desktop ── */}
       {showRightPanel && (
-        <aside className="flex w-[264px] flex-shrink-0 flex-col overflow-y-auto border-l border-slate-200 bg-white">
+        <aside className="hidden w-[260px] flex-shrink-0 border-l border-slate-200 bg-white lg:flex lg:flex-col">
+          <CampaignPanel {...campaignPanelProps} />
+        </aside>
+      )}
 
-          {/* Panel header */}
-          <div className="flex h-14 flex-shrink-0 items-center border-b border-slate-200 px-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Campanhas</p>
-          </div>
-
-          {/* Campaign list */}
-          <div className="flex-1 overflow-y-auto py-2">
-            {CAMPAIGN_GROUPS.map((group) => {
-              const Icon = group.icon;
-              const isSelected = selectedGroup === group.id;
-              const isActive   = activeCampaigns[group.id] ?? false;
-              const turmaList  = turmasByGroup[group.id] ?? [];
-
-              return (
-                <div key={group.id}>
-                  <button
-                    onClick={() => setSelectedGroup(isSelected ? "all" : group.id)}
-                    className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition ${
-                      isSelected ? group.selectedBg : "hover:bg-slate-50"
-                    }`}
-                  >
-                    {/* Active status dot */}
-                    <span
-                      title={isActive ? "Ativa" : "Inativa"}
-                      className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${isActive ? group.dotActive : "bg-slate-300"}`}
-                    />
-
-                    {/* Icon */}
-                    <div className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ${group.iconBg}`}>
-                      <Icon size={12} className={group.iconColor} />
-                    </div>
-
-                    {/* Label */}
-                    <span className={`flex-1 text-xs font-medium ${isSelected ? group.selectedText : "text-slate-700"}`}>
-                      {group.label}
-                    </span>
-
-                    {/* Active checkbox */}
-                    <label
-                      className="flex items-center"
-                      onClick={(e) => e.stopPropagation()}
-                      title="Marcar como ativa"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isActive}
-                        onChange={(e) => toggleActive(group.id, e.target.checked)}
-                        className="h-3 w-3 rounded accent-blue-600"
-                      />
-                    </label>
-                  </button>
-
-                  {/* Turma sub-items (only when this campaign is selected) */}
-                  {isSelected && (
-                    <div className={`${group.selectedBg} border-b border-slate-100 px-4 pb-2.5`}>
-                      <div className="ml-[26px] flex flex-wrap gap-1.5 pt-1">
-                        <button
-                          onClick={() => setSelectedTurma("all")}
-                          className={`rounded px-2 py-0.5 text-[11px] font-medium transition ${
-                            selectedTurma === "all"
-                              ? "bg-blue-600 text-white"
-                              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
-                          }`}
-                        >
-                          Todas
-                        </button>
-                        {turmaList.map((t) => (
-                          <button
-                            key={t}
-                            onClick={() => setSelectedTurma(t)}
-                            className={`rounded px-2 py-0.5 text-[11px] font-medium transition ${
-                              selectedTurma === t
-                                ? "bg-blue-600 text-white"
-                                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                        {turmaList.length === 0 && (
-                          <span className="text-[11px] italic text-slate-400">Sem turmas nos dados</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Filters section */}
-          <div className="border-t border-slate-200 p-4 space-y-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Filtros</p>
-
-            <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-600">
-              Data inicial
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-8 rounded-md border border-slate-300 px-2 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-600">
-              Data final
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-8 rounded-md border border-slate-300 px-2 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-[11px] font-medium text-slate-600">
-              Buscar campanha
-              <input
-                type="text"
-                value={searchCampaign}
-                onChange={(e) => setSearchCampaign(e.target.value)}
-                placeholder="Nome da campanha…"
-                className="h-8 rounded-md border border-slate-300 px-2 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-200"
-              />
-            </label>
-
-            {(dateFrom || dateTo || searchCampaign || selectedGroup !== "all") && (
-              <button
-                onClick={() => {
-                  setDateFrom(""); setDateTo("");
-                  setSearchCampaign(""); setSelectedGroup("all");
-                }}
-                className="w-full rounded-md border border-slate-200 py-1.5 text-[11px] font-medium text-slate-500 transition hover:bg-slate-50"
-              >
-                Limpar filtros
-              </button>
-            )}
-          </div>
+      {/* ── Right panel — mobile drawer ── */}
+      {showRightPanel && showMobilePanel && (
+        <aside className="fixed inset-y-0 right-0 z-50 flex w-[280px] flex-col border-l border-slate-200 bg-white shadow-2xl lg:hidden">
+          <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}
 
