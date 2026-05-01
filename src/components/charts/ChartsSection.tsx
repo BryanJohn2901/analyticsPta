@@ -49,10 +49,18 @@ const TOOLTIP_STYLE = {
   cursor: { fill: "#f8fafc" },
 };
 
-// Smart interval so labels never overlap. Target ≤ 8 visible ticks.
+// Smart interval so labels never overlap. Target ≤ 7 visible ticks.
 function xInterval(length: number): number {
-  if (length <= 8) return 0;
-  return Math.ceil(length / 7) - 1;
+  if (length <= 7)  return 0;
+  if (length <= 14) return 1;
+  if (length <= 30) return Math.ceil(length / 6) - 1;
+  if (length <= 90) return Math.ceil(length / 5) - 1;
+  return Math.ceil(length / 4) - 1;
+}
+
+// Tall enough to hold rotated labels without clipping.
+function xHeight(length: number): number {
+  return length > 7 ? 52 : 28;
 }
 
 // ─── Toggle group ─────────────────────────────────────────────────────────────
@@ -163,9 +171,9 @@ export function ChartsSection({
           {...AXIS_STYLE}
           tickFormatter={(v) => formatDatePtBr(String(v))}
           interval={interval}
-          angle={interval > 0 ? -30 : 0}
+          angle={interval > 0 ? -40 : 0}
           textAnchor={interval > 0 ? "end" : "middle"}
-          height={interval > 0 ? 44 : 28}
+          height={xHeight(dailyTrend.length)}
         />
         <YAxis
           {...AXIS_STYLE}
@@ -190,9 +198,9 @@ export function ChartsSection({
           {...AXIS_STYLE}
           tickFormatter={(v) => formatDatePtBr(String(v))}
           interval={interval}
-          angle={interval > 0 ? -30 : 0}
+          angle={interval > 0 ? -40 : 0}
           textAnchor={interval > 0 ? "end" : "middle"}
-          height={interval > 0 ? 44 : 28}
+          height={xHeight(dailyTrend.length)}
         />
         <YAxis {...AXIS_STYLE} tickFormatter={(v) => formatNumber(Number(v))} width={48} />
         <Tooltip
