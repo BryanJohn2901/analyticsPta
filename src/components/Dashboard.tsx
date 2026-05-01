@@ -337,9 +337,13 @@ function CampaignPanel({
 
           return (
             <div key={group.id}>
-              <button
+              {/* div instead of button to avoid nested button violation (ToggleSwitch is a button) */}
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectGroup(isSelected ? "all" : group.id)}
-                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition ${
+                onKeyDown={(e) => e.key === "Enter" && onSelectGroup(isSelected ? "all" : group.id)}
+                className={`flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left transition ${
                   isSelected
                     ? `${group.selectedBg} border-r-2 ${group.selectedBorder}`
                     : "hover:bg-slate-50"
@@ -363,13 +367,13 @@ function CampaignPanel({
                   {group.label}
                 </span>
 
-                {/* Toggle switch */}
+                {/* Toggle switch — stop propagation so clicking it doesn't also select the group */}
                 <ToggleSwitch
                   checked={isActive}
                   onChange={(v) => onToggleActive(group.id, v)}
                   activeBg={group.activeDot}
                 />
-              </button>
+              </div>
 
               {/* Turma sub-list */}
               {isSelected && (
