@@ -728,11 +728,11 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-                  <KpiCard title="Investido"     value={formatCurrency(totals.totalInvestment)} subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}               icon={Wallet} />
-                  <KpiCard title="Receita"        value={formatCurrency(totals.totalRevenue)}    subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}                              icon={CircleDollarSign} />
-                  <KpiCard title="Conversões"     value={formatNumber(totals.totalConversions)}  subtitle={`Tx.: ${formatPercent(totals.averageConversionRate)}`}            icon={Target} />
-                  <KpiCard title="ROI"            value={formatPercent(totals.roi)}              subtitle="Retorno sobre investimento"                                       icon={TrendingUp} />
-                  <KpiCard title="CPA Médio"      value={formatCurrency(totals.averageCpa)}      subtitle="Custo por aquisição"                                              icon={BadgeDollarSign} />
+                  <KpiCard title="Total Investido"  value={formatCurrency(totals.totalInvestment)} subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}               icon={Wallet}           accentColor="blue" />
+                  <KpiCard title="Receita Total"     value={formatCurrency(totals.totalRevenue)}    subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}                              icon={CircleDollarSign} accentColor="emerald" />
+                  <KpiCard title="Conversões"        value={formatNumber(totals.totalConversions)}  subtitle={`Tx.: ${formatPercent(totals.averageConversionRate)}`}            icon={Target}           accentColor="violet" />
+                  <KpiCard title="ROI"               value={formatPercent(totals.roi)}              subtitle="Retorno sobre investimento"                                       icon={TrendingUp}       accentColor="amber" />
+                  <KpiCard title="CPA Médio"         value={formatCurrency(totals.averageCpa)}      subtitle="Custo por aquisição"                                              icon={BadgeDollarSign}  accentColor="rose"  invertTrend />
                 </div>
                 <ChartsSection dailyTrend={dailyTrend} campaignComparison={campaignComparison} budgetDistribution={budgetDistribution} />
                 <CampaignTable campaigns={filteredCampaigns} />

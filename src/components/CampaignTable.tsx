@@ -1,89 +1,156 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { CampaignData } from "@/types/campaign";
 import {
-  formatCurrency,
-  formatDatePtBr,
-  formatNumber,
-  formatPercent,
+  formatCurrency, formatDatePtBr, formatNumber, formatPercent,
 } from "@/utils/metrics";
 
 interface CampaignTableProps {
   campaigns: CampaignData[];
 }
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 10;
+
+// ─── Badge helpers ────────────────────────────────────────────────────────────
+
+function RoasBadge({ value }: { value: number }) {
+  const cls =
+    value >= 3   ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+    : value >= 1.5 ? "bg-blue-50 text-blue-700 ring-blue-200"
+    : value >= 1   ? "bg-amber-50 text-amber-700 ring-amber-200"
+    : "bg-red-50 text-red-600 ring-red-200";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ring-1 ${cls}`}>
+      {value.toFixed(2)}x
+    </span>
+  );
+}
+
+function CtrBadge({ value }: { value: number }) {
+  const cls =
+    value >= 3   ? "bg-emerald-50 text-emerald-700"
+    : value >= 1.5 ? "bg-blue-50 text-blue-700"
+    : value >= 0.5 ? "bg-slate-100 text-slate-600"
+    : "bg-red-50 text-red-500";
+  return (
+    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-semibold ${cls}`}>
+      {formatPercent(value)}
+    </span>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function CampaignTable({ campaigns }: CampaignTableProps) {
   const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(campaigns.length / ITEMS_PER_PAGE));
-  const currentPage = Math.min(page, totalPages);
+  const totalPages   = Math.max(1, Math.ceil(campaigns.length / ITEMS_PER_PAGE));
+  const currentPage  = Math.min(page, totalPages);
 
   const visibleRows = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return campaigns.slice(start, start + ITEMS_PER_PAGE);
   }, [campaigns, currentPage]);
 
+  const firstIdx = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const lastIdx  = Math.min(currentPage * ITEMS_PER_PAGE, campaigns.length);
+
   return (
-    <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-semibold text-slate-900">
-          Performance por campanha
-        </h3>
-        <p className="text-xs text-slate-500">
-          Página {currentPage} de {totalPages}
-        </p>
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">Performance por Campanha</h3>
+          <p className="mt-0.5 text-xs text-slate-400">
+            {firstIdx}–{lastIdx} de {campaigns.length} registros
+          </p>
+        </div>
+        {/* Pagination */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <span className="min-w-[52px] text-center text-xs font-semibold text-slate-600">
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
       </div>
 
+      {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-600">
-            <tr>
-              <th className="px-3 py-3">Data</th>
-              <th className="px-3 py-3">Campanha</th>
-              <th className="px-3 py-3">Investimento</th>
-              <th className="px-3 py-3">Receita</th>
-              <th className="px-3 py-3">Cliques</th>
-              <th className="px-3 py-3">Conversões</th>
-              <th className="px-3 py-3">CTR</th>
-              <th className="px-3 py-3">CPC</th>
-              <th className="px-3 py-3">CPA</th>
-              <th className="px-3 py-3">ROAS</th>
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="bg-slate-50 text-left">
+              {[
+                { label: "Data",         cls: "w-24" },
+                { label: "Campanha",     cls: "min-w-[180px]" },
+                { label: "Investimento", cls: "text-right" },
+                { label: "Receita",      cls: "text-right" },
+                { label: "Cliques",      cls: "text-right" },
+                { label: "Conversões",   cls: "text-right" },
+                { label: "CTR",          cls: "text-center" },
+                { label: "CPC",          cls: "text-right" },
+                { label: "CPA",          cls: "text-right" },
+                { label: "ROAS",         cls: "text-center" },
+              ].map(({ label, cls }) => (
+                <th
+                  key={label}
+                  className={`border-b border-slate-100 px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${cls ?? ""}`}
+                >
+                  {label}
+                </th>
+              ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
-            {visibleRows.map((row) => (
-              <tr key={row.id} className="text-slate-700">
-                <td className="whitespace-nowrap px-3 py-3">
+          <tbody className="divide-y divide-slate-50">
+            {visibleRows.map((row, i) => (
+              <tr
+                key={row.id}
+                className={`transition hover:bg-slate-50/80 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/30"}`}
+              >
+                <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400">
                   {formatDatePtBr(row.date)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3 font-medium text-slate-900">
-                  {row.campaignName}
+                <td className="px-4 py-3">
+                  <span className="block max-w-[200px] truncate text-xs font-semibold text-slate-800" title={row.campaignName}>
+                    {row.campaignName}
+                  </span>
                 </td>
-                <td className="whitespace-nowrap px-3 py-3">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-700">
                   {formatCurrency(row.investment)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold text-emerald-700">
                   {formatCurrency(row.revenue)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600">
                   {formatNumber(row.clicks)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold text-blue-700">
                   {formatNumber(row.conversions)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3">
-                  {formatPercent(row.ctr)}
+                <td className="whitespace-nowrap px-4 py-3 text-center">
+                  <CtrBadge value={row.ctr} />
                 </td>
-                <td className="whitespace-nowrap px-3 py-3">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600">
                   {formatCurrency(row.cpc)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600">
                   {formatCurrency(row.cpa)}
                 </td>
-                <td className="whitespace-nowrap px-3 py-3">
-                  {row.roas.toFixed(2)}x
+                <td className="whitespace-nowrap px-4 py-3 text-center">
+                  <RoasBadge value={row.roas} />
                 </td>
               </tr>
             ))}
@@ -91,22 +158,31 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
         </table>
       </div>
 
-      <div className="mt-4 flex items-center justify-end gap-2">
-        <button
-          onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-          disabled={currentPage === 1}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Anterior
-        </button>
-        <button
-          onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
-          disabled={currentPage === totalPages}
-          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Próxima
-        </button>
-      </div>
+      {/* Footer total row */}
+      {campaigns.length > 0 && (
+        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-5 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            Total período ({campaigns.length} registros)
+          </p>
+          <div className="flex gap-6 text-xs">
+            <span className="text-slate-500">
+              Invest.: <span className="font-bold text-slate-800">
+                {formatCurrency(campaigns.reduce((s, r) => s + r.investment, 0))}
+              </span>
+            </span>
+            <span className="text-slate-500">
+              Receita: <span className="font-bold text-emerald-700">
+                {formatCurrency(campaigns.reduce((s, r) => s + r.revenue, 0))}
+              </span>
+            </span>
+            <span className="text-slate-500">
+              Conversões: <span className="font-bold text-blue-700">
+                {formatNumber(campaigns.reduce((s, r) => s + r.conversions, 0))}
+              </span>
+            </span>
+          </div>
+        </div>
+      )}
     </article>
   );
 }

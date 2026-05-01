@@ -2,28 +2,14 @@
 
 import { useMemo, useState } from "react";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Area,
-  AreaChart,
-  Legend,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-  Cell,
+  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
+  Legend, Pie, PieChart, ResponsiveContainer, Tooltip,
+  XAxis, YAxis,
 } from "recharts";
 import {
-  BudgetDistributionPoint,
-  CampaignComparisonPoint,
-  DailyTrendPoint,
+  BudgetDistributionPoint, CampaignComparisonPoint, DailyTrendPoint,
 } from "@/types/campaign";
-import { formatCurrency, formatDatePtBr } from "@/utils/metrics";
+import { formatCurrency, formatDatePtBr, formatNumber } from "@/utils/metrics";
 
 interface ChartsSectionProps {
   dailyTrend: DailyTrendPoint[];
@@ -32,303 +18,366 @@ interface ChartsSectionProps {
 }
 
 const PIE_COLORS = [
-  "#2563eb",
-  "#0ea5e9",
-  "#14b8a6",
-  "#22c55e",
-  "#eab308",
-  "#f97316",
-  "#ef4444",
-  "#8b5cf6",
+  "#2563eb", "#7c3aed", "#0891b2", "#059669",
+  "#d97706", "#dc2626", "#db2777", "#0d9488",
 ];
-
 const MAX_PIE_ITEMS = 8;
 
-export function ChartsSection({
-  dailyTrend,
-  campaignComparison,
-  budgetDistribution,
-}: ChartsSectionProps) {
-  const [trendMode, setTrendMode] = useState<"line" | "area">("line");
-  const [comparisonMode, setComparisonMode] = useState<"vertical" | "horizontal">(
-    "vertical",
+// ─── Shared chart theme ────────────────────────────────────────────────────────
+
+const GRID_PROPS = {
+  strokeDasharray: "3 3",
+  stroke: "#f1f5f9",
+  vertical: false,
+};
+
+const AXIS_STYLE = {
+  stroke: "none",
+  tick: { fontSize: 11, fill: "#94a3b8" },
+  tickLine: false,
+  axisLine: false,
+};
+
+const TOOLTIP_STYLE = {
+  contentStyle: {
+    borderRadius: 12,
+    border: "1px solid #e2e8f0",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+    fontSize: 12,
+    padding: "8px 12px",
+  },
+  cursor: { fill: "#f8fafc" },
+};
+
+// Smart interval so labels never overlap. Target ≤ 8 visible ticks.
+function xInterval(length: number): number {
+  if (length <= 8) return 0;
+  return Math.ceil(length / 7) - 1;
+}
+
+// ─── Toggle group ─────────────────────────────────────────────────────────────
+
+function ToggleGroup<T extends string>({
+  options, value, onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex gap-0.5 rounded-xl bg-slate-100 p-0.5">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+            value === o.value
+              ? "bg-white text-blue-700 shadow-sm"
+              : "text-slate-500 hover:text-slate-800"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
   );
-  const [budgetMode, setBudgetMode] = useState<"pie" | "bar">("pie");
+}
+
+// ─── Card wrapper ─────────────────────────────────────────────────────────────
+
+function ChartCard({
+  title, subtitle, children, action,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
+        </div>
+        {action}
+      </div>
+      {children}
+    </article>
+  );
+}
+
+// ─── Custom dot‑legend ────────────────────────────────────────────────────────
+
+function DotLegend({ items }: { items: { color: string; label: string }[] }) {
+  return (
+    <div className="mt-4 flex flex-wrap gap-4">
+      {items.map((i) => (
+        <div key={i.label} className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: i.color }} />
+          <span className="text-xs text-slate-500">{i.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export function ChartsSection({
+  dailyTrend, campaignComparison, budgetDistribution,
+}: ChartsSectionProps) {
+  const [trendMode, setTrendMode]           = useState<"area" | "bar">("area");
+  const [comparisonMode, setComparisonMode] = useState<"grouped" | "horizontal">("grouped");
+  const [budgetMode, setBudgetMode]         = useState<"donut" | "bar">("donut");
 
   const pieData = useMemo(() => {
-    if (budgetDistribution.length <= MAX_PIE_ITEMS) {
-      return budgetDistribution;
-    }
-
-    const sorted = [...budgetDistribution].sort(
-      (a, b) => b.investment - a.investment,
-    );
+    if (budgetDistribution.length <= MAX_PIE_ITEMS) return budgetDistribution;
+    const sorted  = [...budgetDistribution].sort((a, b) => b.investment - a.investment);
     const topItems = sorted.slice(0, MAX_PIE_ITEMS);
-    const othersTotal = sorted
-      .slice(MAX_PIE_ITEMS)
-      .reduce((acc, item) => acc + item.investment, 0);
-
-    return [...topItems, { campaignName: "Outros", investment: othersTotal }];
+    const rest     = sorted.slice(MAX_PIE_ITEMS).reduce((s, i) => s + i.investment, 0);
+    return [...topItems, { campaignName: "Outros", investment: rest }];
   }, [budgetDistribution]);
 
-  return (
-    <section className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-base font-semibold text-slate-900">
-            Evolução diária: Cliques vs Conversões
-          </h3>
-          <div className="inline-flex rounded-md border border-slate-200 bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => setTrendMode("line")}
-              className={`rounded px-2 py-1 text-xs font-medium ${
-                trendMode === "line"
-                  ? "bg-white text-blue-700"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Linha
-            </button>
-            <button
-              type="button"
-              onClick={() => setTrendMode("area")}
-              className={`rounded px-2 py-1 text-xs font-medium ${
-                trendMode === "area"
-                  ? "bg-white text-blue-700"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Área
-            </button>
-          </div>
-        </div>
-        <div className="mt-4 h-80 w-full">
-          {trendMode === "line" ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dailyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#64748b"
-                  tickFormatter={(value) => formatDatePtBr(String(value))}
-                />
-                <YAxis stroke="#64748b" />
-                <Tooltip labelFormatter={(value) => formatDatePtBr(String(value))} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="clicks"
-                  name="Cliques"
-                  stroke="#2563eb"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="conversions"
-                  name="Conversões"
-                  stroke="#0f766e"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dailyTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis
-                  dataKey="date"
-                  stroke="#64748b"
-                  tickFormatter={(value) => formatDatePtBr(String(value))}
-                />
-                <YAxis stroke="#64748b" />
-                <Tooltip labelFormatter={(value) => formatDatePtBr(String(value))} />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="clicks"
-                  name="Cliques"
-                  stroke="#2563eb"
-                  fill="#93c5fd"
-                  fillOpacity={0.45}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="conversions"
-                  name="Conversões"
-                  stroke="#0f766e"
-                  fill="#5eead4"
-                  fillOpacity={0.4}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </article>
+  const interval = xInterval(dailyTrend.length);
 
-      <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-base font-semibold text-slate-900">
-            Distribuição de orçamento
-          </h3>
-          <div className="inline-flex rounded-md border border-slate-200 bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => setBudgetMode("pie")}
-              className={`rounded px-2 py-1 text-xs font-medium ${
-                budgetMode === "pie"
-                  ? "bg-white text-blue-700"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
+  // ── Trend chart ──────────────────────────────────────────────────────────────
+
+  const trendChart = trendMode === "area" ? (
+    <ResponsiveContainer width="100%" height="100%">
+      <AreaChart data={dailyTrend} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <defs>
+          <linearGradient id="gradClicks" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#2563eb" stopOpacity={0.2} />
+            <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+          </linearGradient>
+          <linearGradient id="gradConv" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#059669" stopOpacity={0.2} />
+            <stop offset="100%" stopColor="#059669" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid {...GRID_PROPS} />
+        <XAxis
+          dataKey="date"
+          {...AXIS_STYLE}
+          tickFormatter={(v) => formatDatePtBr(String(v))}
+          interval={interval}
+          angle={interval > 0 ? -30 : 0}
+          textAnchor={interval > 0 ? "end" : "middle"}
+          height={interval > 0 ? 44 : 28}
+        />
+        <YAxis
+          {...AXIS_STYLE}
+          tickFormatter={(v) => formatNumber(Number(v))}
+          width={48}
+        />
+        <Tooltip
+          {...TOOLTIP_STYLE}
+          labelFormatter={(v) => formatDatePtBr(String(v))}
+          formatter={(v, name) => [formatNumber(Number(v)), name]}
+        />
+        <Area type="monotone" dataKey="clicks"      name="Cliques"     stroke="#2563eb" strokeWidth={2} fill="url(#gradClicks)" />
+        <Area type="monotone" dataKey="conversions" name="Conversões"  stroke="#059669" strokeWidth={2} fill="url(#gradConv)" />
+      </AreaChart>
+    </ResponsiveContainer>
+  ) : (
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart data={dailyTrend} barCategoryGap="30%" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+        <CartesianGrid {...GRID_PROPS} />
+        <XAxis
+          dataKey="date"
+          {...AXIS_STYLE}
+          tickFormatter={(v) => formatDatePtBr(String(v))}
+          interval={interval}
+          angle={interval > 0 ? -30 : 0}
+          textAnchor={interval > 0 ? "end" : "middle"}
+          height={interval > 0 ? 44 : 28}
+        />
+        <YAxis {...AXIS_STYLE} tickFormatter={(v) => formatNumber(Number(v))} width={48} />
+        <Tooltip
+          {...TOOLTIP_STYLE}
+          labelFormatter={(v) => formatDatePtBr(String(v))}
+          formatter={(v, name) => [formatNumber(Number(v)), name]}
+        />
+        <Bar dataKey="clicks"      name="Cliques"    fill="#2563eb" radius={[3, 3, 0, 0]} />
+        <Bar dataKey="conversions" name="Conversões" fill="#059669" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+
+  // ── Budget chart ──────────────────────────────────────────────────────────────
+
+  const budgetChart = budgetMode === "donut" ? (
+    <div className="flex flex-col items-center">
+      <div className="h-52 w-full">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={pieData}
+              dataKey="investment"
+              nameKey="campaignName"
+              innerRadius="55%"
+              outerRadius="80%"
+              paddingAngle={2}
+              startAngle={90}
+              endAngle={-270}
             >
-              Rosca
-            </button>
-            <button
-              type="button"
-              onClick={() => setBudgetMode("bar")}
-              className={`rounded px-2 py-1 text-xs font-medium ${
-                budgetMode === "bar"
-                  ? "bg-white text-blue-700"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Barras
-            </button>
-          </div>
-        </div>
-        <div className="mt-4 h-72 w-full">
-          {budgetMode === "pie" ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={pieData}
-                  dataKey="investment"
-                  nameKey="campaignName"
-                  innerRadius={65}
-                  outerRadius={100}
-                  paddingAngle={2}
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell
-                      key={`${entry.campaignName}-${index}`}
-                      fill={PIE_COLORS[index % PIE_COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={pieData} layout="vertical" margin={{ left: 12, right: 12 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis type="number" stroke="#64748b" />
-                <YAxis
-                  type="category"
-                  dataKey="campaignName"
-                  width={90}
-                  tick={{ fontSize: 10 }}
-                  stroke="#64748b"
-                />
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                <Bar dataKey="investment" fill="#2563eb" />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-        <div className="mt-3 max-h-40 space-y-1 overflow-y-auto pr-1">
-          {pieData.map((item, index) => (
-            <div
-              key={`${item.campaignName}-legend-${index}`}
-              className="flex items-center justify-between gap-2 text-xs"
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="h-2.5 w-2.5 rounded-sm"
-                  style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
-                />
-                <span className="max-w-[180px] truncate text-slate-700">
-                  {item.campaignName}
-                </span>
-              </div>
-              <span className="font-medium text-slate-900">
-                {formatCurrency(item.investment)}
-              </span>
+              {pieData.map((entry, i) => (
+                <Cell key={`cell-${i}`} fill={PIE_COLORS[i % PIE_COLORS.length]} stroke="none" />
+              ))}
+            </Pie>
+            <Tooltip
+              {...TOOLTIP_STYLE}
+              formatter={(v) => [formatCurrency(Number(v)), "Investimento"]}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="mt-1 w-full space-y-1.5 overflow-y-auto" style={{ maxHeight: 140 }}>
+        {pieData.map((item, i) => (
+          <div key={`leg-${i}`} className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+              <span className="truncate text-xs text-slate-600">{item.campaignName}</span>
             </div>
-          ))}
-        </div>
-      </article>
-
-      <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-12">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-base font-semibold text-slate-900">
-            Investimento vs Receita por Campanha
-          </h3>
-          <div className="inline-flex rounded-md border border-slate-200 bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => setComparisonMode("vertical")}
-              className={`rounded px-2 py-1 text-xs font-medium ${
-                comparisonMode === "vertical"
-                  ? "bg-white text-blue-700"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Vertical
-            </button>
-            <button
-              type="button"
-              onClick={() => setComparisonMode("horizontal")}
-              className={`rounded px-2 py-1 text-xs font-medium ${
-                comparisonMode === "horizontal"
-                  ? "bg-white text-blue-700"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Horizontal
-            </button>
+            <span className="flex-shrink-0 text-xs font-semibold text-slate-900">{formatCurrency(item.investment)}</span>
           </div>
-        </div>
-        <div className="mt-4 h-96 w-full">
-          {comparisonMode === "vertical" ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={campaignComparison}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="campaignName" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                <Legend />
-                <Bar dataKey="investment" name="Investimento" fill="#2563eb" />
-                <Bar dataKey="revenue" name="Receita" fill="#0f766e" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={campaignComparison}
-                layout="vertical"
-                margin={{ left: 20, right: 14 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis type="number" stroke="#64748b" />
-                <YAxis
-                  type="category"
-                  dataKey="campaignName"
-                  width={120}
-                  tick={{ fontSize: 11 }}
-                  stroke="#64748b"
-                />
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-                <Legend />
-                <Bar dataKey="investment" name="Investimento" fill="#2563eb" />
-                <Bar dataKey="revenue" name="Receita" fill="#0f766e" />
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-        </div>
-      </article>
+        ))}
+      </div>
+    </div>
+  ) : (
+    <div className="h-72">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={pieData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 0 }}>
+          <CartesianGrid {...GRID_PROPS} horizontal={false} />
+          <XAxis type="number" {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+          <YAxis
+            type="category"
+            dataKey="campaignName"
+            {...AXIS_STYLE}
+            width={100}
+            tick={{ fontSize: 10, fill: "#94a3b8" }}
+            tickFormatter={(v: string) => v.length > 14 ? `${v.slice(0, 14)}…` : v}
+          />
+          <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [formatCurrency(Number(v)), "Investimento"]} />
+          <Bar dataKey="investment" name="Investimento" radius={[0, 4, 4, 0]}>
+            {pieData.map((_, i) => (
+              <Cell key={`bar-${i}`} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+
+  // ── Comparison chart ─────────────────────────────────────────────────────────
+
+  const comparisonChart = comparisonMode === "grouped" ? (
+    <div className="h-80">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={campaignComparison} barCategoryGap="25%" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+          <CartesianGrid {...GRID_PROPS} />
+          <XAxis
+            dataKey="campaignName"
+            {...AXIS_STYLE}
+            interval={0}
+            angle={-25}
+            textAnchor="end"
+            height={52}
+            tickFormatter={(v: string) => v.length > 16 ? `${v.slice(0, 16)}…` : v}
+          />
+          <YAxis {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={52} />
+          <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [formatCurrency(Number(v)), ""]} />
+          <Bar dataKey="investment" name="Investimento" fill="#2563eb" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="revenue"    name="Receita"      fill="#059669" radius={[4, 4, 0, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  ) : (
+    <div className="h-80">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={campaignComparison} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 0 }}>
+          <CartesianGrid {...GRID_PROPS} horizontal={false} />
+          <XAxis type="number" {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+          <YAxis
+            type="category"
+            dataKey="campaignName"
+            {...AXIS_STYLE}
+            width={130}
+            tick={{ fontSize: 10, fill: "#94a3b8" }}
+            tickFormatter={(v: string) => v.length > 18 ? `${v.slice(0, 18)}…` : v}
+          />
+          <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [formatCurrency(Number(v)), ""]} />
+          <Bar dataKey="investment" name="Investimento" fill="#2563eb" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="revenue"    name="Receita"      fill="#059669" radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+
+  return (
+    <section className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+
+      {/* ── Trend chart — 8/12 cols ── */}
+      <div className="xl:col-span-8">
+        <ChartCard
+          title="Evolução Diária"
+          subtitle="Cliques e conversões ao longo do tempo"
+          action={
+            <ToggleGroup
+              options={[{ value: "area", label: "Área" }, { value: "bar", label: "Barras" }]}
+              value={trendMode}
+              onChange={setTrendMode}
+            />
+          }
+        >
+          <div className="h-72">{trendChart}</div>
+          <DotLegend items={[
+            { color: "#2563eb", label: "Cliques" },
+            { color: "#059669", label: "Conversões" },
+          ]} />
+        </ChartCard>
+      </div>
+
+      {/* ── Budget chart — 4/12 cols ── */}
+      <div className="xl:col-span-4">
+        <ChartCard
+          title="Distribuição de Orçamento"
+          subtitle="Investimento por campanha"
+          action={
+            <ToggleGroup
+              options={[{ value: "donut", label: "Rosca" }, { value: "bar", label: "Barras" }]}
+              value={budgetMode}
+              onChange={setBudgetMode}
+            />
+          }
+        >
+          {budgetChart}
+        </ChartCard>
+      </div>
+
+      {/* ── Comparison chart — 12/12 cols ── */}
+      <div className="xl:col-span-12">
+        <ChartCard
+          title="Investimento vs Receita"
+          subtitle="Comparativo por campanha no período"
+          action={
+            <ToggleGroup
+              options={[{ value: "grouped", label: "Agrupado" }, { value: "horizontal", label: "Horizontal" }]}
+              value={comparisonMode}
+              onChange={setComparisonMode}
+            />
+          }
+        >
+          {comparisonChart}
+          <DotLegend items={[
+            { color: "#2563eb", label: "Investimento" },
+            { color: "#059669", label: "Receita" },
+          ]} />
+        </ChartCard>
+      </div>
+
     </section>
   );
 }
