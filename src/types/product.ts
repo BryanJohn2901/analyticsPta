@@ -1,3 +1,13 @@
+// ─── Attachment (reference images / PDFs) ────────────────────────────────────
+
+export interface Attachment {
+  id: string;
+  name: string;
+  fileType: "image" | "pdf";
+  dataUrl: string;   // base64 — images compressed, PDFs stored as-is
+  sizeKb: number;
+}
+
 // ─── Product type ─────────────────────────────────────────────────────────────
 
 export type ProductType = "pos" | "imersao";
@@ -64,7 +74,7 @@ export interface ProductData {
   type: ProductType;
   courseGroup?: CourseGroupId;
   turmaVinculada?: string;   // e.g. "Turma 5", "T3"
-  imageRef?: string;         // base64 thumbnail from uploaded print
+  attachments: Attachment[];  // reference prints & PDFs
   createdAt: string;
   updatedAt: string;
 
@@ -121,6 +131,7 @@ export interface ProductData {
 export function emptyProduct(type: ProductType): Omit<ProductData, "id" | "createdAt" | "updatedAt"> {
   return {
     type,
+    attachments: [],
     nome: "",
     expert: "",
     promessa: "",

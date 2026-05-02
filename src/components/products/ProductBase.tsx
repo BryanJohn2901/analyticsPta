@@ -92,6 +92,11 @@ function ProductCard({ product: p, onEdit, onDelete }: ProductCardProps) {
             {p.lotes.length} lote{p.lotes.length !== 1 ? "s" : ""}
           </span>
         )}
+        {p.attachments.length > 0 && (
+          <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+            📎 {p.attachments.length} ref.
+          </span>
+        )}
       </div>
 
       {/* Open button */}

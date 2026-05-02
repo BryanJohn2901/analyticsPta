@@ -2,14 +2,226 @@
 
 import { useRef, useState } from "react";
 import {
-  ArrowLeft, ChevronDown, Image as ImageIcon, Link2, Loader2,
-  Plus, Save, Trash2, Users, X,
+  ArrowLeft, ChevronDown, Eye, FileText, Image as ImageIcon,
+  Link2, Loader2, Paperclip, Plus, Save, Trash2, Upload, Users, X,
 } from "lucide-react";
 import {
-  COURSE_GROUPS_PRODUCT, DorSolucao, Entregavel, EntregavelItem,
+  Attachment, COURSE_GROUPS_PRODUCT, DorSolucao, Entregavel, EntregavelItem,
   Lote, PersonaSegmento, ProductData, ProductType, SubPromessa,
   TurmaLink, emptyProduct,
 } from "@/types/product";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const MAX_SIZE_MB  = 8;
+const MAX_IMG_PX   = 1400;
+const IMG_QUALITY  = 0.75;
+
+/** Compress an image data-URL to JPEG ≤ MAX_IMG_PX wide */
+function compressImage(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale  = Math.min(1, MAX_IMG_PX / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width  = Math.round(img.width  * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", IMG_QUALITY));
+    };
+    img.src = dataUrl;
+  });
+}
+
+function readFile(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = (e) => resolve(e.target!.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── Attachment viewer (fullscreen overlay) ───────────────────────────────────
+
+function AttachmentViewer({
+  att, onClose,
+}: { att: Attachment; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex flex-col bg-black/90"
+      onClick={onClose}
+    >
+      <div className="flex items-center justify-between px-5 py-3">
+        <p className="truncate text-sm font-medium text-white/80">{att.name}</p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+        >
+          <X size={16} />
+        </button>
+      </div>
+      <div className="flex flex-1 items-center justify-center p-4" onClick={(e) => e.stopPropagation()}>
+        {att.fileType === "image" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={att.dataUrl}
+            alt={att.name}
+            className="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+          />
+        ) : (
+          <iframe
+            src={att.dataUrl}
+            title={att.name}
+            className="h-full w-full max-w-4xl rounded-lg"
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Attachment panel ─────────────────────────────────────────────────────────
+
+function AttachmentPanel({
+  attachments, onChange,
+}: { attachments: Attachment[]; onChange: (a: Attachment[]) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [viewing, setViewing] = useState<Attachment | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files) return;
+    setUploading(true);
+    const next = [...attachments];
+    for (const file of Array.from(files)) {
+      const sizeMb = file.size / (1024 * 1024);
+      if (sizeMb > MAX_SIZE_MB) {
+        alert(`"${file.name}" excede ${MAX_SIZE_MB} MB — arquivo ignorado.`);
+        continue;
+      }
+      const isImage = file.type.startsWith("image/");
+      const isPdf   = file.type === "application/pdf";
+      if (!isImage && !isPdf) continue;
+
+      let dataUrl = await readFile(file);
+      if (isImage) dataUrl = await compressImage(dataUrl);
+
+      next.push({
+        id:       crypto.randomUUID(),
+        name:     file.name,
+        fileType: isImage ? "image" : "pdf",
+        dataUrl,
+        sizeKb:   Math.round(file.size / 1024),
+      });
+    }
+    onChange(next);
+    setUploading(false);
+  };
+
+  const remove = (id: string) => onChange(attachments.filter((a) => a.id !== id));
+
+  const totalKb = attachments.reduce((s, a) => s + a.sizeKb, 0);
+
+  return (
+    <>
+      {viewing && <AttachmentViewer att={viewing} onClose={() => setViewing(null)} />}
+
+      <div
+        className="relative"
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
+      >
+        {/* Upload area */}
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-center transition hover:border-blue-400 hover:bg-blue-50 disabled:opacity-60"
+        >
+          {uploading
+            ? <Loader2 size={15} className="animate-spin text-blue-500" />
+            : <Upload size={15} className="text-slate-400" />}
+          <span className="text-[11px] font-medium text-slate-400">
+            {uploading ? "Processando…" : "Adicionar prints / PDFs"}
+          </span>
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept="image/*,application/pdf"
+          className="hidden"
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+
+        {/* Thumbnails */}
+        {attachments.length > 0 && (
+          <div className="mt-3 space-y-1.5">
+            {attachments.map((att) => (
+              <div
+                key={att.id}
+                className="group flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 p-1.5"
+              >
+                {/* Thumb */}
+                <button
+                  type="button"
+                  onClick={() => setViewing(att)}
+                  className="flex-shrink-0"
+                >
+                  {att.fileType === "image" ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={att.dataUrl}
+                      alt={att.name}
+                      className="h-10 w-10 rounded-md object-cover ring-1 ring-slate-200 transition group-hover:ring-blue-400"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-red-50 ring-1 ring-red-100">
+                      <FileText size={16} className="text-red-400" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Name + size */}
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[11px] font-semibold text-slate-700">{att.name}</p>
+                  <p className="text-[10px] text-slate-400">{att.sizeKb} KB</p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
+                  <button
+                    type="button"
+                    onClick={() => setViewing(att)}
+                    className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-blue-50 hover:text-blue-600"
+                    title="Visualizar"
+                  >
+                    <Eye size={11} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(att.id)}
+                    className="flex h-6 w-6 items-center justify-center rounded text-slate-400 transition hover:bg-red-50 hover:text-red-500"
+                    title="Remover"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Total size */}
+            <p className="text-right text-[10px] text-slate-300">
+              {attachments.length} arquivo{attachments.length !== 1 ? "s" : ""} · {(totalKb / 1024).toFixed(1)} MB total
+            </p>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
 
 // ─── Shared input styles ──────────────────────────────────────────────────────
 
@@ -343,17 +555,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const removeSub = (id: string) =>
     setSub(form.subPromessas.filter((s) => s.id !== id));
 
-  // ── Image upload ────────────────────────────────────────────────────────────
-  const fileRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
-
-  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => set("imageRef", ev.target?.result as string);
-    reader.readAsDataURL(file);
-  };
 
   // ── Handle type selection ────────────────────────────────────────────────────
   const handleChooseType = (t: ProductType) => {
@@ -448,38 +650,43 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       {/* ── Form body ───────────────────────────────────────────────────────── */}
       <div className="flex gap-6 p-6">
 
-        {/* Left — image reference panel */}
-        <aside className="hidden w-48 flex-shrink-0 xl:block">
+        {/* Left — attachments panel */}
+        <aside className="hidden w-52 flex-shrink-0 xl:block">
           <div className="sticky top-[72px]">
-            <p className={cls.label}>Referência visual</p>
-            {form.imageRef ? (
-              <div className="relative rounded-xl overflow-hidden border border-slate-200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={form.imageRef} alt="referência" className="w-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => set("imageRef", undefined)}
-                  className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white/80 text-slate-600 shadow-sm transition hover:bg-red-50 hover:text-red-500"
-                >
-                  <X size={11} />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50"
-              >
-                <ImageIcon size={20} className="text-slate-300" />
-                <p className="text-[10px] font-medium text-slate-400">Adicionar print / referência</p>
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImage} />
+            <div className="mb-2 flex items-center gap-1.5">
+              <Paperclip size={12} className="text-slate-400" />
+              <p className={cls.label + " mb-0"}>Referências</p>
+              {form.attachments.length > 0 && (
+                <span className="ml-auto rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+                  {form.attachments.length}
+                </span>
+              )}
+            </div>
+            <p className="mb-3 text-[10px] text-slate-400 leading-relaxed">
+              Suba prints ou PDFs do Milanote para usar como referência enquanto preenche
+            </p>
+            <AttachmentPanel
+              attachments={form.attachments}
+              onChange={(a) => set("attachments", a)}
+            />
           </div>
         </aside>
 
         {/* Right — form fields */}
         <div className="min-w-0 flex-1 space-y-4">
+
+          {/* ══ REFERÊNCIAS — mobile only (hidden on xl where left panel shows) ══ */}
+          <div className="xl:hidden">
+            <Section title="Referências (prints / PDFs)" icon={Paperclip} defaultOpen={false}>
+              <p className="text-xs text-slate-400">
+                Suba prints do Milanote ou PDFs para usar como referência enquanto preenche os campos
+              </p>
+              <AttachmentPanel
+                attachments={form.attachments}
+                onChange={(a) => set("attachments", a)}
+              />
+            </Section>
+          </div>
 
           {/* ══ IDENTIDADE (always open) ══ */}
           <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-5 space-y-4">
