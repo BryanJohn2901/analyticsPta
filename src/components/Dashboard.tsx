@@ -3,7 +3,7 @@
 import { FormEvent, useMemo, useRef, useState } from "react";
 import {
   Activity, BadgeDollarSign, BarChart2, BookOpen, CircleDollarSign,
-  Dumbbell, FileUp, Filter, ImageIcon, Link2, Loader2, Menu,
+  Dumbbell, FileUp, Filter, ImageIcon, Link2, Loader2, Menu, Package,
   SlidersHorizontal, Target, TrendingUp, Trophy, Upload, Users,
   Wallet, X, Zap,
 } from "lucide-react";
@@ -23,6 +23,7 @@ import { CampaignAnalysis } from "@/components/CampaignAnalysis";
 import { HistoricalView } from "@/components/HistoricalView";
 import { BestCreatives } from "@/components/BestCreatives";
 import { ProfileAnalysis } from "@/components/ProfileAnalysis";
+import { ProductBase } from "@/components/products/ProductBase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,7 +34,7 @@ interface DashboardProps {
   onImportUrl: (url: string) => Promise<void>;
 }
 
-type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles";
+type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles" | "products";
 
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ const MAIN_TABS: Array<{ id: MainTab; label: string; shortLabel: string; icon: R
   { id: "analysis",  label: "Análise",           shortLabel: "Análise",      icon: BarChart2 },
   { id: "creatives", label: "Criativos",         shortLabel: "Criativos",    icon: ImageIcon },
   { id: "profiles",  label: "Perfil de Anúncio", shortLabel: "Perfil",       icon: Users },
+  { id: "products",  label: "Base de Produtos",  shortLabel: "Produtos",     icon: Package },
 ];
 
 // ─── Campaign groups ──────────────────────────────────────────────────────────
@@ -525,13 +527,13 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
   const budgetDistribution = buildBudgetDistribution(filteredCampaigns);
   const aggregated         = useMemo(() => aggregateByCampaign(filteredCampaigns), [filteredCampaigns]);
 
-  const showRightPanel     = mainTab !== "history" && mainTab !== "profiles";
+  const showRightPanel     = mainTab !== "history" && mainTab !== "profiles" && mainTab !== "products";
   const showCourseGroups   = selectedCategory === "pos";
   const currentTab         = MAIN_TABS.find((t) => t.id === mainTab)!;
   const hasActiveFilters   = !!(dateFrom || dateTo || searchCampaign || selectedGroup !== "all");
 
   // Whether the current tab needs a category to be meaningful
-  const needsCategory = mainTab !== "history" && mainTab !== "profiles";
+  const needsCategory = mainTab !== "history" && mainTab !== "profiles" && mainTab !== "products";
 
   const handleClearFilters = () => {
     setDateFrom(""); setDateTo(""); setSearchCampaign(""); setSelectedGroup("all");
@@ -778,6 +780,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
           {mainTab === "history"   && <HistoricalView />}
           {mainTab === "analysis"  && selectedCategory && <CampaignAnalysis campaigns={aggregated} />}
           {mainTab === "creatives" && selectedCategory && <BestCreatives campaigns={aggregated} />}
+          {mainTab === "products"  && <ProductBase />}
           {mainTab === "profiles"  && (
             <ProfileAnalysis
               selectedGroup={selectedGroup}
