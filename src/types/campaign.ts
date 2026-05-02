@@ -1,3 +1,7 @@
+// ─── Product category ─────────────────────────────────────────────────────────
+
+export type ProductCategory = "pos" | "livros" | "ebooks" | "perpetuo" | "eventos";
+
 export interface CampaignRawRow {
   Data: string;
   "Nome da Campanha": string;

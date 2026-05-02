@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { ProductCategory } from "@/types/campaign";
 
 const STORAGE_KEY = "pta_campaign_store_v1";
 
@@ -13,6 +14,7 @@ interface StoreState {
   selectedGroup: string;
   selectedTurma: string;
   campaignConfigs: Record<string, CampaignConfig>;
+  selectedCategory: ProductCategory | null;
 }
 
 const DEFAULT_STATE: StoreState = {
@@ -20,6 +22,7 @@ const DEFAULT_STATE: StoreState = {
   selectedGroup: "all",
   selectedTurma: "all",
   campaignConfigs: {},
+  selectedCategory: null,
 };
 
 function loadStore(): StoreState {
@@ -80,14 +83,30 @@ export function useCampaignStore() {
     });
   }, []);
 
+  const setSelectedCategory = useCallback((cat: ProductCategory | null) => {
+    setState((prev) => {
+      // Reset group/turma when switching category so stale filters don't linger
+      const next = {
+        ...prev,
+        selectedCategory: cat,
+        selectedGroup: "all",
+        selectedTurma: "all",
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
   return {
     selectedGroup: state.selectedGroup,
     selectedTurma: state.selectedTurma,
     activeCampaigns: state.activeCampaigns,
     campaignConfigs: state.campaignConfigs,
+    selectedCategory: state.selectedCategory,
     setSelectedGroup,
     setSelectedTurma,
     toggleActive,
     setCampaignConfig,
+    setSelectedCategory,
   };
 }

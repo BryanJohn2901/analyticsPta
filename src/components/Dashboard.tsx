@@ -9,7 +9,9 @@ import {
 } from "lucide-react";
 import { CampaignData } from "@/types/campaign";
 import { CampaignConfig, useCampaignStore } from "@/hooks/useCampaignStore";
+import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
 import { loadMetaCredentials, saveMetaCredentials } from "@/utils/metaApi";
+import { CategoryGate, CATEGORY_LABEL, CATEGORY_ICON, CATEGORY_DOT } from "@/components/CategoryGate";
 import {
   aggregateByCampaign, aggregateTotals, buildBudgetDistribution,
   buildCampaignComparison, buildDailyTrend, formatCurrency, formatNumber, formatPercent,
@@ -63,18 +65,9 @@ const CAMPAIGN_GROUPS: GroupConfig[] = [
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const normalizeText = (v: string) => v.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-
-const getLaunchGroup = (name: string): string => {
-  const n = normalizeText(name);
-  if (n.includes("biomecan")) return "biomecanica";
-  if (n.includes("muscula") || n.includes("periodia")) return "musculacao";
-  if (n.includes("fisiologia")) return "fisiologia";
-  if (n.includes("bodybuilding")) return "bodybuilding";
-  if (n.includes("femin")) return "feminino";
-  if (n.includes("funcional")) return "funcional";
-  return "";
-};
+// classifyCourse lives in campaignClassifier.ts — re-exported here as alias
+// for backwards-compatibility with local call sites.
+const getLaunchGroup = classifyCourse;
 
 const getSubLaunchCode = (name: string): string => {
   const match = name.match(/\b([A-Za-z]{1,4}\s?-?\d{1,2})\b/);
@@ -283,6 +276,7 @@ interface CampaignPanelProps {
   dateFrom: string;
   dateTo: string;
   searchCampaign: string;
+  showCourseGroups: boolean;        // only true for "pos" category
   onSelectGroup: (id: string) => void;
   onSelectTurma: (t: string) => void;
   onToggleActive: (id: string, v: boolean) => void;
@@ -295,7 +289,7 @@ interface CampaignPanelProps {
 
 function CampaignPanel({
   selectedGroup, selectedTurma, activeCampaigns, turmasByGroup,
-  dateFrom, dateTo, searchCampaign,
+  dateFrom, dateTo, searchCampaign, showCourseGroups,
   onSelectGroup, onSelectTurma, onToggleActive,
   onDateFrom, onDateTo, onSearch, onClearFilters, hasActiveFilters,
 }: CampaignPanelProps) {
@@ -305,15 +299,18 @@ function CampaignPanel({
     <div className="flex h-full flex-col">
       {/* Header */}
       <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-100 px-4">
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Campanhas</p>
-        {activeCount > 0 && (
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+          {showCourseGroups ? "Cursos" : "Filtros"}
+        </p>
+        {activeCount > 0 && showCourseGroups && (
           <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-600">
             {activeCount} ativa{activeCount !== 1 ? "s" : ""}
           </span>
         )}
       </div>
 
-      {/* Campaign list */}
+      {/* Campaign course list — only for Pós Graduação */}
+      {showCourseGroups && (
       <div className="flex-1 overflow-y-auto py-1">
         {/* "All" option */}
         <button
@@ -324,7 +321,7 @@ function CampaignPanel({
         >
           <span className="h-2 w-2 flex-shrink-0 rounded-full bg-slate-300" />
           <span className={`text-xs font-semibold ${selectedGroup === "all" ? "text-slate-800" : "text-slate-500"}`}>
-            Todas as campanhas
+            Todos os cursos
           </span>
         </button>
 
@@ -413,9 +410,10 @@ function CampaignPanel({
           );
         })}
       </div>
+      )} {/* end showCourseGroups */}
 
-      {/* Filters */}
-      <div className="flex-shrink-0 border-t border-slate-100 p-4 space-y-3">
+      {/* Filters — always visible */}
+      <div className={`flex-shrink-0 border-t border-slate-100 p-4 space-y-3 ${showCourseGroups ? "" : "flex-1"}`}>
         <div className="flex items-center justify-between">
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
             <SlidersHorizontal size={10} /> Filtros
@@ -482,12 +480,20 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
 
   const {
     selectedGroup, selectedTurma, activeCampaigns, campaignConfigs,
+    selectedCategory,
     setSelectedGroup, setSelectedTurma, toggleActive, setCampaignConfig,
+    setSelectedCategory,
   } = useCampaignStore();
+
+  // ── Category filtering (first pass) ─────────────────────────────────────────
+  const categorizedCampaigns = useMemo(() => {
+    if (!selectedCategory) return campaigns;
+    return campaigns.filter((c) => classifyCampaign(c.campaignName) === selectedCategory);
+  }, [campaigns, selectedCategory]);
 
   const turmasByGroup = useMemo<Record<string, string[]>>(() => {
     const map: Record<string, Set<string>> = {};
-    campaigns.forEach((item) => {
+    categorizedCampaigns.forEach((item) => {
       const group = getLaunchGroup(item.campaignName);
       if (!group) return;
       const code = getSubLaunchCode(item.campaignName);
@@ -500,10 +506,10 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
         Array.from(s).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true })),
       ]),
     );
-  }, [campaigns]);
+  }, [categorizedCampaigns]);
 
   const filteredCampaigns = useMemo(() => {
-    return campaigns.filter((item) => {
+    return categorizedCampaigns.filter((item) => {
       if (dateFrom && item.date < dateFrom) return false;
       if (dateTo   && item.date > dateTo)   return false;
       if (selectedGroup !== "all" && getLaunchGroup(item.campaignName) !== selectedGroup) return false;
@@ -511,7 +517,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
       if (searchCampaign && !item.campaignName.toLowerCase().includes(searchCampaign.toLowerCase())) return false;
       return true;
     });
-  }, [campaigns, dateFrom, dateTo, selectedGroup, selectedTurma, searchCampaign]);
+  }, [categorizedCampaigns, dateFrom, dateTo, selectedGroup, selectedTurma, searchCampaign]);
 
   const totals             = aggregateTotals(filteredCampaigns);
   const dailyTrend         = buildDailyTrend(filteredCampaigns);
@@ -519,9 +525,13 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
   const budgetDistribution = buildBudgetDistribution(filteredCampaigns);
   const aggregated         = useMemo(() => aggregateByCampaign(filteredCampaigns), [filteredCampaigns]);
 
-  const showRightPanel   = mainTab !== "history" && mainTab !== "profiles";
-  const currentTab       = MAIN_TABS.find((t) => t.id === mainTab)!;
-  const hasActiveFilters = !!(dateFrom || dateTo || searchCampaign || selectedGroup !== "all");
+  const showRightPanel     = mainTab !== "history" && mainTab !== "profiles";
+  const showCourseGroups   = selectedCategory === "pos";
+  const currentTab         = MAIN_TABS.find((t) => t.id === mainTab)!;
+  const hasActiveFilters   = !!(dateFrom || dateTo || searchCampaign || selectedGroup !== "all");
+
+  // Whether the current tab needs a category to be meaningful
+  const needsCategory = mainTab !== "history" && mainTab !== "profiles";
 
   const handleClearFilters = () => {
     setDateFrom(""); setDateTo(""); setSearchCampaign(""); setSelectedGroup("all");
@@ -558,6 +568,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
   const campaignPanelProps: CampaignPanelProps = {
     selectedGroup, selectedTurma, activeCampaigns, turmasByGroup,
     dateFrom, dateTo, searchCampaign,
+    showCourseGroups,
     onSelectGroup: handleSelectGroup,
     onSelectTurma: (t) => { setSelectedTurma(t); setShowMobilePanel(false); },
     onToggleActive: toggleActive,
@@ -636,11 +647,30 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
               <Menu size={18} />
             </button>
 
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-1.5 text-sm">
+            {/* Breadcrumb + category chip */}
+            <div className="flex flex-wrap items-center gap-1.5 text-sm">
               <span className="hidden text-slate-400 md:inline">Dashboard</span>
               <span className="hidden text-slate-300 md:inline">/</span>
               <span className="font-semibold text-slate-800">{currentTab.label}</span>
+
+              {/* Category chip — click to change */}
+              {selectedCategory && needsCategory && (() => {
+                const CatIcon = CATEGORY_ICON[selectedCategory];
+                const dot     = CATEGORY_DOT[selectedCategory];
+                return (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory(null)}
+                    title="Trocar categoria"
+                    className="ml-1 flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200"
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+                    <CatIcon size={11} />
+                    <span className="hidden sm:inline">{CATEGORY_LABEL[selectedCategory]}</span>
+                    <X size={10} className="text-slate-400" />
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -696,7 +726,12 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
         {/* Main scrollable content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
 
-          {mainTab === "overview" && (
+          {/* ── Category gate (shown when no category chosen on relevant tabs) ── */}
+          {needsCategory && !selectedCategory && (
+            <CategoryGate onSelect={setSelectedCategory} />
+          )}
+
+          {mainTab === "overview" && selectedCategory && (
             campaigns.length === 0 ? (
               /* Empty state */
               <div className="flex flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm md:py-24">
@@ -741,8 +776,8 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
           )}
 
           {mainTab === "history"   && <HistoricalView />}
-          {mainTab === "analysis"  && <CampaignAnalysis campaigns={aggregated} />}
-          {mainTab === "creatives" && <BestCreatives campaigns={aggregated} />}
+          {mainTab === "analysis"  && selectedCategory && <CampaignAnalysis campaigns={aggregated} />}
+          {mainTab === "creatives" && selectedCategory && <BestCreatives campaigns={aggregated} />}
           {mainTab === "profiles"  && (
             <ProfileAnalysis
               selectedGroup={selectedGroup}
