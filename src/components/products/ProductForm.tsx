@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import {
   ArrowLeft, ChevronDown, Eye, FileText, Image as ImageIcon,
-  Link2, Loader2, Paperclip, Plus, Save, Sparkles, Trash2, Upload, Users, X,
+  Link2, Loader2, Paperclip, Plus, Save, Trash2, Upload, Users, X,
 } from "lucide-react";
 import {
   Attachment, COURSE_GROUPS_PRODUCT, DorSolucao, Entregavel, EntregavelItem,
@@ -85,13 +85,8 @@ function AttachmentViewer({
 // ─── Attachment panel ─────────────────────────────────────────────────────────
 
 function AttachmentPanel({
-  attachments, onChange, onExtract, extractingId,
-}: {
-  attachments: Attachment[];
-  onChange: (a: Attachment[]) => void;
-  onExtract?: (att: Attachment) => void;
-  extractingId?: string | null;
-}) {
+  attachments, onChange,
+}: { attachments: Attachment[]; onChange: (a: Attachment[]) => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [viewing, setViewing] = useState<Attachment | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -196,21 +191,7 @@ function AttachmentPanel({
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
-                  {onExtract && (
-                    <button
-                      type="button"
-                      onClick={() => onExtract(att)}
-                      disabled={extractingId === att.id}
-                      className="flex h-6 items-center gap-1 rounded px-1.5 text-[10px] font-bold text-violet-600 transition hover:bg-violet-50 disabled:opacity-50"
-                      title="Auto-preencher formulário com IA"
-                    >
-                      {extractingId === att.id
-                        ? <Loader2 size={10} className="animate-spin" />
-                        : <Sparkles size={10} />}
-                      {extractingId === att.id ? "…" : "Extrair"}
-                    </button>
-                  )}
+                <div className="flex gap-1 opacity-0 transition group-hover:opacity-100">
                   <button
                     type="button"
                     onClick={() => setViewing(att)}
@@ -576,86 +557,6 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
   const [saving, setSaving] = useState(false);
 
-  // ── Auto-fill from reference ─────────────────────────────────────────────────
-  const [extracting, setExtracting]     = useState<string | null>(null); // att id
-  const [extractToast, setExtractToast] = useState<string | null>(null);
-
-  /** Map Gemini-extracted JSON → form state; returns number of fields filled */
-  const applyExtracted = (data: Record<string, unknown>): number => {
-    type FormPatch = Partial<Omit<ProductData, "id" | "createdAt" | "updatedAt">>;
-    const patch: FormPatch = {};
-    let count = 0;
-
-    const str = (key: string, field: keyof FormPatch) => {
-      const v = data[key];
-      if (v && typeof v === "string") { (patch as Record<string, unknown>)[field] = v; count++; }
-    };
-
-    str("nome",             "nome");
-    str("expert",           "expert");
-    str("promessa",         "promessa");
-    str("coProdutores",     "coProdutores");
-    str("coordenador",      "coordenador");
-    str("debateProduto",    "debateProduto");
-    str("descricaoAvatar",  "descricaoAvatar");
-    str("temaAulaInaugural","temaAulaInaugural");
-    str("valorBase",        "valorBase");
-    str("paraQuemE",        "paraQuemE");
-    str("receitaTecnica",   "receitaTecnica");
-    str("paginaCaptura",    "paginaCaptura");
-    str("paginaVendas",     "paginaVendas");
-
-    if (Array.isArray(data.subPromessas) && data.subPromessas.length > 0) {
-      patch.subPromessas = (data.subPromessas as string[]).map((t) => ({ id: uid(), text: t }));
-      count++;
-    }
-    if (Array.isArray(data.palavrasChave) && data.palavrasChave.length > 0) {
-      patch.palavrasChave = data.palavrasChave as string[];
-      count++;
-    }
-    if (Array.isArray(data.oQueVaiAprender) && data.oQueVaiAprender.length > 0) {
-      patch.oQueVaiAprender = data.oQueVaiAprender as string[];
-      count++;
-    }
-    if (Array.isArray(data.lotes) && data.lotes.length > 0) {
-      patch.lotes = (data.lotes as Array<{ label: string; valor: string; promo: string }>)
-        .map((l) => ({ id: uid(), label: l.label ?? "", valor: l.valor ?? "", promo: l.promo ?? "" }));
-      count++;
-    }
-    if (Array.isArray(data.doresESolucoes) && data.doresESolucoes.length > 0) {
-      patch.doresESolucoes = (data.doresESolucoes as Array<{ dor: string; solucao: string }>)
-        .map((d) => ({ id: uid(), dor: d.dor ?? "", solucao: d.solucao ?? "" }));
-      count++;
-    }
-
-    setForm((prev) => ({ ...prev, ...patch }));
-    return count;
-  };
-
-  const handleExtract = async (att: Attachment) => {
-    setExtracting(att.id);
-    try {
-      const mimeType = att.fileType === "pdf" ? "application/pdf" : "image/jpeg";
-      const res  = await fetch("/api/extract-product", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dataUrl: att.dataUrl, mimeType }),
-      });
-      const json = await res.json() as { ok?: boolean; data?: Record<string, unknown>; error?: string };
-      if (!json.ok || !json.data) throw new Error(json.error ?? "Resposta inesperada da API.");
-      const count = applyExtracted(json.data);
-      const msg = count > 0
-        ? `✅ ${count} campo${count !== 1 ? "s" : ""} preenchido${count !== 1 ? "s" : ""} automaticamente!`
-        : "⚠️ Nenhum campo identificado na referência.";
-      setExtractToast(msg);
-      setTimeout(() => setExtractToast(null), 5000);
-    } catch (err) {
-      alert(`Erro ao extrair dados: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setExtracting(null);
-    }
-  };
-
   // ── Handle type selection ────────────────────────────────────────────────────
   const handleChooseType = (t: ProductType) => {
     setTypeChosen(t);
@@ -716,19 +617,6 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   return (
     <div className="flex flex-col">
 
-      {/* ── Extract toast ───────────────────────────────────────────────────── */}
-      {extractToast && (
-        <div className="fixed bottom-6 left-1/2 z-[200] -translate-x-1/2 animate-in fade-in slide-in-from-bottom-3 duration-300">
-          <div className="flex items-center gap-2.5 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-xl">
-            <Sparkles size={14} className="text-violet-400 flex-shrink-0" />
-            {extractToast}
-            <button type="button" onClick={() => setExtractToast(null)} className="ml-2 opacity-60 hover:opacity-100">
-              <X size={12} />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ── Sticky top bar ─────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-3 shadow-sm">
         <div className="flex items-center gap-3">
@@ -775,13 +663,11 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               )}
             </div>
             <p className="mb-3 text-[10px] text-slate-400 leading-relaxed">
-              Suba prints ou PDFs do Milanote. Passe o mouse sobre um arquivo e clique em <span className="font-semibold text-violet-500">✨ Extrair</span> para auto-preencher os campos via IA.
+              Suba prints ou PDFs do Milanote para usar como referência enquanto preenche
             </p>
             <AttachmentPanel
               attachments={form.attachments}
               onChange={(a) => set("attachments", a)}
-              onExtract={handleExtract}
-              extractingId={extracting}
             />
           </div>
         </aside>
@@ -798,8 +684,6 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               <AttachmentPanel
                 attachments={form.attachments}
                 onChange={(a) => set("attachments", a)}
-                onExtract={handleExtract}
-                extractingId={extracting}
               />
             </Section>
           </div>
