@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Uses Gemini REST API directly — avoids SDK versioning issues
-// gemini-1.5-flash: free tier (1 500 req/day), supports images + PDFs
-const GEMINI_MODEL  = "gemini-1.5-flash";
+// gemini-2.0-flash-lite: lightest model available on this key, supports images + PDFs
+const GEMINI_MODEL  = "gemini-2.0-flash-lite";
 const GEMINI_URL    = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const EXTRACTION_PROMPT = `
