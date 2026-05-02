@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
+// Uses Gemini REST API directly — avoids SDK versioning issues
+const GEMINI_MODEL  = "gemini-2.0-flash";
+const GEMINI_URL    = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 const EXTRACTION_PROMPT = `
 Você é um extrator de dados de produtos de educação física e esportes.
@@ -58,7 +59,8 @@ Retorne APENAS o JSON. Nenhum texto antes ou depois.
 // ─── POST /api/extract-product ────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  if (!process.env.GEMINI_API_KEY) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
     return NextResponse.json(
       { error: "GEMINI_API_KEY não configurada no servidor." },
       { status: 500 },
@@ -73,26 +75,51 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "dataUrl e mimeType são obrigatórios." }, { status: 400 });
     }
 
-    // Strip the "data:<mime>;base64," prefix
+    // Strip the "data:<mime>;base64," prefix if present
     const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    // ── Call Gemini REST API directly ─────────────────────────────────────────
+    const geminiRes = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: EXTRACTION_PROMPT },
+              { inline_data: { mime_type: mimeType, data: base64 } },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: "application/json",
+        },
+      }),
+    });
 
-    const result = await model.generateContent([
-      EXTRACTION_PROMPT,
-      { inlineData: { data: base64, mimeType } },
-    ]);
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      throw new Error(`Gemini API ${geminiRes.status}: ${errText}`);
+    }
 
-    const raw = result.response.text().trim();
+    const geminiJson = await geminiRes.json() as {
+      candidates?: Array<{ content: { parts: Array<{ text: string }> } }>;
+      error?: { message: string };
+    };
 
-    // Parse JSON — strip any accidental markdown fences
+    if (geminiJson.error) throw new Error(geminiJson.error.message);
+
+    const raw = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    if (!raw) throw new Error("Resposta vazia da IA.");
+
+    // Strip any accidental markdown fences
     const clean = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
 
     let extracted: Record<string, unknown>;
     try {
       extracted = JSON.parse(clean);
     } catch {
-      // Try to grab JSON substring
       const match = clean.match(/\{[\s\S]*\}/);
       if (!match) throw new Error("Resposta da IA não contém JSON válido.");
       extracted = JSON.parse(match[0]);
