@@ -151,7 +151,7 @@ function EmptyState({ type, onAdd }: { type: ProductType; onAdd: () => void }) {
       <button
         type="button"
         onClick={onAdd}
-        className={`mt-1 flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white shadow-sm transition ${isPos ? "bg-blue-600 hover:bg-blue-700" : "bg-violet-600 hover:bg-violet-700"}`}
+        className={`mt-1 flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold text-white shadow-sm transition ${isPos ? "bg-brand hover:bg-brand-hover" : "bg-violet-600 hover:bg-violet-700"}`}
       >
         <Plus size={12} /> Adicionar {isPos ? "Pós Graduação" : "Imersão"}
       </button>
@@ -230,7 +230,7 @@ export function ProductBase() {
         <button
           type="button"
           onClick={handleAdd}
-          className="flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+          className="flex items-center gap-2 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover"
         >
           <Plus size={14} /> Novo produto
         </button>

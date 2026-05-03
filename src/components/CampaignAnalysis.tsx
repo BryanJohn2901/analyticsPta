@@ -205,7 +205,7 @@ function Paginator({
               key={p}
               onClick={() => onChange(p)}
               className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold transition ${
-                p === page ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+                p === page ? "bg-brand text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
               }`}
             >
               {p}

@@ -4,16 +4,30 @@
 :root {
   --background: #f1f5f9;
   --foreground: #0f172a;
+  --brand:       #313491;
+  --brand-hover: #272880;
 }
 
 .dark {
   --background: #0f172a;
   --foreground: #f1f5f9;
+  /* Deeper shadows so cards look elevated on dark backgrounds */
+  --tw-shadow-color: rgb(0 0 0 / 0.5);
 }
+
+/* Remove visual noise from box-shadow in dark mode — borders handle separation */
+.dark .shadow-sm { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4); }
+.dark .shadow    { box-shadow: 0 2px 6px 0 rgb(0 0 0 / 0.45); }
+.dark .shadow-md { box-shadow: 0 4px 10px -2px rgb(0 0 0 / 0.5); }
+.dark .shadow-lg { box-shadow: 0 8px 20px -4px rgb(0 0 0 / 0.55); }
+.dark .shadow-xl { box-shadow: 0 16px 30px -6px rgb(0 0 0 / 0.6); }
+.dark .shadow-2xl{ box-shadow: 0 24px 48px -8px rgb(0 0 0 / 0.65); }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-brand:      var(--brand);
+  --color-brand-hover:var(--brand-hover);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

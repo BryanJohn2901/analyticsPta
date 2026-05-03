@@ -640,7 +640,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="flex h-9 items-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
+          className="flex h-9 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover disabled:opacity-60"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
           {saving ? "Salvando…" : "Salvar produto"}
@@ -958,7 +958,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60"
+              className="flex items-center gap-2 rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover disabled:opacity-60"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               {saving ? "Salvando…" : "Salvar produto"}

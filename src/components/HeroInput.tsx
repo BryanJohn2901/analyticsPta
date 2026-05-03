@@ -88,7 +88,7 @@ export function HeroInput({
             type="button"
             onClick={handleConnectRealtime}
             disabled={loading}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-blue-600 px-3 text-xs font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-brand px-3 text-xs font-medium text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-70"
           >
             {loading && loadingMode === "realtime" ? (
               <>
@@ -124,7 +124,7 @@ export function HeroInput({
         <button
           type="submit"
           disabled={loading}
-          className="inline-flex h-11 min-w-44 items-center justify-center gap-2 rounded-lg bg-blue-600 px-5 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex h-11 min-w-44 items-center justify-center gap-2 rounded-lg bg-brand px-5 text-sm font-medium text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-70"
         >
           {loading && loadingMode === "url" ? (
             <>

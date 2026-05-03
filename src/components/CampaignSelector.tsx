@@ -155,7 +155,7 @@ export function CampaignSelector({
             onClick={() => onSelectTurma("all")}
             className={`rounded-md border px-2.5 py-1 text-xs font-medium transition ${
               selectedTurma === "all"
-                ? "border-blue-200 bg-blue-600 text-white"
+                ? "border-brand bg-brand text-white"
                 : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
             }`}
           >
@@ -170,7 +170,7 @@ export function CampaignSelector({
                 onClick={() => onSelectTurma(turma)}
                 className={`rounded-md border px-2.5 py-1 text-xs font-medium transition ${
                   selectedTurma === turma
-                    ? "border-blue-200 bg-blue-600 text-white"
+                    ? "border-brand bg-brand text-white"
                     : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
                 }`}
               >
