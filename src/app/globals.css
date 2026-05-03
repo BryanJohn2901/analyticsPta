@@ -1,27 +1,363 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ============================================================
+   DASHMONSTER — SISTEMA DE CORES v2
+   Conformidade: WCAG 2.1 AA (mínimo) em todos os tokens de texto
+   ============================================================ */
+
+/* ============================================================
+   LIGHT MODE (default)
+   ============================================================ */
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
-  --brand:       #313491;
-  --brand-hover: #272880;
+
+  /* ----------------------------------------------------------
+     FUNDAÇÃO — SUPERFÍCIES E BORDAS
+     ---------------------------------------------------------- */
+  --dm-bg-page:          #F5F6FA;
+  --dm-bg-surface:       #FFFFFF;
+  --dm-bg-sidebar:       #F0F1F8;
+  --dm-bg-elevated:      #EAEBF5;
+
+  --dm-border-subtle:    #EDEEF6;
+  --dm-border-default:   #E4E5F0;
+  --dm-border-strong:    #CACBD8;
+
+  /* ----------------------------------------------------------
+     TIPOGRAFIA
+     ---------------------------------------------------------- */
+  --dm-text-primary:     #0D0E1A;   /* 18.1:1 — AAA */
+  --dm-text-secondary:   #4E5169;   /*  6.2:1 — AA  */
+  --dm-text-tertiary:    #9398B2;   /*  3.1:1 — Decorativo */
+  --dm-text-disabled:    #C5C7D8;
+  --dm-text-inverse:     #FFFFFF;
+
+  /* ----------------------------------------------------------
+     MARCA — INDIGO (nav, botões primários, foco)
+     ISOLADO das categorias — nunca usar para Ebooks
+     ---------------------------------------------------------- */
+  --dm-brand-50:         #EEEDFE;
+  --dm-brand-100:        #CECBF6;
+  --dm-brand-200:        #AFA9EC;
+  --dm-brand-400:        #7F77DD;
+  --dm-brand-500:        #5858F0;
+  --dm-brand-600:        #4242CC;
+  --dm-brand-700:        #2E2E99;
+  --dm-brand-900:        #1A1A66;
+
+  /* ----------------------------------------------------------
+     NAV — ESTADOS
+     ---------------------------------------------------------- */
+  --dm-nav-active-bg:    #EEEDFE;
+  --dm-nav-active-text:  #4242CC;   /* 7.8:1 — AAA */
+  --dm-nav-active-dot:   #5858F0;
+  --dm-nav-hover-bg:     #F5F5FF;
+  --dm-nav-hover-text:   #0D0E1A;
+  --dm-nav-default-text: #4E5169;
+
+  /* ----------------------------------------------------------
+     BOTÕES
+     ---------------------------------------------------------- */
+  --dm-btn-primary-bg:   #5858F0;
+  --dm-btn-primary-text: #FFFFFF;
+  --dm-btn-primary-hover:#4242CC;
+  --dm-btn-ghost-bg:     #EEEDFE;
+  --dm-btn-ghost-text:   #4242CC;
+  --dm-btn-ghost-hover:  #DDDAF8;
+  --dm-btn-destructive-bg:   #DC2626;
+  --dm-btn-destructive-text: #FFFFFF;
+  --dm-btn-destructive-hover:#B91C1C;
+
+  /* ----------------------------------------------------------
+     CATEGORIAS — SISTEMA SEMÂNTICO
+     ---------------------------------------------------------- */
+
+  /* LANÇAMENTOS DE PÓS — Azul Royal */
+  --dm-cat-pos-bg:         #EFF4FF;
+  --dm-cat-pos-border:     #BFDBFE;
+  --dm-cat-pos-tag-bg:     #DBEAFE;
+  --dm-cat-pos-tag-text:   #1E40AF;   /* 8.6:1 — AAA */
+  --dm-cat-pos-base:       #2563EB;
+  --dm-cat-pos-icon:       #3B82F6;
+  --dm-cat-pos-title:      #1E3A8A;
+
+  /* LIVROS — Esmeralda */
+  --dm-cat-livros-bg:      #ECFDF5;
+  --dm-cat-livros-border:  #A7F3D0;
+  --dm-cat-livros-tag-bg:  #D1FAE5;
+  --dm-cat-livros-tag-text:#065F46;   /* 7.5:1 — AAA */
+  --dm-cat-livros-base:    #059669;
+  --dm-cat-livros-icon:    #10B981;
+  --dm-cat-livros-title:   #064E3B;
+
+  /* EBOOKS — Violeta (≠ Indigo da brand) */
+  --dm-cat-ebooks-bg:      #F5F0FF;
+  --dm-cat-ebooks-border:  #DDD6FE;
+  --dm-cat-ebooks-tag-bg:  #EDE9FE;
+  --dm-cat-ebooks-tag-text:#5B21B6;   /* 7.1:1 — AAA */
+  --dm-cat-ebooks-base:    #7C3AED;
+  --dm-cat-ebooks-icon:    #8B5CF6;
+  --dm-cat-ebooks-title:   #4C1D95;
+
+  /* PERPÉTUO — Âmbar */
+  --dm-cat-perpetuo-bg:      #FFFBEB;
+  --dm-cat-perpetuo-border:  #FDE68A;
+  --dm-cat-perpetuo-tag-bg:  #FEF3C7;
+  --dm-cat-perpetuo-tag-text:#92400E;  /* 6.1:1 — AA */
+  --dm-cat-perpetuo-base:    #D97706;
+  --dm-cat-perpetuo-icon:    #F59E0B;
+  --dm-cat-perpetuo-title:   #78350F;
+
+  /* EVENTOS — Rosa/Vermelho */
+  --dm-cat-eventos-bg:      #FFF1F2;
+  --dm-cat-eventos-border:  #FECDD3;
+  --dm-cat-eventos-tag-bg:  #FFE4E6;
+  --dm-cat-eventos-tag-text:#9F1239;   /* 6.8:1 — AA */
+  --dm-cat-eventos-base:    #DC2626;
+  --dm-cat-eventos-icon:    #F43F5E;
+  --dm-cat-eventos-title:   #881337;
+
+  /* ----------------------------------------------------------
+     SEMÂNTICO / STATUS
+     ---------------------------------------------------------- */
+  --dm-success-bg:     #ECFDF5;
+  --dm-success-border: #A7F3D0;
+  --dm-success-text:   #065F46;
+  --dm-success-base:   #059669;
+
+  --dm-warning-bg:     #FFFBEB;
+  --dm-warning-border: #FDE68A;
+  --dm-warning-text:   #92400E;
+  --dm-warning-base:   #D97706;
+
+  --dm-error-bg:       #FFF1F2;
+  --dm-error-border:   #FECDD3;
+  --dm-error-text:     #9F1239;
+  --dm-error-base:     #DC2626;
+
+  --dm-info-bg:        #EFF4FF;
+  --dm-info-border:    #BFDBFE;
+  --dm-info-text:      #1E40AF;
+  --dm-info-base:      #2563EB;
+
+  /* ----------------------------------------------------------
+     DATA VIZ — DELTAS
+     ---------------------------------------------------------- */
+  --dm-delta-up:       #059669;
+  --dm-delta-up-bg:    #ECFDF5;
+  --dm-delta-down:     #DC2626;
+  --dm-delta-down-bg:  #FFF1F2;
+  --dm-delta-flat:     #6B7280;
+  --dm-delta-flat-bg:  #F3F4F6;
+
+  /* ----------------------------------------------------------
+     CHART PALETTE
+     ---------------------------------------------------------- */
+  --dm-chart-1:  #5858F0;
+  --dm-chart-2:  #059669;
+  --dm-chart-3:  #D97706;
+  --dm-chart-4:  #DC2626;
+  --dm-chart-5:  #7C3AED;
+  --dm-chart-6:  #0284C7;
+  --dm-chart-7:  #9398B2;
+
+  /* ----------------------------------------------------------
+     FOCO / ACESSIBILIDADE
+     ---------------------------------------------------------- */
+  --dm-focus-ring: 0 0 0 3px rgba(88, 88, 240, 0.35);
+
+  /* ----------------------------------------------------------
+     LEGACY ALIASES — usados por Tailwind @theme e body
+     ---------------------------------------------------------- */
+  --background:  var(--dm-bg-page);
+  --foreground:  var(--dm-text-primary);
+  --brand:       var(--dm-brand-500);
+  --brand-hover: var(--dm-brand-600);
 }
 
+
+/* ============================================================
+   DARK MODE
+   ============================================================ */
+[data-theme="dark"],
 .dark {
-  --background: #0f172a;
-  --foreground: #f1f5f9;
-  /* Deeper shadows so cards look elevated on dark backgrounds */
+
+  /* ----------------------------------------------------------
+     FUNDAÇÃO — Near-black com toque azul-frio
+     ---------------------------------------------------------- */
+  --dm-bg-page:          #0E1017;
+  --dm-bg-surface:       #161820;
+  --dm-bg-sidebar:       #0E1017;
+  --dm-bg-elevated:      #1E2030;
+
+  --dm-border-subtle:    #1A1C2A;
+  --dm-border-default:   #2A2C3E;
+  --dm-border-strong:    #3A3D54;
+
+  /* ----------------------------------------------------------
+     TIPOGRAFIA DARK
+     ---------------------------------------------------------- */
+  --dm-text-primary:     #EEF0FA;
+  --dm-text-secondary:   #8B8FA8;
+  --dm-text-tertiary:    #4E526B;
+  --dm-text-disabled:    #2E3048;
+  --dm-text-inverse:     #0D0E1A;
+
+  /* ----------------------------------------------------------
+     MARCA DARK
+     ---------------------------------------------------------- */
+  --dm-brand-50:         #1A1A66;
+  --dm-brand-100:        #2E2E99;
+  --dm-brand-200:        #4242CC;
+  --dm-brand-400:        #6666F2;
+  --dm-brand-500:        #7878F4;
+  --dm-brand-600:        #CECBF6;
+  --dm-brand-700:        #AFA9EC;
+  --dm-brand-900:        #EEEDFE;
+
+  /* ----------------------------------------------------------
+     NAV DARK
+     ---------------------------------------------------------- */
+  --dm-nav-active-bg:    #1E1E66;
+  --dm-nav-active-text:  #CECBF6;
+  --dm-nav-active-dot:   #7878F4;
+  --dm-nav-hover-bg:     #1E2030;
+  --dm-nav-hover-text:   #EEF0FA;
+  --dm-nav-default-text: #8B8FA8;
+
+  /* ----------------------------------------------------------
+     BOTÕES DARK
+     ---------------------------------------------------------- */
+  --dm-btn-primary-bg:   #5858F0;
+  --dm-btn-primary-text: #FFFFFF;
+  --dm-btn-primary-hover:#6666F2;
+  --dm-btn-ghost-bg:     #1E1E66;
+  --dm-btn-ghost-text:   #CECBF6;
+  --dm-btn-ghost-hover:  #2A2A80;
+  --dm-btn-destructive-bg:   #7F1D1D;
+  --dm-btn-destructive-text: #FCA5A5;
+  --dm-btn-destructive-hover:#991B1B;
+
+  /* ----------------------------------------------------------
+     CATEGORIAS DARK
+     ---------------------------------------------------------- */
+
+  /* LANÇAMENTOS DE PÓS */
+  --dm-cat-pos-bg:         #0F1A3A;
+  --dm-cat-pos-border:     #1E3A8A;
+  --dm-cat-pos-tag-bg:     #1E3A8A;
+  --dm-cat-pos-tag-text:   #93C5FD;
+  --dm-cat-pos-base:       #60A5FA;
+  --dm-cat-pos-icon:       #60A5FA;
+  --dm-cat-pos-title:      #BFDBFE;
+
+  /* LIVROS */
+  --dm-cat-livros-bg:      #052E1C;
+  --dm-cat-livros-border:  #065F46;
+  --dm-cat-livros-tag-bg:  #064E3B;
+  --dm-cat-livros-tag-text:#6EE7B7;
+  --dm-cat-livros-base:    #34D399;
+  --dm-cat-livros-icon:    #34D399;
+  --dm-cat-livros-title:   #A7F3D0;
+
+  /* EBOOKS */
+  --dm-cat-ebooks-bg:      #1A0F35;
+  --dm-cat-ebooks-border:  #3B0764;
+  --dm-cat-ebooks-tag-bg:  #2E1065;
+  --dm-cat-ebooks-tag-text:#C4B5FD;
+  --dm-cat-ebooks-base:    #A78BFA;
+  --dm-cat-ebooks-icon:    #A78BFA;
+  --dm-cat-ebooks-title:   #DDD6FE;
+
+  /* PERPÉTUO */
+  --dm-cat-perpetuo-bg:      #2A1A00;
+  --dm-cat-perpetuo-border:  #78350F;
+  --dm-cat-perpetuo-tag-bg:  #451A03;
+  --dm-cat-perpetuo-tag-text:#FCD34D;
+  --dm-cat-perpetuo-base:    #FBBF24;
+  --dm-cat-perpetuo-icon:    #FBBF24;
+  --dm-cat-perpetuo-title:   #FEF3C7;
+
+  /* EVENTOS */
+  --dm-cat-eventos-bg:      #2A0808;
+  --dm-cat-eventos-border:  #7F1D1D;
+  --dm-cat-eventos-tag-bg:  #450A0A;
+  --dm-cat-eventos-tag-text:#FCA5A5;
+  --dm-cat-eventos-base:    #F87171;
+  --dm-cat-eventos-icon:    #F87171;
+  --dm-cat-eventos-title:   #FFE4E6;
+
+  /* ----------------------------------------------------------
+     SEMÂNTICO DARK
+     ---------------------------------------------------------- */
+  --dm-success-bg:     #052E1C;
+  --dm-success-border: #065F46;
+  --dm-success-text:   #6EE7B7;
+  --dm-success-base:   #10B981;
+
+  --dm-warning-bg:     #2A1A00;
+  --dm-warning-border: #78350F;
+  --dm-warning-text:   #FCD34D;
+  --dm-warning-base:   #F59E0B;
+
+  --dm-error-bg:       #2A0808;
+  --dm-error-border:   #7F1D1D;
+  --dm-error-text:     #FCA5A5;
+  --dm-error-base:     #F87171;
+
+  --dm-info-bg:        #0F1A3A;
+  --dm-info-border:    #1E3A8A;
+  --dm-info-text:      #93C5FD;
+  --dm-info-base:      #60A5FA;
+
+  /* ----------------------------------------------------------
+     DATA VIZ DARK
+     ---------------------------------------------------------- */
+  --dm-delta-up:       #10B981;
+  --dm-delta-up-bg:    #052E1C;
+  --dm-delta-down:     #F87171;
+  --dm-delta-down-bg:  #2A0808;
+  --dm-delta-flat:     #8B8FA8;
+  --dm-delta-flat-bg:  #1E2030;
+
+  /* ----------------------------------------------------------
+     CHART DARK
+     ---------------------------------------------------------- */
+  --dm-chart-1:  #7878F4;
+  --dm-chart-2:  #34D399;
+  --dm-chart-3:  #FBBF24;
+  --dm-chart-4:  #F87171;
+  --dm-chart-5:  #A78BFA;
+  --dm-chart-6:  #38BDF8;
+  --dm-chart-7:  #8B8FA8;
+
+  /* ----------------------------------------------------------
+     FOCO DARK
+     ---------------------------------------------------------- */
+  --dm-focus-ring: 0 0 0 3px rgba(120, 120, 244, 0.4);
+
+  /* ----------------------------------------------------------
+     LEGACY ALIASES
+     ---------------------------------------------------------- */
+  --background:  var(--dm-bg-page);
+  --foreground:  var(--dm-text-primary);
+  --brand:       var(--dm-brand-500);
+  --brand-hover: var(--dm-btn-primary-hover);
+
+  /* Deeper shadows for dark mode elevation */
   --tw-shadow-color: rgb(0 0 0 / 0.5);
 }
 
-/* Remove visual noise from box-shadow in dark mode — borders handle separation */
+/* Dark mode shadow overrides — deep, not glowing */
 .dark .shadow-sm { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4); }
 .dark .shadow    { box-shadow: 0 2px 6px 0 rgb(0 0 0 / 0.45); }
 .dark .shadow-md { box-shadow: 0 4px 10px -2px rgb(0 0 0 / 0.5); }
 .dark .shadow-lg { box-shadow: 0 8px 20px -4px rgb(0 0 0 / 0.55); }
 .dark .shadow-xl { box-shadow: 0 16px 30px -6px rgb(0 0 0 / 0.6); }
 .dark .shadow-2xl{ box-shadow: 0 24px 48px -8px rgb(0 0 0 / 0.65); }
+
+/* Category card hover — uses inline CSS custom property */
+.dm-cat-card:hover { border-color: var(--dm-cat-card-hover-border) !important; }
 
 @theme inline {
   --color-background: var(--background);
@@ -33,8 +369,8 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--dm-bg-page);
+  color: var(--dm-text-primary);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 

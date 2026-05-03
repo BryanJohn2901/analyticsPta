@@ -565,11 +565,28 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
           <li key={id}>
             <button
               onClick={() => { setMainTab(id); setShowMobileNav(false); }}
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                mainTab === id
-                  ? "bg-brand text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-              }`}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition"
+              style={mainTab === id
+                ? {
+                    backgroundColor: "var(--dm-nav-active-bg)",
+                    color: "var(--dm-nav-active-text)",
+                  }
+                : {
+                    color: "var(--dm-nav-default-text)",
+                  }
+              }
+              onMouseEnter={(e) => {
+                if (mainTab !== id) {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = "var(--dm-nav-hover-bg)";
+                  (e.currentTarget as HTMLElement).style.color = "var(--dm-nav-hover-text)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (mainTab !== id) {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = "";
+                  (e.currentTarget as HTMLElement).style.color = "var(--dm-nav-default-text)";
+                }
+              }}
             >
               <Icon size={16} className="flex-shrink-0" />
               <span className="truncate">{label}</span>
@@ -595,7 +612,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100 dark:bg-slate-900">
+    <div className="flex h-screen overflow-hidden bg-[var(--dm-bg-page)]">
 
       {/* ── Mobile nav overlay ── */}
       {showMobileNav && (
@@ -613,9 +630,10 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
 
       {/* ── Left sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r border-slate-200 bg-white transition-transform duration-300 dark:border-slate-700 dark:bg-slate-800 lg:relative lg:translate-x-0 lg:z-auto ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto ${
           showMobileNav ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         } lg:flex lg:w-[220px] lg:flex-shrink-0`}
+        style={{ backgroundColor: "var(--dm-bg-sidebar)", borderColor: "var(--dm-border-default)" }}
       >
         {/* Brand */}
         <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5 dark:border-slate-700">
@@ -650,7 +668,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
       <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* Top header */}
-        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-700 dark:bg-slate-800 md:px-6">
+        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b px-4 md:px-6" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
           <div className="flex items-center gap-3">
             {/* Hamburger (mobile) */}
             <button
@@ -677,7 +695,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
                     title="Trocar categoria"
                     className="ml-1 flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                   >
-                    <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dot }} />
                     <CatIcon size={11} />
                     <span className="hidden sm:inline">{CATEGORY_LABEL[selectedCategory]}</span>
                     <X size={10} className="text-slate-400 dark:text-slate-500" />
@@ -807,7 +825,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
 
       {/* ── Right sidebar — desktop ── */}
       {showRightPanel && (
-        <aside className="hidden w-[260px] flex-shrink-0 border-l border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 lg:flex lg:flex-col">
+        <aside className="hidden w-[260px] flex-shrink-0 border-l lg:flex lg:flex-col" style={{ backgroundColor: "var(--dm-bg-sidebar)", borderColor: "var(--dm-border-default)" }}>
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}
