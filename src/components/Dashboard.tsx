@@ -25,6 +25,7 @@ import { HistoricalView } from "@/components/HistoricalView";
 import { BestCreatives } from "@/components/BestCreatives";
 import { ProfileAnalysis } from "@/components/ProfileAnalysis";
 import { ProductBase } from "@/components/products/ProductBase";
+import { DashMonsterLogo } from "@/components/DashMonsterLogo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -619,9 +620,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
         {/* Brand */}
         <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5 dark:border-slate-700">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 shadow-sm">
-              <TrendingUp size={15} className="text-white" />
-            </div>
+            <DashMonsterLogo size={32} />
             <span className="text-sm font-bold text-slate-900 dark:text-slate-100">DashMonster</span>
           </div>
           <button
