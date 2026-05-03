@@ -27,21 +27,21 @@ function ProductCard({ product: p, onEdit, onDelete }: ProductCardProps) {
 
   return (
     <article
-      className={`group relative flex flex-col rounded-2xl border border-slate-200 border-l-4 ${colors.accent} bg-white p-4 shadow-sm transition hover:shadow-md`}
+      className={`group relative flex flex-col rounded-2xl border border-slate-200 border-l-4 ${colors.accent} bg-white p-4 shadow-sm transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800`}
     >
       {/* Header row */}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${colors.badge}`}>
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${colors.badge} dark:opacity-80`}>
             {isPos ? "Pós Grad." : "Imersão"}
           </span>
           {course && (
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
               {course.label}
             </span>
           )}
           {p.turmaVinculada && (
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
               {p.turmaVinculada}
             </span>
           )}
@@ -52,14 +52,14 @@ function ProductCard({ product: p, onEdit, onDelete }: ProductCardProps) {
           <button
             type="button"
             onClick={onEdit}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             <Edit3 size={12} />
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-red-100 text-red-400 transition hover:bg-red-50"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-red-100 text-red-400 transition hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
           >
             <Trash2 size={12} />
           </button>
@@ -67,33 +67,33 @@ function ProductCard({ product: p, onEdit, onDelete }: ProductCardProps) {
       </div>
 
       {/* Name */}
-      <h3 className="text-sm font-bold text-slate-900 leading-snug">{p.nome || "Sem nome"}</h3>
-      {p.expert && <p className="mt-0.5 text-xs text-slate-400">{p.expert}</p>}
+      <h3 className="text-sm font-bold text-slate-900 leading-snug dark:text-slate-100">{p.nome || "Sem nome"}</h3>
+      {p.expert && <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{p.expert}</p>}
 
       {/* Promessa */}
       {p.promessa && (
-        <p className="mt-2 line-clamp-2 text-xs text-slate-500 leading-relaxed">{p.promessa}</p>
+        <p className="mt-2 line-clamp-2 text-xs text-slate-500 leading-relaxed dark:text-slate-400">{p.promessa}</p>
       )}
 
       {/* Sub-promessas count + links count */}
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-50 pt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-50 pt-3 dark:border-slate-700">
         {p.subPromessas.filter((s) => s.text).length > 0 && (
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">
             {p.subPromessas.filter((s) => s.text).length} sub-promessa{p.subPromessas.filter((s) => s.text).length !== 1 ? "s" : ""}
           </span>
         )}
         {p.linksVenda.length > 0 && (
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">
             {p.linksVenda.length} link{p.linksVenda.length !== 1 ? "s" : ""} de venda
           </span>
         )}
         {p.lotes.length > 0 && (
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">
             {p.lotes.length} lote{p.lotes.length !== 1 ? "s" : ""}
           </span>
         )}
         {p.attachments.length > 0 && (
-          <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+          <span className="flex items-center gap-0.5 text-[10px] text-slate-400 dark:text-slate-500">
             📎 {p.attachments.length} ref.
           </span>
         )}
@@ -103,7 +103,7 @@ function ProductCard({ product: p, onEdit, onDelete }: ProductCardProps) {
       <button
         type="button"
         onClick={onEdit}
-        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-100 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-100 py-1.5 text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-200"
       >
         Abrir <ChevronRight size={12} />
       </button>
@@ -124,8 +124,8 @@ function SectionHeader({
         <Icon size={15} />
       </div>
       <div>
-        <h2 className="text-sm font-bold text-slate-900">{title}</h2>
-        <p className="text-[11px] text-slate-400">{count} produto{count !== 1 ? "s" : ""}</p>
+        <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h2>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">{count} produto{count !== 1 ? "s" : ""}</p>
       </div>
     </div>
   );
@@ -136,15 +136,15 @@ function SectionHeader({
 function EmptyState({ type, onAdd }: { type: ProductType; onAdd: () => void }) {
   const isPos = type === "pos";
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 py-10 text-center">
-      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${isPos ? "bg-blue-50" : "bg-violet-50"}`}>
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 py-10 text-center dark:border-slate-700 dark:bg-slate-800/40">
+      <div className={`flex h-12 w-12 items-center justify-center rounded-xl ${isPos ? "bg-blue-50 dark:bg-blue-900/30" : "bg-violet-50 dark:bg-violet-900/30"}`}>
         {isPos ? <GraduationCap size={20} className="text-blue-400" /> : <CalendarDays size={20} className="text-violet-400" />}
       </div>
       <div>
-        <p className="text-sm font-semibold text-slate-600">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
           Nenhuma {isPos ? "pós-graduação" : "imersão"} cadastrada
         </p>
-        <p className="mt-0.5 text-xs text-slate-400">
+        <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
           Clique em <span className="font-semibold">+ Novo produto</span> para adicionar
         </p>
       </div>
@@ -218,12 +218,12 @@ export function ProductBase() {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 shadow-sm">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 shadow-sm dark:bg-slate-700">
               <Package size={16} className="text-white" />
             </div>
-            <h1 className="text-lg font-bold text-slate-900">Base de Produtos</h1>
+            <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Base de Produtos</h1>
           </div>
-          <p className="mt-1 text-xs text-slate-400 ml-11">
+          <p className="mt-1 text-xs text-slate-400 ml-11 dark:text-slate-500">
             Cadastre pós-graduações e imersões com promessa, entregáveis e links de venda
           </p>
         </div>
@@ -245,9 +245,9 @@ export function ProductBase() {
             { label: "Imersões",          value: imersaoList.length, color: "text-violet-700" },
             { label: "Com links de venda",value: products.filter((p) => p.linksVenda.length > 0 || p.paginaVendas).length, color: "text-emerald-700" },
           ].map(({ label, value, color }) => (
-            <div key={label} className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
+            <div key={label} className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <p className={`text-2xl font-bold ${color}`}>{value}</p>
-              <p className="mt-0.5 text-xs text-slate-400">{label}</p>
+              <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{label}</p>
             </div>
           ))}
         </div>
@@ -276,10 +276,10 @@ export function ProductBase() {
             <button
               type="button"
               onClick={handleAdd}
-              className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50"
+              className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50 dark:border-slate-700 dark:hover:border-blue-600 dark:hover:bg-blue-900/10"
             >
-              <Plus size={18} className="text-slate-300" />
-              <span className="text-xs font-semibold text-slate-400">Nova Pós Graduação</span>
+              <Plus size={18} className="text-slate-300 dark:text-slate-600" />
+              <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Nova Pós Graduação</span>
             </button>
           </div>
         )}
@@ -308,10 +308,10 @@ export function ProductBase() {
             <button
               type="button"
               onClick={handleAdd}
-              className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-8 text-center transition hover:border-violet-300 hover:bg-violet-50"
+              className="flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 py-8 text-center transition hover:border-violet-300 hover:bg-violet-50 dark:border-slate-700 dark:hover:border-violet-600 dark:hover:bg-violet-900/10"
             >
-              <Plus size={18} className="text-slate-300" />
-              <span className="text-xs font-semibold text-slate-400">Nova Imersão</span>
+              <Plus size={18} className="text-slate-300 dark:text-slate-600" />
+              <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">Nova Imersão</span>
             </button>
           </div>
         )}

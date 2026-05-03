@@ -138,7 +138,7 @@ function AttachmentPanel({
           type="button"
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-center transition hover:border-blue-400 hover:bg-blue-50 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-3 text-center transition hover:border-blue-400 hover:bg-blue-50 disabled:opacity-60 dark:border-slate-600 dark:hover:border-blue-500 dark:hover:bg-blue-900/10"
         >
           {uploading
             ? <Loader2 size={15} className="animate-spin text-blue-500" />
@@ -162,7 +162,7 @@ function AttachmentPanel({
             {attachments.map((att) => (
               <div
                 key={att.id}
-                className="group flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 p-1.5"
+                className="group flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 p-1.5 dark:border-slate-700 dark:bg-slate-700/40"
               >
                 {/* Thumb */}
                 <button
@@ -186,8 +186,8 @@ function AttachmentPanel({
 
                 {/* Name + size */}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11px] font-semibold text-slate-700">{att.name}</p>
-                  <p className="text-[10px] text-slate-400">{att.sizeKb} KB</p>
+                  <p className="truncate text-[11px] font-semibold text-slate-700 dark:text-slate-300">{att.name}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">{att.sizeKb} KB</p>
                 </div>
 
                 {/* Actions */}
@@ -213,7 +213,7 @@ function AttachmentPanel({
             ))}
 
             {/* Total size */}
-            <p className="text-right text-[10px] text-slate-300">
+            <p className="text-right text-[10px] text-slate-300 dark:text-slate-600">
               {attachments.length} arquivo{attachments.length !== 1 ? "s" : ""} · {(totalKb / 1024).toFixed(1)} MB total
             </p>
           </div>
@@ -226,11 +226,11 @@ function AttachmentPanel({
 // ─── Shared input styles ──────────────────────────────────────────────────────
 
 const cls = {
-  input:    "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300",
-  textarea: "w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300",
-  label:    "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5",
-  addBtn:   "flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition",
-  removeBtn:"flex-shrink-0 rounded-md p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500",
+  input:    "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:border-blue-500",
+  textarea: "w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:border-blue-500",
+  label:    "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5 dark:text-slate-500",
+  addBtn:   "flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition dark:text-blue-400 dark:hover:text-blue-300",
+  removeBtn:"flex-shrink-0 rounded-md p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500 dark:text-slate-600 dark:hover:bg-red-900/30 dark:hover:text-red-400",
 };
 
 const uid = () => crypto.randomUUID();
@@ -244,19 +244,19 @@ function Section({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-100">
+    <div className="overflow-hidden rounded-xl border border-slate-100 dark:border-slate-700">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100"
+        className="flex w-full items-center justify-between bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 dark:bg-slate-700/50 dark:hover:bg-slate-700"
       >
         <div className="flex items-center gap-2">
-          {Icon && <Icon size={13} className="text-slate-400" />}
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{title}</span>
+          {Icon && <Icon size={13} className="text-slate-400 dark:text-slate-500" />}
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</span>
         </div>
-        <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={13} className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && <div className="space-y-4 p-4">{children}</div>}
+      {open && <div className="space-y-4 p-4 dark:bg-slate-800">{children}</div>}
     </div>
   );
 }
@@ -317,7 +317,7 @@ function TagsInput({ tags, onChange }: { tags: string[]; onChange: (t: string[])
     <div>
       <div className="flex flex-wrap gap-1.5 mb-2">
         {tags.map((t) => (
-          <span key={t} className="flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+          <span key={t} className="flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
             {t}
             <button type="button" onClick={() => onChange(tags.filter((x) => x !== t))} className="opacity-60 hover:opacity-100"><X size={10} /></button>
           </span>
@@ -331,7 +331,7 @@ function TagsInput({ tags, onChange }: { tags: string[]; onChange: (t: string[])
           placeholder="Digite e pressione Enter"
           className={cls.input}
         />
-        <button type="button" onClick={add} className="flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">
+        <button type="button" onClick={add} className="flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
           <Plus size={12} /> Add
         </button>
       </div>
@@ -351,7 +351,7 @@ function LotesTable({ lotes, onChange }: { lotes: Lote[]; onChange: (l: Lote[]) 
   return (
     <div className="space-y-2">
       {lotes.length > 0 && (
-        <div className="grid grid-cols-[1fr_1fr_1fr_28px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+        <div className="grid grid-cols-[1fr_1fr_1fr_28px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1 dark:text-slate-500">
           <span>Lote</span><span>Valor</span><span>Promoção</span><span />
         </div>
       )}
@@ -389,7 +389,7 @@ function EntregavelBlock({
   return (
     <div className="space-y-4">
       {entregaveis.map((e) => (
-        <div key={e.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-2">
+        <div key={e.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-2 dark:border-slate-700 dark:bg-slate-700/40">
           <div className="flex gap-2 items-center">
             <input
               value={e.titulo}
@@ -435,7 +435,7 @@ function DoresSolucoes({
   return (
     <div className="space-y-2">
       {pairs.length > 0 && (
-        <div className="grid grid-cols-[1fr_1fr_28px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+        <div className="grid grid-cols-[1fr_1fr_28px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1 dark:text-slate-500">
           <span>Dor / Objeção</span><span>Solução</span><span />
         </div>
       )}
@@ -475,7 +475,7 @@ function TurmaLinks({ links, onChange }: { links: TurmaLink[]; onChange: (l: Tur
   return (
     <div className="space-y-2">
       {links.length > 0 && (
-        <div className="grid grid-cols-[80px_1fr_2fr_28px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+        <div className="grid grid-cols-[80px_1fr_2fr_28px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1 dark:text-slate-500">
           <span>Turma</span><span>Valor</span><span>Link de pagamento</span><span />
         </div>
       )}
@@ -505,7 +505,7 @@ function PersonaSegmentos({
   return (
     <div className="space-y-3">
       {segments.map((s) => (
-        <div key={s.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-2">
+        <div key={s.id} className="rounded-lg border border-slate-100 bg-slate-50 p-3 space-y-2 dark:border-slate-700 dark:bg-slate-700/40">
           <div className="flex gap-2 items-center">
             <input value={s.titulo} onChange={(e) => update(s.id, "titulo", e.target.value)} placeholder="Ex: Profissional iniciante" className={`${cls.input} font-semibold`} />
             <button type="button" onClick={() => remove(s.id)} className={cls.removeBtn}><X size={13} /></button>
@@ -581,27 +581,27 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     return (
       <div className="flex min-h-full flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
-          <button onClick={onCancel} className="mb-8 flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-800">
+          <button onClick={onCancel} className="mb-8 flex items-center gap-2 text-sm font-medium text-slate-500 transition hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200">
             <ArrowLeft size={15} /> Voltar
           </button>
-          <h2 className="mb-2 text-xl font-bold text-slate-900">Tipo de produto</h2>
-          <p className="mb-8 text-sm text-slate-500">Selecione o formato antes de preencher os detalhes</p>
+          <h2 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">Tipo de produto</h2>
+          <p className="mb-8 text-sm text-slate-500 dark:text-slate-400">Selecione o formato antes de preencher os detalhes</p>
           <div className="grid grid-cols-2 gap-4">
             <button
               onClick={() => handleChooseType("pos")}
-              className="group flex flex-col items-start rounded-2xl border-2 border-blue-100 bg-blue-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg"
+              className="group flex flex-col items-start rounded-2xl border-2 border-blue-100 bg-blue-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-blue-400 hover:shadow-lg dark:border-blue-800 dark:bg-blue-900/20 dark:hover:border-blue-500"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-lg">🎓</div>
-              <p className="font-bold text-blue-900">Pós Graduação</p>
-              <p className="mt-1 text-[11px] text-slate-500">Lançamento de turma com currículo completo, entregáveis e imersão</p>
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-lg dark:bg-blue-900/40">🎓</div>
+              <p className="font-bold text-blue-900 dark:text-blue-300">Pós Graduação</p>
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Lançamento de turma com currículo completo, entregáveis e imersão</p>
             </button>
             <button
               onClick={() => handleChooseType("imersao")}
-              className="group flex flex-col items-start rounded-2xl border-2 border-violet-100 bg-violet-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-lg"
+              className="group flex flex-col items-start rounded-2xl border-2 border-violet-100 bg-violet-50 p-5 text-left transition hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-lg dark:border-violet-800 dark:bg-violet-900/20 dark:hover:border-violet-500"
             >
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-lg">⚡</div>
-              <p className="font-bold text-violet-900">Imersão</p>
-              <p className="mt-1 text-[11px] text-slate-500">Evento intensivo presencial ou online com tema e público específico</p>
+              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-100 text-lg dark:bg-violet-900/40">⚡</div>
+              <p className="font-bold text-violet-900 dark:text-violet-300">Imersão</p>
+              <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Evento intensivo presencial ou online com tema e público específico</p>
             </button>
           </div>
         </div>
@@ -618,20 +618,20 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     <div className="flex flex-col">
 
       {/* ── Sticky top bar ─────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-3 shadow-sm">
+      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onCancel}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             <ArrowLeft size={15} />
           </button>
           <div>
-            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${typeBadge}`}>
+            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${typeBadge} dark:opacity-80`}>
               {isPos ? "Pós Graduação" : "Imersão"}
             </span>
-            <p className="mt-0.5 text-sm font-bold text-slate-900 leading-none">
+            <p className="mt-0.5 text-sm font-bold text-slate-900 leading-none dark:text-slate-100">
               {form.nome || (isEdit ? "Editar produto" : "Novo produto")}
             </p>
           </div>
@@ -662,7 +662,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 </span>
               )}
             </div>
-            <p className="mb-3 text-[10px] text-slate-400 leading-relaxed">
+            <p className="mb-3 text-[10px] text-slate-400 leading-relaxed dark:text-slate-500">
               Suba prints ou PDFs do Milanote para usar como referência enquanto preenche
             </p>
             <AttachmentPanel
@@ -678,7 +678,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           {/* ══ REFERÊNCIAS — mobile only (hidden on xl where left panel shows) ══ */}
           <div className="xl:hidden">
             <Section title="Referências (prints / PDFs)" icon={Paperclip} defaultOpen={false}>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-400 dark:text-slate-500">
                 Suba prints do Milanote ou PDFs para usar como referência enquanto preenche os campos
               </p>
               <AttachmentPanel
@@ -689,8 +689,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           </div>
 
           {/* ══ IDENTIDADE (always open) ══ */}
-          <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-5 space-y-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-400">Identidade do produto</p>
+          <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-5 space-y-4 dark:border-blue-800/50 dark:bg-blue-900/10">
+            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-400 dark:text-blue-500">Identidade do produto</p>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Nome do produto" required>
@@ -924,7 +924,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
           {/* ══ VINCULAÇÃO ══ */}
           <Section title="Vinculação ao Curso / Turma" icon={Users}>
-            <p className="text-xs text-slate-400">Opcional — vincule este produto a um curso e turma específicos para cruzar com os dados das campanhas</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Opcional — vincule este produto a um curso e turma específicos para cruzar com os dados das campanhas</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Curso vinculado">
                 <select
@@ -951,7 +951,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
           {/* Bottom save */}
           <div className="flex justify-end gap-3 pt-2 pb-6">
-            <button type="button" onClick={onCancel} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50">
+            <button type="button" onClick={onCancel} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700">
               Cancelar
             </button>
             <button

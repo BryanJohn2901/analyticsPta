@@ -3,10 +3,11 @@
 import { FormEvent, useMemo, useRef, useState } from "react";
 import {
   Activity, BadgeDollarSign, BarChart2, BookOpen, CircleDollarSign,
-  Dumbbell, FileUp, Filter, ImageIcon, Link2, Loader2, Menu, Package,
-  SlidersHorizontal, Target, TrendingUp, Trophy, Upload, Users,
+  Dumbbell, FileUp, Filter, ImageIcon, Link2, Loader2, Menu, Moon, Package,
+  SlidersHorizontal, Sun, Target, TrendingUp, Trophy, Upload, Users,
   Wallet, X, Zap,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { CampaignData } from "@/types/campaign";
 import { CampaignConfig, useCampaignStore } from "@/hooks/useCampaignStore";
 import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
@@ -76,6 +77,23 @@ const getSubLaunchCode = (name: string): string => {
   if (!match?.[1]) return "";
   return match[1].replace(/[\s-]/g, "").toUpperCase();
 };
+
+// ─── Theme Toggle ─────────────────────────────────────────────────────────────
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+      title="Alternar tema"
+    >
+      <Sun size={15} className="hidden dark:block" />
+      <Moon size={15} className="block dark:hidden" />
+    </button>
+  );
+}
 
 // ─── Toggle Switch ────────────────────────────────────────────────────────────
 
@@ -152,32 +170,32 @@ function ImportPopover({
 
   const tabCls = (t: ImportTab) =>
     `flex-1 rounded-md py-1.5 text-xs font-medium transition ${
-      tab === t ? "bg-slate-900 text-white" : "text-slate-500 hover:text-slate-800"
+      tab === t ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
     }`;
 
-  const inputCls = "h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100";
+  const inputCls = "h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500 dark:focus:bg-slate-600";
 
   return (
     <>
       {/* Backdrop */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
 
-      <div className="absolute right-0 top-full z-50 mt-2 w-[360px] rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl sm:w-[420px]">
+      <div className="absolute right-0 top-full z-50 mt-2 w-[360px] rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-800 sm:w-[420px]">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <p className="text-sm font-bold text-slate-900">Importar dados</p>
-            <p className="text-[11px] text-slate-400">Conecte sua fonte de dados</p>
+            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Importar dados</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">Conecte sua fonte de dados</p>
           </div>
           <button
             onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
           >
             <X size={15} />
           </button>
         </div>
 
         {/* Tabs */}
-        <div className="mb-4 flex gap-1 rounded-xl bg-slate-100 p-1">
+        <div className="mb-4 flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-700">
           <button className={tabCls("sheets")} onClick={() => setTab("sheets")}>Google Sheets</button>
           <button className={tabCls("csv")}    onClick={() => setTab("csv")}>CSV</button>
           <button className={tabCls("meta")}   onClick={() => setTab("meta")}>Meta Ads</button>
@@ -186,14 +204,14 @@ function ImportPopover({
         {tab === "sheets" && (
           <form onSubmit={handleUrl} className="space-y-3">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">URL da planilha pública</label>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">URL da planilha pública</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Link2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <Link2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none dark:text-slate-500" />
                   <input
                     type="url" required value={url} onChange={(e) => setUrl(e.target.value)}
                     placeholder="https://docs.google.com/spreadsheets/..."
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100"
+                    className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500 dark:focus:bg-slate-600"
                   />
                 </div>
                 <button type="submit" disabled={!!loading}
@@ -202,24 +220,24 @@ function ImportPopover({
                   {loading === "url" ? "Carregando…" : "Carregar"}
                 </button>
               </div>
-              <p className="mt-1.5 text-[10px] text-slate-400">A planilha precisa estar com acesso público (Qualquer pessoa com o link)</p>
+              <p className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">A planilha precisa estar com acesso público (Qualquer pessoa com o link)</p>
             </div>
           </form>
         )}
 
         {tab === "csv" && (
           <div className="space-y-3">
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700">Arquivo CSV exportado</label>
+            <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">Arquivo CSV exportado</label>
             <button type="button" onClick={() => fileRef.current?.click()} disabled={!!loading}
-              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50 disabled:opacity-60">
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50 disabled:opacity-60 dark:border-slate-600 dark:hover:border-blue-500 dark:hover:bg-blue-900/20">
               {loading === "csv"
                 ? <Loader2 size={20} className="animate-spin text-blue-500" />
-                : <Upload size={20} className="text-slate-400" />}
+                : <Upload size={20} className="text-slate-400 dark:text-slate-500" />}
               <div>
-                <p className="text-xs font-semibold text-slate-700">
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   {loading === "csv" ? "Importando arquivo…" : "Clique para selecionar"}
                 </p>
-                <p className="text-[10px] text-slate-400">Somente arquivos .csv</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500">Somente arquivos .csv</p>
               </div>
             </button>
             <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
@@ -229,29 +247,29 @@ function ImportPopover({
         {tab === "meta" && (
           <form onSubmit={handleSaveMeta} className="space-y-4">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Access Token</label>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">Access Token</label>
               <input
                 type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)}
                 placeholder="EAAxxxxx…" className={inputCls}
               />
-              <p className="mt-1 text-[10px] text-slate-400">
-                Obtenha em <span className="font-medium text-slate-600">Meta for Developers → Graph API Explorer</span>
+              <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                Obtenha em <span className="font-medium text-slate-600 dark:text-slate-400">Meta for Developers → Graph API Explorer</span>
               </p>
             </div>
             <div>
-              <label className="mb-2 block text-xs font-semibold text-slate-700">Ad Account ID por campanha</label>
-              <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">Ad Account ID por campanha</label>
+              <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-700/50">
                 {CAMPAIGN_GROUPS.map((g) => (
                   <div key={g.id} className="flex items-center gap-2">
-                    <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${g.iconBg}`}>
+                    <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${g.iconBg} dark:opacity-80`}>
                       <g.icon size={10} className={g.iconColor} />
                     </div>
-                    <span className="w-28 flex-shrink-0 truncate text-[11px] text-slate-500">{g.label}</span>
+                    <span className="w-28 flex-shrink-0 truncate text-[11px] text-slate-500 dark:text-slate-400">{g.label}</span>
                     <input
                       value={adAccountIds[g.id] ?? ""}
                       onChange={(e) => setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }))}
                       placeholder="act_123456789"
-                      className="h-7 flex-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                      className="h-7 flex-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
                     />
                   </div>
                 ))}
@@ -300,12 +318,12 @@ function CampaignPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-100 px-4">
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400">
+      <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-100 px-4 dark:border-slate-700">
+        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
           {showCourseGroups ? "Cursos" : "Filtros"}
         </p>
         {activeCount > 0 && showCourseGroups && (
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-600">
+          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
             {activeCount} ativa{activeCount !== 1 ? "s" : ""}
           </span>
         )}
@@ -318,16 +336,16 @@ function CampaignPanel({
         <button
           onClick={() => onSelectGroup("all")}
           className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition ${
-            selectedGroup === "all" ? "bg-slate-100" : "hover:bg-slate-50"
+            selectedGroup === "all" ? "bg-slate-100 dark:bg-slate-700" : "hover:bg-slate-50 dark:hover:bg-slate-700/50"
           }`}
         >
-          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-slate-300" />
-          <span className={`text-xs font-semibold ${selectedGroup === "all" ? "text-slate-800" : "text-slate-500"}`}>
+          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-slate-300 dark:bg-slate-500" />
+          <span className={`text-xs font-semibold ${selectedGroup === "all" ? "text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"}`}>
             Todos os cursos
           </span>
         </button>
 
-        <div className="mx-4 my-1 h-px bg-slate-100" />
+        <div className="mx-4 my-1 h-px bg-slate-100 dark:bg-slate-700" />
 
         {CAMPAIGN_GROUPS.map((group) => {
           const isSelected = selectedGroup === group.id;
@@ -336,7 +354,6 @@ function CampaignPanel({
 
           return (
             <div key={group.id}>
-              {/* div instead of button to avoid nested button violation (ToggleSwitch is a button) */}
               <div
                 role="button"
                 tabIndex={0}
@@ -344,29 +361,25 @@ function CampaignPanel({
                 onKeyDown={(e) => e.key === "Enter" && onSelectGroup(isSelected ? "all" : group.id)}
                 className={`flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left transition ${
                   isSelected
-                    ? `${group.selectedBg} border-r-2 ${group.selectedBorder}`
-                    : "hover:bg-slate-50"
+                    ? `${group.selectedBg} border-r-2 ${group.selectedBorder} dark:bg-slate-700/50 dark:border-slate-500`
+                    : "hover:bg-slate-50 dark:hover:bg-slate-700/50"
                 }`}
               >
-                {/* Active dot with pulse */}
                 <span className="relative flex h-2 w-2 flex-shrink-0 items-center justify-center">
                   {isActive && (
                     <span className={`absolute h-3 w-3 animate-ping rounded-full opacity-40 ${group.activePulse}`} />
                   )}
-                  <span className={`relative h-2 w-2 rounded-full ${isActive ? group.activeDot : "bg-slate-200"}`} />
+                  <span className={`relative h-2 w-2 rounded-full ${isActive ? group.activeDot : "bg-slate-200 dark:bg-slate-600"}`} />
                 </span>
 
-                {/* Icon */}
-                <div className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ${group.iconBg}`}>
+                <div className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ${group.iconBg} dark:opacity-80`}>
                   <group.icon size={12} className={group.iconColor} />
                 </div>
 
-                {/* Label */}
-                <span className={`flex-1 truncate text-xs font-medium ${isSelected ? group.selectedText : "text-slate-700"}`}>
+                <span className={`flex-1 truncate text-xs font-medium ${isSelected ? group.selectedText : "text-slate-700 dark:text-slate-300"}`}>
                   {group.label}
                 </span>
 
-                {/* Toggle switch — stop propagation so clicking it doesn't also select the group */}
                 <ToggleSwitch
                   checked={isActive}
                   onChange={(v) => onToggleActive(group.id, v)}
@@ -374,17 +387,16 @@ function CampaignPanel({
                 />
               </div>
 
-              {/* Turma sub-list */}
               {isSelected && (
-                <div className={`${group.selectedBg} px-4 pb-2.5 pt-1`}>
-                  <p className="mb-1.5 ml-[38px] text-[10px] font-semibold uppercase tracking-wider text-slate-400">Turmas</p>
+                <div className={`${group.selectedBg} px-4 pb-2.5 pt-1 dark:bg-slate-700/30`}>
+                  <p className="mb-1.5 ml-[38px] text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Turmas</p>
                   <div className="ml-[38px] flex flex-wrap gap-1.5">
                     <button
                       onClick={() => onSelectTurma("all")}
                       className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
                         selectedTurma === "all"
                           ? "bg-blue-600 text-white shadow-sm"
-                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                       }`}
                     >
                       Todas
@@ -396,14 +408,14 @@ function CampaignPanel({
                         className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
                           selectedTurma === t
                             ? "bg-blue-600 text-white shadow-sm"
-                            : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100"
+                            : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                         }`}
                       >
                         {t}
                       </button>
                     ))}
                     {turmaList.length === 0 && (
-                      <span className="text-[11px] italic text-slate-400">Sem turmas carregadas</span>
+                      <span className="text-[11px] italic text-slate-400 dark:text-slate-500">Sem turmas carregadas</span>
                     )}
                   </div>
                 </div>
@@ -415,15 +427,15 @@ function CampaignPanel({
       )} {/* end showCourseGroups */}
 
       {/* Filters — always visible */}
-      <div className={`flex-shrink-0 border-t border-slate-100 p-4 space-y-3 ${showCourseGroups ? "" : "flex-1"}`}>
+      <div className={`flex-shrink-0 border-t border-slate-100 p-4 space-y-3 dark:border-slate-700 ${showCourseGroups ? "" : "flex-1"}`}>
         <div className="flex items-center justify-between">
-          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
             <SlidersHorizontal size={10} /> Filtros
           </p>
           {hasActiveFilters && (
             <button
               onClick={onClearFilters}
-              className="text-[10px] font-semibold text-red-500 transition hover:text-red-700"
+              className="text-[10px] font-semibold text-red-500 transition hover:text-red-700 dark:text-red-400"
             >
               Limpar
             </button>
@@ -432,17 +444,17 @@ function CampaignPanel({
 
         <div className="grid grid-cols-2 gap-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold text-slate-500">De</span>
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">De</span>
             <input
               type="date" value={dateFrom} onChange={(e) => onDateFrom(e.target.value)}
-              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white"
+              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500 dark:focus:bg-slate-600"
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold text-slate-500">Até</span>
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Até</span>
             <input
               type="date" value={dateTo} onChange={(e) => onDateTo(e.target.value)}
-              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white"
+              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500 dark:focus:bg-slate-600"
             />
           </label>
         </div>
@@ -453,12 +465,12 @@ function CampaignPanel({
             value={searchCampaign}
             onChange={(e) => onSearch(e.target.value)}
             placeholder="Buscar campanha…"
-            className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white"
+            className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-600"
           />
           {searchCampaign && (
             <button
               onClick={() => onSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
             >
               <X size={12} />
             </button>
@@ -546,7 +558,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
 
   const navContent = (
     <nav className="flex-1 overflow-y-auto px-3 py-4">
-      <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">Menu</p>
+      <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Menu</p>
       <ul className="space-y-0.5">
         {MAIN_TABS.map(({ id, label, icon: Icon }) => (
           <li key={id}>
@@ -555,7 +567,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                 mainTab === id
                   ? "bg-blue-600 text-white shadow-sm"
-                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
               }`}
             >
               <Icon size={16} className="flex-shrink-0" />
@@ -582,39 +594,39 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-100">
+    <div className="flex h-screen overflow-hidden bg-slate-100 dark:bg-slate-900">
 
       {/* ── Mobile nav overlay ── */}
       {showMobileNav && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setShowMobileNav(false)}>
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/60" />
         </div>
       )}
 
       {/* ── Mobile campaign panel overlay ── */}
       {showMobilePanel && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setShowMobilePanel(false)}>
-          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm dark:bg-black/60" />
         </div>
       )}
 
       {/* ── Left sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r border-slate-200 bg-white transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r border-slate-200 bg-white transition-transform duration-300 dark:border-slate-700 dark:bg-slate-800 lg:relative lg:translate-x-0 lg:z-auto ${
           showMobileNav ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         } lg:flex lg:w-[220px] lg:flex-shrink-0`}
       >
         {/* Brand */}
-        <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5">
+        <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5 dark:border-slate-700">
           <div className="flex items-center gap-2.5">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-600 shadow-sm">
               <TrendingUp size={15} className="text-white" />
             </div>
-            <span className="text-sm font-bold text-slate-900">Analytics PTA</span>
+            <span className="text-sm font-bold text-slate-900 dark:text-slate-100">DashMonster</span>
           </div>
           <button
             onClick={() => setShowMobileNav(false)}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 lg:hidden"
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 lg:hidden"
           >
             <X size={14} />
           </button>
@@ -623,10 +635,10 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
         {navContent}
 
         {/* Footer */}
-        <div className="border-t border-slate-100 px-5 py-4">
-          <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${campaigns.length > 0 ? "bg-emerald-50" : "bg-slate-50"}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${campaigns.length > 0 ? "bg-emerald-500" : "bg-slate-300"}`} />
-            <p className={`text-[11px] font-medium ${campaigns.length > 0 ? "text-emerald-700" : "text-slate-400"}`}>
+        <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-700">
+          <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${campaigns.length > 0 ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
+            <span className={`h-1.5 w-1.5 rounded-full ${campaigns.length > 0 ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-500"}`} />
+            <p className={`text-[11px] font-medium ${campaigns.length > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
               {campaigns.length > 0
                 ? `${campaigns.length} registros carregados`
                 : "Nenhum dado importado"}
@@ -639,21 +651,21 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
       <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* Top header */}
-        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 md:px-6">
+        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-700 dark:bg-slate-800 md:px-6">
           <div className="flex items-center gap-3">
             {/* Hamburger (mobile) */}
             <button
               onClick={() => setShowMobileNav(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 lg:hidden"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700 lg:hidden"
             >
               <Menu size={18} />
             </button>
 
             {/* Breadcrumb + category chip */}
             <div className="flex flex-wrap items-center gap-1.5 text-sm">
-              <span className="hidden text-slate-400 md:inline">Dashboard</span>
-              <span className="hidden text-slate-300 md:inline">/</span>
-              <span className="font-semibold text-slate-800">{currentTab.label}</span>
+              <span className="hidden text-slate-400 dark:text-slate-500 md:inline">Dashboard</span>
+              <span className="hidden text-slate-300 dark:text-slate-600 md:inline">/</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-100">{currentTab.label}</span>
 
               {/* Category chip — click to change */}
               {selectedCategory && needsCategory && (() => {
@@ -664,12 +676,12 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
                     type="button"
                     onClick={() => setSelectedCategory(null)}
                     title="Trocar categoria"
-                    className="ml-1 flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200"
+                    className="ml-1 flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
                     <CatIcon size={11} />
                     <span className="hidden sm:inline">{CATEGORY_LABEL[selectedCategory]}</span>
-                    <X size={10} className="text-slate-400" />
+                    <X size={10} className="text-slate-400 dark:text-slate-500" />
                   </button>
                 );
               })()}
@@ -677,11 +689,13 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
           </div>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle />
+
             {/* Mobile campaign panel button */}
             {showRightPanel && (
               <button
                 onClick={() => setShowMobilePanel(true)}
-                className="relative flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 lg:hidden"
+                className="relative flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 lg:hidden"
               >
                 <Filter size={13} />
                 Filtros
@@ -697,8 +711,8 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
                 onClick={() => setShowImport((v) => !v)}
                 className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
                   showImport
-                    ? "border-blue-300 bg-blue-50 text-blue-700"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
               >
                 <FileUp size={13} />
@@ -720,7 +734,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
 
         {/* Error banner */}
         {error && (
-          <div className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 md:mx-6">
+          <div className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 md:mx-6">
             <span className="font-bold">Erro:</span> {error}
           </div>
         )}
@@ -736,13 +750,13 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
           {mainTab === "overview" && selectedCategory && (
             campaigns.length === 0 ? (
               /* Empty state */
-              <div className="flex flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm md:py-24">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
-                  <TrendingUp size={28} className="text-slate-300" />
+              <div className="flex flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800 md:py-24">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-700">
+                  <TrendingUp size={28} className="text-slate-300 dark:text-slate-500" />
                 </div>
                 <div className="space-y-1">
-                  <p className="text-base font-bold text-slate-700">Nenhuma campanha carregada</p>
-                  <p className="text-sm text-slate-400">
+                  <p className="text-base font-bold text-slate-700 dark:text-slate-200">Nenhuma campanha carregada</p>
+                  <p className="text-sm text-slate-400 dark:text-slate-500">
                     Clique em <span className="font-semibold text-blue-600">Importar dados</span> para começar
                   </p>
                 </div>
@@ -756,7 +770,7 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
             ) : (
               <div className="space-y-5">
                 {filteredCampaigns.length === 0 && (
-                  <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                  <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
                     <Filter size={15} className="flex-shrink-0" />
                     Nenhuma campanha encontrada com os filtros aplicados.
                     <button onClick={handleClearFilters} className="ml-auto text-xs font-semibold underline">
@@ -794,14 +808,14 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
 
       {/* ── Right sidebar — desktop ── */}
       {showRightPanel && (
-        <aside className="hidden w-[260px] flex-shrink-0 border-l border-slate-200 bg-white lg:flex lg:flex-col">
+        <aside className="hidden w-[260px] flex-shrink-0 border-l border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800 lg:flex lg:flex-col">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}
 
       {/* ── Right panel — mobile drawer ── */}
       {showRightPanel && showMobilePanel && (
-        <aside className="fixed inset-y-0 right-0 z-50 flex w-[280px] flex-col border-l border-slate-200 bg-white shadow-2xl lg:hidden">
+        <aside className="fixed inset-y-0 right-0 z-50 flex w-[280px] flex-col border-l border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 lg:hidden">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}

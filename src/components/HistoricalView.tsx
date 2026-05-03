@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useMemo, useCallback, useEffect } from "react";
+import { useTheme } from "next-themes";
 import {
   Area, AreaChart, Bar, BarChart, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer, ComposedChart, Line,
@@ -141,24 +142,24 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
     };
   }, [form]);
 
-  const fieldCls = "h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100";
-  const labelCls = "flex flex-col gap-1 text-xs font-medium text-slate-600";
+  const fieldCls = "h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500";
+  const labelCls = "flex flex-col gap-1 text-xs font-medium text-slate-600 dark:text-slate-400";
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-8 sm:p-8">
-      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-          <h2 className="text-base font-semibold text-slate-900">
+      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+          <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             {isEditing ? "Editar Registro" : "Adicionar Registro"}
           </h2>
-          <button onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+          <button onClick={onClose} className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300">
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={onSubmit} className="divide-y divide-slate-100">
+        <form onSubmit={onSubmit} className="divide-y divide-slate-100 dark:divide-slate-700">
           <div className="px-6 py-5">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Identificação</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Identificação</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className={labelCls}>
                 Produto / Campanha *
@@ -179,7 +180,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
           </div>
 
           <div className="px-6 py-5">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400">Funil de tráfego</p>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Funil de tráfego</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} placeholder="8544.26" className={fieldCls} /></label>
               <label className={labelCls}>CPM (R$)<input value={form.cpm} onChange={set("cpm")} placeholder="11.47" className={fieldCls} /></label>
@@ -192,8 +193,8 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
             </div>
           </div>
 
-          <div className="bg-slate-50 px-6 py-4">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Calculado automaticamente</p>
+          <div className="bg-slate-50 px-6 py-4 dark:bg-slate-700/40">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Calculado automaticamente</p>
             <div className="flex flex-wrap gap-3">
               {[
                 { label: "CTR",        val: preview.ctr !== null              ? `${preview.ctr.toFixed(2)}%`              : "—" },
@@ -203,16 +204,16 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
                 { label: "CAC",        val: preview.cac !== null               ? formatCurrency(preview.cac)               : "—" },
                 { label: "ROAS",       val: preview.roas !== null              ? `${preview.roas.toFixed(2)}x`              : "—" },
               ].map(({ label, val }) => (
-                <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5">
-                  <p className="text-xs text-slate-400">{label}</p>
-                  <p className="text-sm font-semibold text-slate-800">{val}</p>
+                <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-600 dark:bg-slate-700">
+                  <p className="text-xs text-slate-400 dark:text-slate-500">{label}</p>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{val}</p>
                 </div>
               ))}
             </div>
           </div>
 
           <div className="flex justify-end gap-2 px-6 py-4">
-            <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+            <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
               Cancelar
             </button>
             <button type="submit" className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700">
@@ -234,15 +235,15 @@ interface StatCardProps {
 
 function StatCard({ label, value, sub, icon: Icon, accent, iconColor }: StatCardProps) {
   return (
-    <article className={`relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm`}>
+    <article className={`relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800`}>
       <div className={`absolute left-0 top-0 h-full w-1 rounded-l-xl ${accent}`} />
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-slate-500">{label}</p>
-          <p className="mt-1 text-xl font-bold text-slate-900">{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-slate-400">{sub}</p>}
+          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
+          <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
+          {sub && <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{sub}</p>}
         </div>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 ${iconColor}`}>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 ${iconColor}`}>
           <Icon size={18} />
         </div>
       </div>
@@ -445,6 +446,18 @@ export function HistoricalView() {
 
   const hasData = rows.length > 0;
 
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+  const gridStroke   = isDark ? "#334155" : "#f1f5f9";
+  const tickFill     = isDark ? "#64748b" : "#94a3b8";
+  const tooltipStyle = {
+    borderRadius: 8,
+    border: `1px solid ${isDark ? "#334155" : "#e2e8f0"}`,
+    background: isDark ? "#1e293b" : "#ffffff",
+    color: isDark ? "#f1f5f9" : "#0f172a",
+    fontSize: 12,
+  };
+
   return (
     <>
       {showForm && (
@@ -460,10 +473,10 @@ export function HistoricalView() {
 
       <div className="space-y-5">
         {/* ── Dashboard header ── */}
-        <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Histórico de Lançamentos</h2>
-            <p className="mt-0.5 text-xs text-slate-500">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Histórico de Lançamentos</h2>
+            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               {hasData
                 ? `${rows.length} registro${rows.length !== 1 ? "s" : ""} · ${products.length} produto${products.length !== 1 ? "s" : ""}`
                 : "Nenhum dado ainda. Importe um CSV ou adicione manualmente."}
@@ -500,7 +513,7 @@ export function HistoricalView() {
             <button
               onClick={() => inputRef.current?.click()}
               disabled={loading}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
             >
               <Upload size={13} /> {loading ? "Importando…" : "Importar CSV"}
             </button>
@@ -509,7 +522,7 @@ export function HistoricalView() {
         </div>
 
         {error && (
-          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-600">{error}</p>
+          <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{error}</p>
         )}
 
         {/* ── Product filter tabs ── */}
@@ -517,7 +530,7 @@ export function HistoricalView() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedProduct("all")}
-              className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition ${selectedProduct === "all" ? "border-blue-200 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"}`}
+              className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition ${selectedProduct === "all" ? "border-blue-200 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"}`}
             >
               <Package size={11} /> Todos
             </button>
@@ -525,7 +538,7 @@ export function HistoricalView() {
               <button
                 key={pr}
                 onClick={() => setSelectedProduct(pr)}
-                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${selectedProduct === pr ? "border-blue-200 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100"}`}
+                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${selectedProduct === pr ? "border-blue-200 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"}`}
               >
                 {pr}
               </button>
@@ -546,29 +559,29 @@ export function HistoricalView() {
         {!hasData && (
           <div className="grid gap-4 sm:grid-cols-2">
             <article
-              className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 bg-white p-8 text-center transition hover:border-blue-400 hover:bg-blue-50"
+              className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 bg-white p-8 text-center transition hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-600 dark:hover:bg-blue-900/10"
               onClick={() => inputRef.current?.click()}
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-                <Upload size={22} className="text-blue-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                <Upload size={22} className="text-blue-600 dark:text-blue-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-800">Importar via CSV</p>
-                <p className="mt-1 text-xs text-slate-500">Planilha histórica com funil mensal por produto</p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Importar via CSV</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Planilha histórica com funil mensal por produto</p>
               </div>
               <span className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white">Escolher arquivo</span>
             </article>
 
             <article
-              className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 bg-white p-8 text-center transition hover:border-violet-400 hover:bg-violet-50"
+              className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 bg-white p-8 text-center transition hover:border-violet-400 hover:bg-violet-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-violet-600 dark:hover:bg-violet-900/10"
               onClick={openAdd}
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100">
-                <Plus size={22} className="text-violet-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30">
+                <Plus size={22} className="text-violet-600 dark:text-violet-400" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-slate-800">Adicionar Manualmente</p>
-                <p className="mt-1 text-xs text-slate-500">Preencha os dados mês a mês diretamente no dashboard</p>
+                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Adicionar Manualmente</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Preencha os dados mês a mês diretamente no dashboard</p>
               </div>
               <span className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white">Adicionar registro</span>
             </article>
@@ -579,8 +592,8 @@ export function HistoricalView() {
         {hasData && chartData.length > 0 && (
           <div className="grid gap-5 xl:grid-cols-5">
             {/* Monthly trend — takes 3 cols */}
-            <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3">
-              <h3 className="mb-4 text-sm font-semibold text-slate-800">Evolução Mensal</h3>
+            <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3 dark:border-slate-700 dark:bg-slate-800">
+              <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Evolução Mensal</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={chartData} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
@@ -594,12 +607,12 @@ export function HistoricalView() {
                         <stop offset="95%" stopColor="#059669" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                    <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11 }} />
-                    <YAxis yAxisId="left"  stroke="#94a3b8" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 10 }} />
-                    <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" tick={{ fontSize: 10 }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                    <XAxis dataKey="label" stroke={tickFill} tick={{ fontSize: 11, fill: tickFill }} />
+                    <YAxis yAxisId="left"  stroke={tickFill} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} tick={{ fontSize: 10, fill: tickFill }} />
+                    <YAxis yAxisId="right" orientation="right" stroke={tickFill} tick={{ fontSize: 10, fill: tickFill }} />
                     <Tooltip
-                      contentStyle={{ borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 12 }}
+                      contentStyle={tooltipStyle}
                       formatter={(value, name) =>
                         name === "Vendas" ? [String(value), name] : [formatCurrency(Number(value)), name]
                       }
@@ -615,8 +628,8 @@ export function HistoricalView() {
 
             {/* Funnel — takes 2 cols */}
             {funnel.length > 0 && funnel[0].value > 0 && (
-              <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2">
-                <h3 className="mb-4 text-sm font-semibold text-slate-800">Funil de Conversão</h3>
+              <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-2 dark:border-slate-700 dark:bg-slate-800">
+                <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Funil de Conversão</h3>
                 <div className="space-y-3">
                   {funnel.map((stage, idx) => {
                     const maxVal = funnel[0].value;
@@ -625,15 +638,15 @@ export function HistoricalView() {
                     return (
                       <div key={stage.label}>
                         <div className="mb-1 flex items-center justify-between text-xs">
-                          <span className="font-medium text-slate-700">{stage.label}</span>
-                          <span className="text-slate-500">{formatNumber(stage.value)}{idx > 0 ? ` · ${formatPercent(stage.rate)}` : ""}</span>
+                          <span className="font-medium text-slate-700 dark:text-slate-300">{stage.label}</span>
+                          <span className="text-slate-500 dark:text-slate-400">{formatNumber(stage.value)}{idx > 0 ? ` · ${formatPercent(stage.rate)}` : ""}</span>
                         </div>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
                           <div className={`h-full rounded-full ${colors[idx]}`} style={{ width: `${widthPct.toFixed(1)}%` }} />
                         </div>
                         {idx < funnel.length - 1 && (
                           <div className="mt-1 flex justify-center">
-                            <ArrowRight size={10} className="text-slate-300" />
+                            <ArrowRight size={10} className="text-slate-300 dark:text-slate-600" />
                           </div>
                         )}
                       </div>
@@ -647,8 +660,8 @@ export function HistoricalView() {
 
         {/* ── META comparison ── */}
         {hasData && activeMeta && (
-          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-3 text-sm font-semibold text-slate-800">Comparativo vs META</h3>
+          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+            <h3 className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-200">Comparativo vs META</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {[
                 { label: "Invest./mês",  actual: totals.inv / Math.max(1, chartData.length), target: activeMeta.investment,      fmt: formatCurrency,                         lowerIsBetter: false },
@@ -662,14 +675,14 @@ export function HistoricalView() {
                 const beating = lowerIsBetter ? actual <= target : actual >= target;
                 const pct = target > 0 ? (actual / target) * 100 : 0;
                 return (
-                  <div key={label} className={`rounded-lg border p-3 ${beating ? "border-emerald-200 bg-emerald-50" : "border-red-100 bg-red-50"}`}>
-                    <p className="text-xs text-slate-500">{label}</p>
-                    <p className="text-sm font-bold text-slate-800">{fmt(actual)}</p>
+                  <div key={label} className={`rounded-lg border p-3 ${beating ? "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" : "border-red-100 bg-red-50 dark:border-red-800 dark:bg-red-900/20"}`}>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{fmt(actual)}</p>
                     <div className="mt-1 flex items-center gap-1">
                       {beating ? <CheckCircle2 size={11} className="text-emerald-500" /> : <XCircle size={11} className="text-red-400" />}
-                      <p className="text-xs text-slate-500">meta: {fmt(target)}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">meta: {fmt(target)}</p>
                     </div>
-                    <div className="mt-1.5 h-1 w-full rounded-full bg-slate-200">
+                    <div className="mt-1.5 h-1 w-full rounded-full bg-slate-200 dark:bg-slate-700">
                       <div className={`h-1 rounded-full ${beating ? "bg-emerald-500" : "bg-red-400"}`} style={{ width: `${Math.min(100, pct).toFixed(0)}%` }} />
                     </div>
                   </div>
@@ -681,25 +694,25 @@ export function HistoricalView() {
 
         {/* ── Data table ── */}
         {hasData && (
-          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-800">Dados Mensais Detalhados</h3>
-              <p className="text-xs text-slate-400">{sortedFiltered.length} registros</p>
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Dados Mensais Detalhados</h3>
+              <p className="text-xs text-slate-400 dark:text-slate-500">{sortedFiltered.length} registros</p>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-xs">
-                <thead className="bg-slate-50 text-left uppercase tracking-wide text-slate-500">
+              <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-700">
+                <thead className="bg-slate-50 text-left uppercase tracking-wide text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
                   <tr>
                     {["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Vendas","Faturamento","CAC","ROAS",""].map((h) => (
                       <th key={h} className="px-3 py-2 font-semibold">{h}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
+                <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-700 dark:text-slate-300">
                   {sortedFiltered.map((r, i) => {
                     const realIdx = rows.indexOf(r);
                     return (
-                      <tr key={i} className="group hover:bg-slate-50">
+                      <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
                         <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
                         <td className="whitespace-nowrap px-3 py-2">{r.product}</td>
                         <td className="whitespace-nowrap px-3 py-2">{formatCurrency(r.investment)}</td>
@@ -714,10 +727,10 @@ export function HistoricalView() {
                         <td className="whitespace-nowrap px-3 py-2">{r.roas > 0 ? `${r.roas.toFixed(2)}x` : "—"}</td>
                         <td className="whitespace-nowrap px-3 py-2">
                           <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
-                            <button onClick={() => openEdit(realIdx)} className="rounded p-1 text-slate-400 hover:bg-blue-50 hover:text-blue-600" title="Editar">
+                            <button onClick={() => openEdit(realIdx)} className="rounded p-1 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400" title="Editar">
                               <Pencil size={13} />
                             </button>
-                            <button onClick={() => handleDelete(realIdx)} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500" title="Excluir">
+                            <button onClick={() => handleDelete(realIdx)} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Excluir">
                               <Trash2 size={13} />
                             </button>
                           </div>

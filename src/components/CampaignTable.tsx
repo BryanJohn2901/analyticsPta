@@ -57,12 +57,12 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
   const lastIdx  = Math.min(currentPage * ITEMS_PER_PAGE, campaigns.length);
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-700">
         <div>
-          <h3 className="text-sm font-bold text-slate-900">Performance por Campanha</h3>
-          <p className="mt-0.5 text-xs text-slate-400">
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Performance por Campanha</h3>
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
             {firstIdx}–{lastIdx} de {campaigns.length} registros
           </p>
         </div>
@@ -71,17 +71,17 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             <ChevronLeft size={14} />
           </button>
-          <span className="min-w-[52px] text-center text-xs font-semibold text-slate-600">
+          <span className="min-w-[52px] text-center text-xs font-semibold text-slate-600 dark:text-slate-400">
             {currentPage} / {totalPages}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
-            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-30 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             <ChevronRight size={14} />
           </button>
@@ -92,7 +92,7 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
-            <tr className="bg-slate-50 text-left">
+            <tr className="bg-slate-50 text-left dark:bg-slate-700/50">
               {[
                 { label: "Data",         cls: "w-24" },
                 { label: "Campanha",     cls: "min-w-[180px]" },
@@ -107,46 +107,46 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
               ].map(({ label, cls }) => (
                 <th
                   key={label}
-                  className={`border-b border-slate-100 px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 ${cls ?? ""}`}
+                  className={`border-b border-slate-100 px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:border-slate-700 dark:text-slate-500 ${cls ?? ""}`}
                 >
                   {label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
             {visibleRows.map((row, i) => (
               <tr
                 key={row.id}
-                className={`transition hover:bg-slate-50/80 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/30"}`}
+                className={`transition hover:bg-slate-50/80 dark:hover:bg-slate-700/50 ${i % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-slate-50/30 dark:bg-slate-700/20"}`}
               >
-                <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400">
+                <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400 dark:text-slate-500">
                   {formatDatePtBr(row.date)}
                 </td>
                 <td className="px-4 py-3">
-                  <span className="block max-w-[200px] truncate text-xs font-semibold text-slate-800" title={row.campaignName}>
+                  <span className="block max-w-[200px] truncate text-xs font-semibold text-slate-800 dark:text-slate-200" title={row.campaignName}>
                     {row.campaignName}
                   </span>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-700">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-700 dark:text-slate-300">
                   {formatCurrency(row.investment)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold text-emerald-700">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                   {formatCurrency(row.revenue)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600 dark:text-slate-400">
                   {formatNumber(row.clicks)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold text-blue-700">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold text-blue-700 dark:text-blue-400">
                   {formatNumber(row.conversions)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-center">
                   <CtrBadge value={row.ctr} />
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600 dark:text-slate-400">
                   {formatCurrency(row.cpc)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600">
+                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600 dark:text-slate-400">
                   {formatCurrency(row.cpa)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-center">
@@ -160,23 +160,23 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
 
       {/* Footer total row */}
       {campaigns.length > 0 && (
-        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-5 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-5 py-3 dark:border-slate-700 dark:bg-slate-700/30">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Total período ({campaigns.length} registros)
           </p>
           <div className="flex gap-6 text-xs">
-            <span className="text-slate-500">
-              Invest.: <span className="font-bold text-slate-800">
+            <span className="text-slate-500 dark:text-slate-400">
+              Invest.: <span className="font-bold text-slate-800 dark:text-slate-200">
                 {formatCurrency(campaigns.reduce((s, r) => s + r.investment, 0))}
               </span>
             </span>
-            <span className="text-slate-500">
-              Receita: <span className="font-bold text-emerald-700">
+            <span className="text-slate-500 dark:text-slate-400">
+              Receita: <span className="font-bold text-emerald-700 dark:text-emerald-400">
                 {formatCurrency(campaigns.reduce((s, r) => s + r.revenue, 0))}
               </span>
             </span>
-            <span className="text-slate-500">
-              Conversões: <span className="font-bold text-blue-700">
+            <span className="text-slate-500 dark:text-slate-400">
+              Conversões: <span className="font-bold text-blue-700 dark:text-blue-400">
                 {formatNumber(campaigns.reduce((s, r) => s + r.conversions, 0))}
               </span>
             </span>

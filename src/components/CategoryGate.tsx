@@ -117,10 +117,10 @@ export function CategoryGate({ onSelect }: CategoryGateProps) {
           <div className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 shadow-lg shadow-blue-200">
             <GraduationCap size={26} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 sm:text-3xl">
             O que você quer analisar?
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             Escolha a categoria de campanha para ver apenas os dados relevantes
           </p>
         </div>
@@ -134,23 +134,23 @@ export function CategoryGate({ onSelect }: CategoryGateProps) {
                 key={cat.id}
                 type="button"
                 onClick={() => onSelect(cat.id)}
-                className={`group relative flex flex-col rounded-2xl border-2 ${c.card} ${c.border} ${c.hoverBorder} p-5 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-xl`}
+                className={`group relative flex flex-col rounded-2xl border-2 ${c.card} ${c.border} ${c.hoverBorder} p-5 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-xl dark:bg-slate-800/60 dark:border-slate-700 dark:hover:border-slate-500`}
               >
                 {/* Icon */}
-                <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl ${c.iconBg}`}>
+                <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl ${c.iconBg} dark:opacity-80`}>
                   <cat.icon size={20} className={c.iconColor} />
                 </div>
 
                 {/* Title + description */}
-                <p className={`text-sm font-bold ${c.title}`}>{cat.label}</p>
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-500">{cat.description}</p>
+                <p className={`text-sm font-bold ${c.title} dark:text-slate-100`}>{cat.label}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{cat.description}</p>
 
                 {/* Example tags */}
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {cat.tags.map((tag) => (
                     <span
                       key={tag}
-                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.tagBg} ${c.tagText}`}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${c.tagBg} ${c.tagText} dark:opacity-80`}
                     >
                       {tag}
                     </span>
@@ -166,7 +166,7 @@ export function CategoryGate({ onSelect }: CategoryGateProps) {
           })}
         </div>
 
-        <p className="mt-8 text-center text-[11px] text-slate-400">
+        <p className="mt-8 text-center text-[11px] text-slate-400 dark:text-slate-500">
           Você pode trocar a categoria a qualquer momento pelo cabeçalho do dashboard
         </p>
       </div>

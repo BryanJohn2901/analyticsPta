@@ -32,28 +32,28 @@ export function KpiCard({
     : null;
 
   return (
-    <article className={`group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md`}>
+    <article className={`group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800`}>
       {/* Accent bar top */}
       <div className={`absolute inset-x-0 top-0 h-0.5 ${a.bar}`} />
 
       {/* Header row */}
       <div className="mb-4 flex items-start justify-between">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</p>
-        <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${a.bg} ring-1 ${a.ring}`}>
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{title}</p>
+        <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${a.bg} ring-1 ${a.ring} dark:opacity-80`}>
           <Icon size={17} className={a.icon} />
         </span>
       </div>
 
       {/* Value */}
-      <p className="text-2xl font-bold tracking-tight text-slate-900">{value}</p>
+      <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{value}</p>
 
       {/* Trend + subtitle row */}
       <div className="mt-2 flex items-center gap-2">
         {trend !== undefined && (
           <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
             isPositiveTrend
-              ? "bg-emerald-50 text-emerald-700"
-              : "bg-red-50 text-red-600"
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+              : "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
           }`}>
             {isPositiveTrend
               ? <TrendingUp size={10} />
@@ -62,7 +62,7 @@ export function KpiCard({
           </span>
         )}
         {subtitle && (
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             {trend !== undefined ? trendLabel : subtitle}
           </p>
         )}
@@ -71,7 +71,7 @@ export function KpiCard({
 
       {/* Bottom subtitle when trend is shown */}
       {trend !== undefined && subtitle && (
-        <p className="mt-1 text-xs text-slate-400">{subtitle}</p>
+        <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{subtitle}</p>
       )}
     </article>
   );

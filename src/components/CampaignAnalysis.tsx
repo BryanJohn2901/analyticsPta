@@ -152,22 +152,22 @@ function SubTabBar({
   tabs: { id: SubTab; label: string; count?: number; icon: React.ElementType }[];
 }) {
   return (
-    <div className="flex gap-1 border-b border-slate-100">
+    <div className="flex gap-1 border-b border-slate-100 dark:border-slate-700">
       {tabs.map(({ id, label, count, icon: Icon }) => (
         <button
           key={id}
           onClick={() => onChange(id)}
           className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-semibold transition ${
             active === id
-              ? "border-blue-600 text-blue-700"
-              : "border-transparent text-slate-500 hover:text-slate-800"
+              ? "border-blue-600 text-blue-700 dark:text-blue-400"
+              : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
           }`}
         >
           <Icon size={13} />
           {label}
           {count !== undefined && count > 0 && (
             <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-              active === id ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
+              active === id ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"
             }`}>
               {count}
             </span>
@@ -186,15 +186,15 @@ function Paginator({
   const totalPages = Math.max(1, Math.ceil(total / perPage));
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-      <p className="text-xs text-slate-400">
+    <div className="flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-700">
+      <p className="text-xs text-slate-400 dark:text-slate-500">
         {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} de {total}
       </p>
       <div className="flex gap-1">
         <button
           onClick={() => onChange(Math.max(1, page - 1))}
           disabled={page === 1}
-          className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30"
+          className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
         >
           <ChevronLeft size={13} />
         </button>
@@ -205,7 +205,7 @@ function Paginator({
               key={p}
               onClick={() => onChange(p)}
               className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold transition ${
-                p === page ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50"
+                p === page ? "bg-blue-600 text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
               }`}
             >
               {p}
@@ -215,7 +215,7 @@ function Paginator({
         <button
           onClick={() => onChange(Math.min(totalPages, page + 1))}
           disabled={page === totalPages}
-          className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30"
+          className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
         >
           <ChevronRight size={13} />
         </button>
@@ -242,17 +242,17 @@ function TabOverview({ campaigns }: { campaigns: AggregatedCampaign[] }) {
           const barColor  = c.roas >= 3 ? "bg-emerald-500" : c.roas >= 1.5 ? "bg-blue-500"    : c.roas >= 1 ? "bg-amber-400"   : "bg-red-400";
           const pct       = (c.investment / maxInv) * 100;
           return (
-            <div key={c.campaignName} className="group rounded-xl border border-slate-100 bg-slate-50 p-3 transition hover:border-slate-200 hover:bg-white hover:shadow-sm">
+            <div key={c.campaignName} className="group rounded-xl border border-slate-100 bg-slate-50 p-3 transition hover:border-slate-200 hover:bg-white hover:shadow-sm dark:border-slate-700 dark:bg-slate-700/50 dark:hover:border-slate-600 dark:hover:bg-slate-700">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-xs font-semibold text-slate-800" title={c.campaignName}>
+                <p className="min-w-0 truncate text-xs font-semibold text-slate-800 dark:text-slate-200" title={c.campaignName}>
                   {c.campaignName}
                 </p>
                 <div className="flex flex-shrink-0 items-center gap-3 text-xs">
-                  <span className="text-slate-500">{formatCurrency(c.investment)}</span>
+                  <span className="text-slate-500 dark:text-slate-400">{formatCurrency(c.investment)}</span>
                   <span className={`font-bold ${roasColor}`}>{c.roas.toFixed(2)}x</span>
                 </div>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-600">
                 <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
               </div>
             </div>
@@ -356,26 +356,26 @@ function TopList({ title, subtitle, icon: Icon, items, metricLabel, metricValue,
 }) {
   if (items.length === 0) return null;
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-3 flex items-center gap-2">
-        <span className={`flex h-7 w-7 items-center justify-center rounded-xl ${bg}`}>
+        <span className={`flex h-7 w-7 items-center justify-center rounded-xl ${bg} dark:opacity-80`}>
           <Icon size={14} className={color} />
         </span>
         <div>
-          <p className="text-xs font-bold text-slate-900">{title}</p>
-          <p className="text-[10px] text-slate-400">{subtitle}</p>
+          <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{title}</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500">{subtitle}</p>
         </div>
       </div>
       <ol className="space-y-2">
         {items.map((c, i) => (
           <li key={c.campaignName} className="flex items-center gap-2.5">
             <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-              i === 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+              i === 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"
             }`}>{i + 1}</span>
-            <p className="min-w-0 flex-1 truncate text-xs text-slate-700" title={c.campaignName}>
+            <p className="min-w-0 flex-1 truncate text-xs text-slate-700 dark:text-slate-300" title={c.campaignName}>
               {c.campaignName}
             </p>
-            <span className={`flex-shrink-0 rounded-lg px-2 py-0.5 text-xs font-bold ${bg} ${color}`}>
+            <span className={`flex-shrink-0 rounded-lg px-2 py-0.5 text-xs font-bold ${bg} ${color} dark:opacity-80`}>
               {metricLabel}: {metricValue(c)}
             </span>
           </li>
@@ -491,13 +491,13 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
       </div>
 
       {/* Summary bar */}
-      <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2">
-        <p className="text-xs text-slate-500">
-          <span className="font-bold text-slate-800">{filtered.length}</span> tarefas pendentes
-          {done.length > 0 && <> · <span className="font-bold text-emerald-600">{done.length}</span> concluídas</>}
+      <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/50">
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          <span className="font-bold text-slate-800 dark:text-slate-200">{filtered.length}</span> tarefas pendentes
+          {done.length > 0 && <> · <span className="font-bold text-emerald-600 dark:text-emerald-400">{done.length}</span> concluídas</>}
         </p>
         {done.length > 0 && (
-          <button onClick={() => setChecked(new Set())} className="text-[11px] font-semibold text-slate-400 hover:text-slate-600">
+          <button onClick={() => setChecked(new Set())} className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
             Limpar concluídas
           </button>
         )}
@@ -540,8 +540,8 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
                       {cat.label}
                     </span>
                   </div>
-                  <p className="text-xs font-bold text-slate-800">{task.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{task.detail}</p>
+                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{task.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{task.detail}</p>
                 </div>
               </div>
             );
@@ -553,14 +553,14 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
 
       {/* Done section */}
       {done.length > 0 && (
-        <div className="space-y-1.5 border-t border-slate-100 pt-3">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Concluídas</p>
+        <div className="space-y-1.5 border-t border-slate-100 pt-3 dark:border-slate-700">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Concluídas</p>
           {done.map((t) => (
-            <div key={t.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 opacity-60">
+            <div key={t.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 opacity-60 dark:border-slate-700 dark:bg-slate-700/50">
               <button onClick={() => toggle(t.id)} className="flex-shrink-0 text-emerald-500 hover:text-slate-400">
                 <CheckSquare size={15} />
               </button>
-              <p className="text-xs text-slate-500 line-through">{t.title}</p>
+              <p className="text-xs text-slate-500 line-through dark:text-slate-400">{t.title}</p>
             </div>
           ))}
         </div>
@@ -599,57 +599,57 @@ export function CampaignAnalysis({ campaigns }: CampaignAnalysisProps) {
     <div className="space-y-4">
 
       {/* ── Health score header ── */}
-      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {/* Ring */}
         <div className="relative flex-shrink-0">
           <HealthRing score={score} />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <p className={`text-lg font-black leading-none ${scoreColor}`}>{score}</p>
-            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400">score</p>
+            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">score</p>
           </div>
         </div>
 
         {/* Label + divider */}
-        <div className="flex-shrink-0 border-r border-slate-100 pr-4">
+        <div className="flex-shrink-0 border-r border-slate-100 pr-4 dark:border-slate-700">
           <p className={`text-base font-black ${scoreColor}`}>{scoreLabel}</p>
-          <p className="text-xs text-slate-400">{campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""} analisadas</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">{campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""} analisadas</p>
         </div>
 
         {/* Counters */}
         <div className="flex flex-wrap gap-3">
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${critical.length > 0 ? "bg-red-50" : "bg-slate-50"}`}>
-            <XCircle size={15} className={critical.length > 0 ? "text-red-500" : "text-slate-300"} />
+          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${critical.length > 0 ? "bg-red-50 dark:bg-red-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
+            <XCircle size={15} className={critical.length > 0 ? "text-red-500" : "text-slate-300 dark:text-slate-600"} />
             <div>
-              <p className="text-sm font-black text-slate-900">{critical.length}</p>
-              <p className="text-[10px] text-slate-500">Crítica{critical.length !== 1 ? "s" : ""}</p>
+              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{critical.length}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">Crítica{critical.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${warnings.length > 0 ? "bg-amber-50" : "bg-slate-50"}`}>
-            <AlertTriangle size={15} className={warnings.length > 0 ? "text-amber-500" : "text-slate-300"} />
+          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${warnings.length > 0 ? "bg-amber-50 dark:bg-amber-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
+            <AlertTriangle size={15} className={warnings.length > 0 ? "text-amber-500" : "text-slate-300 dark:text-slate-600"} />
             <div>
-              <p className="text-sm font-black text-slate-900">{warnings.length}</p>
-              <p className="text-[10px] text-slate-500">Alerta{warnings.length !== 1 ? "s" : ""}</p>
+              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{warnings.length}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">Alerta{warnings.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${positive.length > 0 ? "bg-emerald-50" : "bg-slate-50"}`}>
-            <CheckCircle2 size={15} className={positive.length > 0 ? "text-emerald-500" : "text-slate-300"} />
+          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${positive.length > 0 ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
+            <CheckCircle2 size={15} className={positive.length > 0 ? "text-emerald-500" : "text-slate-300 dark:text-slate-600"} />
             <div>
-              <p className="text-sm font-black text-slate-900">{positive.length}</p>
-              <p className="text-[10px] text-slate-500">Saudável{positive.length !== 1 ? "is" : ""}</p>
+              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{positive.length}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">Saudável{positive.length !== 1 ? "is" : ""}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
-            <CheckSquare size={15} className={tasksPending > 0 ? "text-blue-500" : "text-slate-300"} />
+          <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/50">
+            <CheckSquare size={15} className={tasksPending > 0 ? "text-blue-500" : "text-slate-300 dark:text-slate-600"} />
             <div>
-              <p className="text-sm font-black text-slate-900">{tasksPending}</p>
-              <p className="text-[10px] text-slate-500">Ação{tasksPending !== 1 ? "ões" : ""}</p>
+              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{tasksPending}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400">Ação{tasksPending !== 1 ? "ões" : ""}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* ── Sub-tab card ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="px-5 pt-4">
           <SubTabBar active={subTab} onChange={setSubTab} tabs={TABS} />
         </div>

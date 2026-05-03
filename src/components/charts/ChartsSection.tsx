@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useTheme } from "next-themes";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
   Legend, Pie, PieChart, ResponsiveContainer, Tooltip,
@@ -25,29 +26,26 @@ const MAX_PIE_ITEMS = 8;
 
 // ─── Shared chart theme ────────────────────────────────────────────────────────
 
-const GRID_PROPS = {
-  strokeDasharray: "3 3",
-  stroke: "#f1f5f9",
-  vertical: false,
-};
-
-const AXIS_STYLE = {
-  stroke: "none",
-  tick: { fontSize: 11, fill: "#94a3b8" },
-  tickLine: false,
-  axisLine: false,
-};
-
-const TOOLTIP_STYLE = {
-  contentStyle: {
-    borderRadius: 12,
-    border: "1px solid #e2e8f0",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
-    fontSize: 12,
-    padding: "8px 12px",
-  },
-  cursor: { fill: "#f8fafc" },
-};
+function useChartTheme() {
+  const { resolvedTheme } = useTheme();
+  const dark = resolvedTheme === "dark";
+  return {
+    gridStroke:  dark ? "#334155" : "#f1f5f9",
+    tickFill:    dark ? "#64748b" : "#94a3b8",
+    tooltipStyle: {
+      contentStyle: {
+        borderRadius: 12,
+        border: `1px solid ${dark ? "#334155" : "#e2e8f0"}`,
+        background: dark ? "#1e293b" : "#ffffff",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+        fontSize: 12,
+        padding: "8px 12px",
+        color: dark ? "#f1f5f9" : "#0f172a",
+      },
+      cursor: { fill: dark ? "#334155" : "#f8fafc" },
+    },
+  };
+}
 
 // Smart interval so labels never overlap. Target ≤ 7 visible ticks.
 function xInterval(length: number): number {
@@ -73,7 +71,7 @@ function ToggleGroup<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex gap-0.5 rounded-xl bg-slate-100 p-0.5">
+    <div className="flex gap-0.5 rounded-xl bg-slate-100 p-0.5 dark:bg-slate-700">
       {options.map((o) => (
         <button
           key={o.value}
@@ -81,8 +79,8 @@ function ToggleGroup<T extends string>({
           onClick={() => onChange(o.value)}
           className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
             value === o.value
-              ? "bg-white text-blue-700 shadow-sm"
-              : "text-slate-500 hover:text-slate-800"
+              ? "bg-white text-blue-700 shadow-sm dark:bg-slate-600 dark:text-blue-300"
+              : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
           }`}
         >
           {o.label}
@@ -103,11 +101,11 @@ function ChartCard({
   action?: React.ReactNode;
 }) {
   return (
-    <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-          {subtitle && <p className="mt-0.5 text-xs text-slate-400">{subtitle}</p>}
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h3>
+          {subtitle && <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{subtitle}</p>}
         </div>
         {action}
       </div>
@@ -124,7 +122,7 @@ function DotLegend({ items }: { items: { color: string; label: string }[] }) {
       {items.map((i) => (
         <div key={i.label} className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: i.color }} />
-          <span className="text-xs text-slate-500">{i.label}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{i.label}</span>
         </div>
       ))}
     </div>
@@ -139,6 +137,10 @@ export function ChartsSection({
   const [trendMode, setTrendMode]           = useState<"area" | "bar">("area");
   const [comparisonMode, setComparisonMode] = useState<"grouped" | "horizontal">("grouped");
   const [budgetMode, setBudgetMode]         = useState<"donut" | "bar">("donut");
+  const { gridStroke, tickFill, tooltipStyle } = useChartTheme();
+
+  const GRID_PROPS = { strokeDasharray: "3 3", stroke: gridStroke, vertical: false as const };
+  const AXIS_STYLE = { stroke: "none", tick: { fontSize: 11, fill: tickFill }, tickLine: false as const, axisLine: false as const };
 
   const pieData = useMemo(() => {
     if (budgetDistribution.length <= MAX_PIE_ITEMS) return budgetDistribution;
@@ -181,7 +183,7 @@ export function ChartsSection({
           width={48}
         />
         <Tooltip
-          {...TOOLTIP_STYLE}
+          {...tooltipStyle}
           labelFormatter={(v) => formatDatePtBr(String(v))}
           formatter={(v, name) => [formatNumber(Number(v)), name]}
         />
@@ -204,7 +206,7 @@ export function ChartsSection({
         />
         <YAxis {...AXIS_STYLE} tickFormatter={(v) => formatNumber(Number(v))} width={48} />
         <Tooltip
-          {...TOOLTIP_STYLE}
+          {...tooltipStyle}
           labelFormatter={(v) => formatDatePtBr(String(v))}
           formatter={(v, name) => [formatNumber(Number(v)), name]}
         />
@@ -236,7 +238,7 @@ export function ChartsSection({
               ))}
             </Pie>
             <Tooltip
-              {...TOOLTIP_STYLE}
+              {...tooltipStyle}
               formatter={(v) => [formatCurrency(Number(v)), "Investimento"]}
             />
           </PieChart>
@@ -247,9 +249,9 @@ export function ChartsSection({
           <div key={`leg-${i}`} className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
               <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-              <span className="truncate text-xs text-slate-600">{item.campaignName}</span>
+              <span className="truncate text-xs text-slate-600 dark:text-slate-400">{item.campaignName}</span>
             </div>
-            <span className="flex-shrink-0 text-xs font-semibold text-slate-900">{formatCurrency(item.investment)}</span>
+            <span className="flex-shrink-0 text-xs font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(item.investment)}</span>
           </div>
         ))}
       </div>
@@ -268,7 +270,7 @@ export function ChartsSection({
             tick={{ fontSize: 10, fill: "#94a3b8" }}
             tickFormatter={(v: string) => v.length > 14 ? `${v.slice(0, 14)}…` : v}
           />
-          <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [formatCurrency(Number(v)), "Investimento"]} />
+          <Tooltip {...tooltipStyle} formatter={(v) => [formatCurrency(Number(v)), "Investimento"]} />
           <Bar dataKey="investment" name="Investimento" radius={[0, 4, 4, 0]}>
             {pieData.map((_, i) => (
               <Cell key={`bar-${i}`} fill={PIE_COLORS[i % PIE_COLORS.length]} />
@@ -296,7 +298,7 @@ export function ChartsSection({
             tickFormatter={(v: string) => v.length > 16 ? `${v.slice(0, 16)}…` : v}
           />
           <YAxis {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={52} />
-          <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [formatCurrency(Number(v)), ""]} />
+          <Tooltip {...tooltipStyle} formatter={(v) => [formatCurrency(Number(v)), ""]} />
           <Bar dataKey="investment" name="Investimento" fill="#2563eb" radius={[4, 4, 0, 0]} />
           <Bar dataKey="revenue"    name="Receita"      fill="#059669" radius={[4, 4, 0, 0]} />
         </BarChart>
@@ -316,7 +318,7 @@ export function ChartsSection({
             tick={{ fontSize: 10, fill: "#94a3b8" }}
             tickFormatter={(v: string) => v.length > 18 ? `${v.slice(0, 18)}…` : v}
           />
-          <Tooltip {...TOOLTIP_STYLE} formatter={(v) => [formatCurrency(Number(v)), ""]} />
+          <Tooltip {...tooltipStyle} formatter={(v) => [formatCurrency(Number(v)), ""]} />
           <Bar dataKey="investment" name="Investimento" fill="#2563eb" radius={[0, 4, 4, 0]} />
           <Bar dataKey="revenue"    name="Receita"      fill="#059669" radius={[0, 4, 4, 0]} />
         </BarChart>
