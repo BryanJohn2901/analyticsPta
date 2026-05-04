@@ -2,10 +2,10 @@
 
 import { FormEvent, useMemo, useRef, useState } from "react";
 import {
-  Activity, BadgeDollarSign, BarChart2, BookOpen, CircleDollarSign,
-  Dumbbell, FileUp, Filter, ImageIcon, Link2, Loader2, Menu, Moon, Package,
-  SlidersHorizontal, Sun, Target, TrendingUp, Trophy, Upload, Users,
-  Wallet, X, Zap,
+  Activity, BadgeDollarSign, BarChart2, BookMarked, BookOpen, CalendarDays,
+  CircleDollarSign, Dumbbell, FileText, FileUp, Filter, ImageIcon, Link2,
+  Loader2, Menu, Moon, Package, Repeat, SlidersHorizontal, Sun, Target,
+  TrendingUp, Trophy, Upload, Users, Wallet, X, Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { CampaignData } from "@/types/campaign";
@@ -68,12 +68,24 @@ interface GroupConfig {
 }
 
 const CAMPAIGN_GROUPS: GroupConfig[] = [
-  { id: "biomecanica",  label: "Biomecânica",     icon: BookOpen,  iconBg: "bg-blue-100",    iconColor: "text-blue-600",    activeDot: "bg-blue-500",    activePulse: "bg-blue-400",    selectedBg: "bg-blue-50",    selectedText: "text-blue-700",   selectedBorder: "border-blue-200" },
-  { id: "musculacao",   label: "Musculação",       icon: Dumbbell,  iconBg: "bg-purple-100",  iconColor: "text-purple-600",  activeDot: "bg-purple-500",  activePulse: "bg-purple-400",  selectedBg: "bg-purple-50",  selectedText: "text-purple-700", selectedBorder: "border-purple-200" },
-  { id: "fisiologia",   label: "Fisiologia",       icon: Activity,  iconBg: "bg-emerald-100", iconColor: "text-emerald-600", activeDot: "bg-emerald-500", activePulse: "bg-emerald-400", selectedBg: "bg-emerald-50", selectedText: "text-emerald-700",selectedBorder: "border-emerald-200" },
-  { id: "bodybuilding", label: "Bodybuilding",     icon: Trophy,    iconBg: "bg-orange-100",  iconColor: "text-orange-600",  activeDot: "bg-orange-500",  activePulse: "bg-orange-400",  selectedBg: "bg-orange-50",  selectedText: "text-orange-700", selectedBorder: "border-orange-200" },
-  { id: "feminino",     label: "Trein. Feminino",  icon: Users,     iconBg: "bg-pink-100",    iconColor: "text-pink-600",    activeDot: "bg-pink-500",    activePulse: "bg-pink-400",    selectedBg: "bg-pink-50",    selectedText: "text-pink-700",   selectedBorder: "border-pink-200" },
-  { id: "funcional",    label: "Trein. Funcional", icon: Zap,       iconBg: "bg-teal-100",    iconColor: "text-teal-600",    activeDot: "bg-teal-500",    activePulse: "bg-teal-400",    selectedBg: "bg-teal-50",    selectedText: "text-teal-700",   selectedBorder: "border-teal-200" },
+  // ── Pós-graduação ──────────────────────────────────────────────────────────
+  { id: "biomecanica",  label: "Biomecânica (BM)",          icon: BookOpen,    iconBg: "bg-blue-100",    iconColor: "text-blue-600",    activeDot: "bg-blue-500",    activePulse: "bg-blue-400",    selectedBg: "bg-blue-50",    selectedText: "text-blue-700",    selectedBorder: "border-blue-200" },
+  { id: "musculacao",   label: "Musculação (MPA)",           icon: Dumbbell,    iconBg: "bg-purple-100",  iconColor: "text-purple-600",  activeDot: "bg-purple-500",  activePulse: "bg-purple-400",  selectedBg: "bg-purple-50",  selectedText: "text-purple-700",  selectedBorder: "border-purple-200" },
+  { id: "fisiologia",   label: "Fisiologia (FE)",            icon: Activity,    iconBg: "bg-emerald-100", iconColor: "text-emerald-600", activeDot: "bg-emerald-500", activePulse: "bg-emerald-400", selectedBg: "bg-emerald-50", selectedText: "text-emerald-700", selectedBorder: "border-emerald-200" },
+  { id: "bodybuilding", label: "Bodybuilding (BB)",          icon: Trophy,      iconBg: "bg-orange-100",  iconColor: "text-orange-600",  activeDot: "bg-orange-500",  activePulse: "bg-orange-400",  selectedBg: "bg-orange-50",  selectedText: "text-orange-700",  selectedBorder: "border-orange-200" },
+  { id: "feminino",     label: "Trein. Feminino (SM)",       icon: Users,       iconBg: "bg-pink-100",    iconColor: "text-pink-600",    activeDot: "bg-pink-500",    activePulse: "bg-pink-400",    selectedBg: "bg-pink-50",    selectedText: "text-pink-700",    selectedBorder: "border-pink-200" },
+  { id: "funcional",    label: "Trein. Funcional (TF)",      icon: Zap,         iconBg: "bg-teal-100",    iconColor: "text-teal-600",    activeDot: "bg-teal-500",    activePulse: "bg-teal-400",    selectedBg: "bg-teal-50",    selectedText: "text-teal-700",    selectedBorder: "border-teal-200" },
+  // ── Livros ─────────────────────────────────────────────────────────────────
+  { id: "livros",       label: "Livros",                     icon: BookMarked,  iconBg: "bg-green-100",   iconColor: "text-green-600",   activeDot: "bg-green-500",   activePulse: "bg-green-400",   selectedBg: "bg-green-50",   selectedText: "text-green-700",   selectedBorder: "border-green-200" },
+  // ── Ebooks ─────────────────────────────────────────────────────────────────
+  { id: "ebooks",       label: "Ebooks",                     icon: FileText,    iconBg: "bg-violet-100",  iconColor: "text-violet-600",  activeDot: "bg-violet-500",  activePulse: "bg-violet-400",  selectedBg: "bg-violet-50",  selectedText: "text-violet-700",  selectedBorder: "border-violet-200" },
+  // ── Perpétuo ───────────────────────────────────────────────────────────────
+  { id: "perpetuo",     label: "Notável Play",               icon: Repeat,      iconBg: "bg-amber-100",   iconColor: "text-amber-600",   activeDot: "bg-amber-500",   activePulse: "bg-amber-400",   selectedBg: "bg-amber-50",   selectedText: "text-amber-700",   selectedBorder: "border-amber-200" },
+  // ── Eventos ────────────────────────────────────────────────────────────────
+  { id: "bs",           label: "BS (Biomechanic Specialist)",icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
+  { id: "mentoria",     label: "Mentoria Scala",             icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
+  { id: "next",         label: "Next",                       icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
+  { id: "powertrainer", label: "Power Trainer",              icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -133,14 +145,26 @@ function ToggleSwitch({
 
 type ImportTab = "sheets" | "csv" | "meta";
 
-type DatePreset = "7d" | "14d" | "30d" | "90d";
+type DatePreset = "7d" | "14d" | "30d" | "90d" | "max";
+
+const DATE_PRESET_LABELS: Record<DatePreset, string> = {
+  "7d":  "7 dias",
+  "14d": "14 dias",
+  "30d": "30 dias",
+  "90d": "90 dias",
+  "max": "Todo período",
+};
 
 function dateRangeFromPreset(preset: DatePreset): { from: string; to: string } {
+  const fmt  = (d: Date) => d.toISOString().slice(0, 10);
   const to   = new Date();
   const from = new Date();
-  const days = preset === "7d" ? 7 : preset === "14d" ? 14 : preset === "30d" ? 30 : 90;
-  from.setDate(to.getDate() - days + 1);
-  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  if (preset === "max") {
+    from.setFullYear(to.getFullYear() - 3); // Meta supports ~37 months max
+  } else {
+    const days = preset === "7d" ? 7 : preset === "14d" ? 14 : preset === "30d" ? 30 : 90;
+    from.setDate(to.getDate() - days + 1);
+  }
   return { from: fmt(from), to: fmt(to) };
 }
 
@@ -168,6 +192,7 @@ function ImportPopover({
   const [metaAccounts, setMetaAccounts]   = useState<MetaAdAccount[]>([]);
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [datePreset, setDatePreset]       = useState<DatePreset>("30d");
+  const dateRange = dateRangeFromPreset(datePreset);
   const [importingMeta, setImportingMeta] = useState(false);
   const [metaImportError, setMetaImportError] = useState<string | null>(null);
   const fileRef                           = useRef<HTMLInputElement>(null);
@@ -200,8 +225,7 @@ function ImportPopover({
     if (onImportMeta) {
       setImportingMeta(true);
       try {
-        const { from, to } = dateRangeFromPreset(datePreset);
-        await onImportMeta(adAccountIds, from, to);
+        await onImportMeta(adAccountIds, dateRange.from, dateRange.to);
         onClose(); // close popover on success
       } catch (err) {
         setMetaImportError(err instanceof Error ? err.message : "Falha ao buscar dados da Meta.");
@@ -240,26 +264,33 @@ function ImportPopover({
       {/* Backdrop */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
 
-      <div className="absolute right-0 top-full z-50 mt-2 w-[360px] rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-800 sm:w-[420px]">
-        <div className="mb-4 flex items-center justify-between">
-          <div>
-            <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Importar dados</p>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">Conecte sua fonte de dados</p>
+      <div className="absolute right-0 top-full z-50 mt-2 flex w-[380px] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 sm:w-[440px]" style={{ maxHeight: "calc(100vh - 80px)" }}>
+
+        {/* Fixed header */}
+        <div className="flex-shrink-0 border-b border-slate-100 p-5 pb-4 dark:border-slate-700">
+          <div className="mb-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Importar dados</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">Conecte sua fonte de dados</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+            >
+              <X size={15} />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-          >
-            <X size={15} />
-          </button>
+
+          {/* Tabs */}
+          <div className="flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-700">
+            <button className={tabCls("sheets")} onClick={() => setTab("sheets")}>Google Sheets</button>
+            <button className={tabCls("csv")}    onClick={() => setTab("csv")}>CSV</button>
+            <button className={tabCls("meta")}   onClick={() => setTab("meta")}>Meta Ads</button>
+          </div>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-4 flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-700">
-          <button className={tabCls("sheets")} onClick={() => setTab("sheets")}>Google Sheets</button>
-          <button className={tabCls("csv")}    onClick={() => setTab("csv")}>CSV</button>
-          <button className={tabCls("meta")}   onClick={() => setTab("meta")}>Meta Ads</button>
-        </div>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto p-5">
 
         {tab === "sheets" && (
           <form onSubmit={handleUrl} className="space-y-3">
@@ -365,24 +396,27 @@ function ImportPopover({
               <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Período de dados
               </label>
-              <div className="flex gap-1.5">
-                {(["7d", "14d", "30d", "90d"] as DatePreset[]).map((p) => (
+              <div className="flex flex-wrap gap-1.5">
+                {(["7d", "14d", "30d", "90d", "max"] as DatePreset[]).map((p) => (
                   <button
                     key={p}
                     type="button"
                     onClick={() => setDatePreset(p)}
-                    className={`flex-1 rounded-lg border py-1.5 text-[11px] font-semibold transition ${
+                    className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition ${
                       datePreset === p
                         ? "border-brand bg-brand text-white"
                         : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
                     }`}
                   >
-                    {p === "7d" ? "7 dias" : p === "14d" ? "14 dias" : p === "30d" ? "30 dias" : "90 dias"}
+                    {DATE_PRESET_LABELS[p]}
                   </button>
                 ))}
               </div>
               <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
-                Dados serão buscados dos últimos {datePreset === "7d" ? "7" : datePreset === "14d" ? "14" : datePreset === "30d" ? "30" : "90"} dias
+                {datePreset === "max"
+                  ? `De ${dateRange.from} até hoje (máx. ~3 anos)`
+                  : `De ${dateRange.from} até ${dateRange.to}`
+                }
               </p>
             </div>
 
@@ -465,6 +499,7 @@ function ImportPopover({
             </p>
           </form>
         )}
+        </div>{/* end scrollable */}
       </div>
     </>
   );
