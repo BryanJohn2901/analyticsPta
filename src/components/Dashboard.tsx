@@ -11,7 +11,8 @@ import { useTheme } from "next-themes";
 import { CampaignData } from "@/types/campaign";
 import { CampaignConfig, useCampaignStore } from "@/hooks/useCampaignStore";
 import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
-import { loadMetaCredentials, saveMetaCredentials } from "@/utils/metaApi";
+import { fetchMetaAdAccounts, loadMetaCredentials, saveMetaCredentials } from "@/utils/metaApi";
+import type { MetaAdAccount } from "@/utils/metaApi";
 import { CategoryGate, CATEGORY_LABEL, CATEGORY_ICON, CATEGORY_DOT } from "@/components/CategoryGate";
 import {
   aggregateByCampaign, aggregateTotals, buildBudgetDistribution,
@@ -150,6 +151,9 @@ function ImportPopover({
     Object.fromEntries(CAMPAIGN_GROUPS.map((g) => [g.id, campaignConfigs[g.id]?.adAccountId ?? ""])),
   );
   const [metaSaved, setMetaSaved]         = useState(false);
+  const [fetchingAccounts, setFetchingAccounts] = useState(false);
+  const [metaAccounts, setMetaAccounts]   = useState<MetaAdAccount[]>([]);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
   const fileRef                           = useRef<HTMLInputElement>(null);
 
   const handleUrl = async (e: FormEvent) => {
@@ -174,6 +178,21 @@ function ImportPopover({
     });
     setMetaSaved(true);
     setTimeout(() => setMetaSaved(false), 2000);
+  };
+
+  const handleFetchAccounts = async () => {
+    setAccountsError(null);
+    setFetchingAccounts(true);
+    try {
+      const accounts = await fetchMetaAdAccounts(accessToken);
+      setMetaAccounts(accounts);
+      if (accounts.length === 0) setAccountsError("Nenhuma conta encontrada para este token.");
+    } catch (e) {
+      setAccountsError(e instanceof Error ? e.message : "Falha ao buscar contas.");
+      setMetaAccounts([]);
+    } finally {
+      setFetchingAccounts(false);
+    }
   };
 
   const tabCls = (t: ImportTab) =>
@@ -254,37 +273,115 @@ function ImportPopover({
 
         {tab === "meta" && (
           <form onSubmit={handleSaveMeta} className="space-y-4">
+
+            {/* Token + fetch button */}
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">Access Token</label>
-              <input
-                type="password" value={accessToken} onChange={(e) => setAccessToken(e.target.value)}
-                placeholder="EAAxxxxx…" className={inputCls}
-              />
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Access Token
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={accessToken}
+                  onChange={(e) => { setAccessToken(e.target.value); setMetaAccounts([]); setAccountsError(null); }}
+                  placeholder="EAAxxxxx…"
+                  className={`${inputCls} flex-1`}
+                />
+                <button
+                  type="button"
+                  disabled={!accessToken || fetchingAccounts}
+                  onClick={handleFetchAccounts}
+                  title="Buscar contas de anúncio disponíveis"
+                  className="flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 text-xs font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {fetchingAccounts
+                    ? <Loader2 size={12} className="animate-spin" />
+                    : <Zap size={12} />
+                  }
+                  {fetchingAccounts ? "Buscando…" : "Conectar"}
+                </button>
+              </div>
               <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
-                Obtenha em <span className="font-medium text-slate-600 dark:text-slate-400">Meta for Developers → Graph API Explorer</span>
+                Obtenha em{" "}
+                <span className="font-medium text-slate-600 dark:text-slate-400">
+                  Meta for Developers → Graph API Explorer
+                </span>
               </p>
             </div>
+
+            {/* Error from account fetch */}
+            {accountsError && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+                <X size={12} className="mt-0.5 flex-shrink-0" />
+                {accountsError}
+              </div>
+            )}
+
+            {/* Accounts found banner */}
+            {metaAccounts.length > 0 && (
+              <div className="flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-medium"
+                style={{ backgroundColor: "var(--dm-success-bg)", borderColor: "var(--dm-success-border)", color: "var(--dm-success-text)" }}
+              >
+                <Activity size={12} className="flex-shrink-0" />
+                {metaAccounts.length} conta{metaAccounts.length > 1 ? "s" : ""} encontrada{metaAccounts.length > 1 ? "s" : ""} — selecione abaixo
+              </div>
+            )}
+
+            {/* Ad account selector per campaign group */}
             <div>
-              <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">Ad Account ID por campanha</label>
+              <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Ad Account por campanha
+              </label>
               <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-700/50">
                 {CAMPAIGN_GROUPS.map((g) => (
                   <div key={g.id} className="flex items-center gap-2">
+                    {/* Campaign icon */}
                     <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${g.iconBg} dark:opacity-80`}>
                       <g.icon size={10} className={g.iconColor} />
                     </div>
-                    <span className="w-28 flex-shrink-0 truncate text-[11px] text-slate-500 dark:text-slate-400">{g.label}</span>
-                    <input
-                      value={adAccountIds[g.id] ?? ""}
-                      onChange={(e) => setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }))}
-                      placeholder="act_123456789"
-                      className="h-7 flex-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
-                    />
+                    <span className="w-24 flex-shrink-0 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                      {g.label}
+                    </span>
+
+                    {/* Dropdown when accounts fetched, manual input otherwise */}
+                    {metaAccounts.length > 0 ? (
+                      <select
+                        value={adAccountIds[g.id] ?? ""}
+                        onChange={(e) => setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }))}
+                        className="h-7 flex-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
+                      >
+                        <option value="">— selecionar conta —</option>
+                        {metaAccounts.map((acc) => (
+                          <option key={acc.id} value={acc.id}>
+                            {acc.name} ({acc.id})
+                            {acc.account_status !== 1 ? " ⚠ inativa" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={adAccountIds[g.id] ?? ""}
+                        onChange={(e) => setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }))}
+                        placeholder="act_123456789"
+                        className="h-7 flex-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
+                      />
+                    )}
                   </div>
                 ))}
               </div>
+              {metaAccounts.length === 0 && (
+                <p className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+                  Clique em <strong>Conectar</strong> para buscar suas contas automaticamente, ou digite o ID manualmente.
+                </p>
+              )}
             </div>
-            <button type="submit"
-              className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold text-white transition ${metaSaved ? "bg-emerald-600" : "bg-brand hover:bg-brand-hover"}`}>
+
+            <button
+              type="submit"
+              className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold text-white transition ${
+                metaSaved ? "bg-emerald-600" : "bg-brand hover:bg-brand-hover"
+              }`}
+            >
               {metaSaved ? "✓ Credenciais salvas!" : "Salvar credenciais"}
             </button>
           </form>
