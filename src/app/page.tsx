@@ -11,23 +11,24 @@ import {
   replaceSupabaseCampaigns,
   subscribeSupabaseCampaigns,
 } from "@/utils/supabaseCampaigns";
+import { fetchMetaInsights, metaInsightsToCampaignData } from "@/utils/metaApi";
 
 declare global {
   interface Window { supabase?: typeof supabaseClient; }
 }
 
-/** Tracks the currently active data source so the UI can show a disconnect badge */
-interface DataSource {
-  type: "google_sheets" | "csv";
-  label: string; // URL or filename
+/** Tracks the currently active data source for the disconnect badge */
+export interface DataSource {
+  type: "google_sheets" | "csv" | "meta";
+  label: string;
 }
 
 export default function Home() {
-  const [campaigns, setCampaigns] = useState<CampaignData[]>([]);
-  const [error, setError]         = useState<string | null>(null);
-  const [session]                 = useState<Session | null>(null);
+  const [campaigns, setCampaigns]       = useState<CampaignData[]>([]);
+  const [error, setError]               = useState<string | null>(null);
+  const [session]                       = useState<Session | null>(null);
   const [realtimeActive, setRealtimeActive] = useState(false);
-  const [dataSource, setDataSource] = useState<DataSource | null>(null);
+  const [dataSource, setDataSource]     = useState<DataSource | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const disconnectRealtime = () => {
@@ -38,7 +39,7 @@ export default function Home() {
     setRealtimeActive(false);
   };
 
-  /** Disconnect current source — clears all campaign data without page reload */
+  /** Clears all campaign data and source without page reload */
   const handleDisconnect = async (): Promise<void> => {
     disconnectRealtime();
     setCampaigns([]);
@@ -94,6 +95,44 @@ export default function Home() {
     }
   };
 
+  /**
+   * Fetches insights from Meta API for all configured ad accounts.
+   * Called automatically after saving Meta credentials in the ImportPopover.
+   *
+   * @param accounts  — map of campaignGroupId → adAccountId (may include "act_" prefix)
+   * @param dateFrom  — ISO date string "YYYY-MM-DD"
+   * @param dateTo    — ISO date string "YYYY-MM-DD"
+   */
+  const handleMetaImport = async (
+    accounts: Record<string, string>,
+    dateFrom: string,
+    dateTo: string,
+  ): Promise<void> => {
+    setError(null);
+
+    const configured = Object.entries(accounts).filter(([, id]) => id.trim() !== "");
+    if (configured.length === 0) {
+      throw new Error("Configure pelo menos uma conta de anúncio antes de importar.");
+    }
+
+    const allData: CampaignData[] = [];
+
+    for (const [, adAccountId] of configured) {
+      const insights = await fetchMetaInsights(adAccountId, dateFrom, dateTo);
+      allData.push(...metaInsightsToCampaignData(insights, adAccountId));
+    }
+
+    if (allData.length === 0) {
+      throw new Error("Nenhum dado encontrado para o período selecionado nas contas configuradas.");
+    }
+
+    setCampaigns(allData);
+    setDataSource({
+      type:  "meta",
+      label: `Meta Ads · ${configured.length} conta${configured.length > 1 ? "s" : ""}`,
+    });
+  };
+
   const loadSupabaseData = async () => setCampaigns(await fetchSupabaseCampaigns());
 
   const handleConnectRealtime = async (): Promise<void> => {
@@ -113,7 +152,9 @@ export default function Home() {
     if (process.env.NODE_ENV === "development" && typeof window !== "undefined" && supabaseClient) {
       window.supabase = supabaseClient;
     }
-    return () => { if (channelRef.current && supabaseClient) void supabaseClient.removeChannel(channelRef.current); };
+    return () => {
+      if (channelRef.current && supabaseClient) void supabaseClient.removeChannel(channelRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -137,6 +178,7 @@ export default function Home() {
       dataSource={dataSource}
       onImportCsv={handleCsvUpload}
       onImportUrl={handleGenerateDashboard}
+      onImportMeta={handleMetaImport}
       onDisconnect={handleDisconnect}
     />
   );

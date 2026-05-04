@@ -31,7 +31,7 @@ import { DashMonsterLogo } from "@/components/DashMonsterLogo";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface DataSource {
-  type: "google_sheets" | "csv";
+  type: "google_sheets" | "csv" | "meta";
   label: string;
 }
 
@@ -41,6 +41,7 @@ interface DashboardProps {
   dataSource?: DataSource | null;
   onImportCsv: (file: File) => Promise<void>;
   onImportUrl: (url: string) => Promise<void>;
+  onImportMeta?: (accounts: Record<string, string>, dateFrom: string, dateTo: string) => Promise<void>;
   onDisconnect?: () => Promise<void>;
 }
 
@@ -132,16 +133,28 @@ function ToggleSwitch({
 
 type ImportTab = "sheets" | "csv" | "meta";
 
+type DatePreset = "7d" | "14d" | "30d" | "90d";
+
+function dateRangeFromPreset(preset: DatePreset): { from: string; to: string } {
+  const to   = new Date();
+  const from = new Date();
+  const days = preset === "7d" ? 7 : preset === "14d" ? 14 : preset === "30d" ? 30 : 90;
+  from.setDate(to.getDate() - days + 1);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  return { from: fmt(from), to: fmt(to) };
+}
+
 interface ImportPopoverProps {
   onImportCsv: (file: File) => Promise<void>;
   onImportUrl: (url: string) => Promise<void>;
+  onImportMeta?: (accounts: Record<string, string>, dateFrom: string, dateTo: string) => Promise<void>;
   campaignConfigs: Record<string, CampaignConfig>;
   onSaveCampaignConfig: (group: string, config: CampaignConfig) => void;
   onClose: () => void;
 }
 
 function ImportPopover({
-  onImportCsv, onImportUrl, campaignConfigs, onSaveCampaignConfig, onClose,
+  onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
 }: ImportPopoverProps) {
   const [tab, setTab]                     = useState<ImportTab>("sheets");
   const [url, setUrl]                     = useState("");
@@ -154,6 +167,9 @@ function ImportPopover({
   const [fetchingAccounts, setFetchingAccounts] = useState(false);
   const [metaAccounts, setMetaAccounts]   = useState<MetaAdAccount[]>([]);
   const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [datePreset, setDatePreset]       = useState<DatePreset>("30d");
+  const [importingMeta, setImportingMeta] = useState(false);
+  const [metaImportError, setMetaImportError] = useState<string | null>(null);
   const fileRef                           = useRef<HTMLInputElement>(null);
 
   const handleUrl = async (e: FormEvent) => {
@@ -169,15 +185,32 @@ function ImportPopover({
     try { await onImportCsv(file); onClose(); } finally { setLoading(null); e.target.value = ""; }
   };
 
-  const handleSaveMeta = (e: FormEvent) => {
+  const handleSaveMeta = async (e: FormEvent) => {
     e.preventDefault();
+    setMetaImportError(null);
+
+    // 1. Persist credentials + account configs
     saveMetaCredentials({ accessToken });
     CAMPAIGN_GROUPS.forEach((g) => {
       const id = adAccountIds[g.id]?.trim();
       if (id) onSaveCampaignConfig(g.id, { adAccountId: id });
     });
-    setMetaSaved(true);
-    setTimeout(() => setMetaSaved(false), 2000);
+
+    // 2. Auto-fetch insights if handler is available
+    if (onImportMeta) {
+      setImportingMeta(true);
+      try {
+        const { from, to } = dateRangeFromPreset(datePreset);
+        await onImportMeta(adAccountIds, from, to);
+        onClose(); // close popover on success
+      } catch (err) {
+        setMetaImportError(err instanceof Error ? err.message : "Falha ao buscar dados da Meta.");
+        setImportingMeta(false);
+      }
+    } else {
+      setMetaSaved(true);
+      setTimeout(() => setMetaSaved(false), 2000);
+    }
   };
 
   const handleFetchAccounts = async () => {
@@ -327,6 +360,32 @@ function ImportPopover({
               </div>
             )}
 
+            {/* Date range preset */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Período de dados
+              </label>
+              <div className="flex gap-1.5">
+                {(["7d", "14d", "30d", "90d"] as DatePreset[]).map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setDatePreset(p)}
+                    className={`flex-1 rounded-lg border py-1.5 text-[11px] font-semibold transition ${
+                      datePreset === p
+                        ? "border-brand bg-brand text-white"
+                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                    }`}
+                  >
+                    {p === "7d" ? "7 dias" : p === "14d" ? "14 dias" : p === "30d" ? "30 dias" : "90 dias"}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                Dados serão buscados dos últimos {datePreset === "7d" ? "7" : datePreset === "14d" ? "14" : datePreset === "30d" ? "30" : "90"} dias
+              </p>
+            </div>
+
             {/* Ad account selector per campaign group */}
             <div>
               <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -376,14 +435,34 @@ function ImportPopover({
               )}
             </div>
 
+            {/* Import error */}
+            {metaImportError && (
+              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+                <X size={12} className="mt-0.5 flex-shrink-0" />
+                {metaImportError}
+              </div>
+            )}
+
             <button
               type="submit"
-              className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold text-white transition ${
+              disabled={importingMeta}
+              className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${
                 metaSaved ? "bg-emerald-600" : "bg-brand hover:bg-brand-hover"
               }`}
             >
-              {metaSaved ? "✓ Credenciais salvas!" : "Salvar credenciais"}
+              {importingMeta ? (
+                <><Loader2 size={13} className="animate-spin" /> Buscando dados da Meta…</>
+              ) : metaSaved ? (
+                "✓ Salvo!"
+              ) : (
+                <><Zap size={13} /> Salvar e importar dados</>
+              )}
             </button>
+
+            <p className="text-center text-[10px] text-slate-400 dark:text-slate-500">
+              💡 Use um <span className="font-medium">System User Token</span> para não expirar.{" "}
+              Tokens do Graph API Explorer expiram em ~1h.
+            </p>
           </form>
         )}
       </div>
@@ -588,7 +667,7 @@ function CampaignPanel({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportUrl, onDisconnect }: DashboardProps) {
+export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportUrl, onImportMeta, onDisconnect }: DashboardProps) {
   const [mainTab, setMainTab]               = useState<MainTab>("overview");
   const [dateFrom, setDateFrom]             = useState("");
   const [dateTo, setDateTo]                 = useState("");
@@ -836,12 +915,14 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                 }}
               >
                 {dataSource.type === "google_sheets"
-                  ? <Link2 size={12} className="flex-shrink-0" />
-                  : <FileUp size={12} className="flex-shrink-0" />
+                  ? <Link2   size={12} className="flex-shrink-0" />
+                  : dataSource.type === "meta"
+                  ? <Zap     size={12} className="flex-shrink-0" />
+                  : <FileUp  size={12} className="flex-shrink-0" />
                 }
-                <span className="hidden max-w-[120px] truncate sm:block" title={dataSource.label}>
+                <span className="hidden max-w-[140px] truncate sm:block" title={dataSource.label}>
                   {dataSource.type === "google_sheets"
-                    ? new URL(dataSource.label).pathname.split("/")[3]?.slice(0, 12) + "…"
+                    ? (() => { try { return new URL(dataSource.label).pathname.split("/")[3]?.slice(0, 12) + "…"; } catch { return dataSource.label; } })()
                     : dataSource.label
                   }
                 </span>
@@ -876,6 +957,7 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                 <ImportPopover
                   onImportCsv={onImportCsv}
                   onImportUrl={onImportUrl}
+                  onImportMeta={onImportMeta}
                   campaignConfigs={campaignConfigs}
                   onSaveCampaignConfig={setCampaignConfig}
                   onClose={() => setShowImport(false)}

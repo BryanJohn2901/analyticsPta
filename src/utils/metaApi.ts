@@ -1,24 +1,26 @@
+import type { CampaignData } from "@/types/campaign";
+
 const CREDS_KEY = "pta_meta_creds_v1";
 
+// ─── Ad Accounts ──────────────────────────────────────────────────────────────
+
 export interface MetaAdAccount {
-  id: string;       // e.g. "act_123456789"
+  id: string;            // "act_123456789" — includes prefix
   name: string;
   account_status: number; // 1 = active
   currency: string;
 }
 
-/**
- * Fetches all ad accounts accessible by the given token.
- * Calls our own Next.js route to avoid CORS issues.
- */
+/** Fetches all ad accounts accessible by the given token (proxied to avoid CORS). */
 export async function fetchMetaAdAccounts(accessToken: string): Promise<MetaAdAccount[]> {
   if (!accessToken) throw new Error("Informe o Access Token antes de buscar as contas.");
-  const params = new URLSearchParams({ accessToken });
-  const res = await fetch(`/api/meta/accounts?${params.toString()}`);
+  const res  = await fetch(`/api/meta/accounts?${new URLSearchParams({ accessToken })}`);
   const body = await res.json() as MetaAdAccount[] | { error: string };
   if (!res.ok) throw new Error((body as { error: string }).error ?? `Meta API error ${res.status}`);
   return body as MetaAdAccount[];
 }
+
+// ─── Credentials ─────────────────────────────────────────────────────────────
 
 export interface MetaCredentials {
   accessToken: string;
@@ -39,20 +41,33 @@ export function saveMetaCredentials(creds: MetaCredentials): void {
   try { localStorage.setItem(CREDS_KEY, JSON.stringify(creds)); } catch {}
 }
 
-export interface MetaInsight {
-  campaign_name: string;
-  adset_name: string;
-  impressions: number;
-  reach: number;
-  clicks: number;
-  spend: number;
-  cpm: number;
-  ctr: number;
-  date_start: string;
-  date_stop: string;
-  actions?: { action_type: string; value: string }[];
+// ─── Insights ─────────────────────────────────────────────────────────────────
+
+interface MetaAction {
+  action_type: string;
+  value: string; // numeric string
 }
 
+export interface MetaInsight {
+  campaign_name: string;
+  campaign_id:   string;
+  adset_name?:   string;  // present when level="adset" (kept for ProfileAnalysis compatibility)
+  impressions:   number;
+  reach:         number;
+  clicks:        number;
+  spend:         number;  // investment in account currency
+  cpm:           number;
+  ctr:           number;  // percentage — e.g. 2.34 means 2.34% → divide by 100 for decimal
+  date_start:    string;
+  date_stop:     string;
+  actions?:       MetaAction[]; // conversion counts
+  action_values?: MetaAction[]; // conversion revenue values
+}
+
+/**
+ * Fetches campaign insights from Meta API for a given ad account and date range.
+ * Returns one row per campaign per day (daily breakdown).
+ */
 export async function fetchMetaInsights(
   adAccountId: string,
   dateFrom: string,
@@ -60,11 +75,79 @@ export async function fetchMetaInsights(
 ): Promise<MetaInsight[]> {
   const { accessToken } = loadMetaCredentials();
   if (!accessToken) throw new Error("Token de acesso Meta não configurado.");
+
   const params = new URLSearchParams({ adAccountId, dateFrom, dateTo, accessToken });
   const res = await fetch(`/api/meta/insights?${params.toString()}`);
+
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error((body as { error?: string }).error ?? `Meta API error ${res.status}`);
   }
+
   return (await res.json()) as MetaInsight[];
+}
+
+// ─── Transformation ──────────────────────────────────────────────────────────
+
+/** Finds the numeric value of a specific action_type in a Meta actions array. */
+function pickAction(actions: MetaAction[] | undefined, ...types: string[]): number {
+  if (!actions) return 0;
+  for (const type of types) {
+    const found = actions.find((a) => a.action_type === type);
+    if (found) return parseFloat(found.value) || 0;
+  }
+  return 0;
+}
+
+/**
+ * Converts Meta Insights API rows into CampaignData records compatible
+ * with the DashMonster dashboard.
+ *
+ * Conversion counting: purchase > omni_purchase > offsite_conversion.fb_pixel_purchase
+ * Revenue:            action_values for the same types
+ */
+export function metaInsightsToCampaignData(
+  insights: MetaInsight[],
+  adAccountId: string,
+): CampaignData[] {
+  return insights.map((row) => {
+    const investment = parseFloat(String(row.spend)) || 0;
+    const clicks     = parseFloat(String(row.clicks)) || 0;
+    const impressions = parseFloat(String(row.impressions)) || 0;
+
+    // Conversions — try most specific purchase types first
+    const conversions = pickAction(
+      row.actions,
+      "purchase",
+      "omni_purchase",
+      "offsite_conversion.fb_pixel_purchase",
+    );
+
+    // Revenue — from action_values (monetary value of purchases)
+    const revenue = pickAction(
+      row.action_values,
+      "purchase",
+      "omni_purchase",
+      "offsite_conversion.fb_pixel_purchase",
+    );
+
+    // Meta returns CTR as percentage string ("2.34" = 2.34%) — convert to decimal
+    const ctr = (parseFloat(String(row.ctr)) || 0) / 100;
+
+    return {
+      id:             `meta-${adAccountId}-${row.date_start}-${row.campaign_id}`,
+      date:           row.date_start,
+      campaignName:   row.campaign_name,
+      investment,
+      clicks,
+      impressions,
+      conversions,
+      revenue,
+      ctr,
+      cpc:            clicks     > 0 ? investment  / clicks     : 0,
+      cpa:            conversions > 0 ? investment  / conversions : 0,
+      roas:           investment  > 0 ? revenue     / investment  : 0,
+      conversionRate: clicks     > 0 ? conversions / clicks     : 0,
+    };
+  });
 }

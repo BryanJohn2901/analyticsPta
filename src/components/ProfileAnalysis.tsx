@@ -42,9 +42,9 @@ interface AdsetRow {
 function toAdsetRows(data: MetaInsight[]): AdsetRow[] {
   const map = new Map<string, AdsetRow>();
   data.forEach((d) => {
-    const key = d.adset_name;
+    const key = d.adset_name ?? d.campaign_name;
     const cur = map.get(key) ?? {
-      name: d.adset_name,
+      name: d.adset_name ?? d.campaign_name,
       impressions: 0, reach: 0, clicks: 0, spend: 0, cpm: 0, ctr: 0, purchases: 0, cpa: 0,
     };
     cur.impressions += d.impressions;
@@ -52,7 +52,7 @@ function toAdsetRows(data: MetaInsight[]): AdsetRow[] {
     cur.clicks      += d.clicks;
     cur.spend       += d.spend;
     cur.purchases   += getActionValue(d.actions, "purchase");
-    map.set(key, cur);
+    map.set(key ?? "", cur);
   });
   return Array.from(map.values()).map((r) => ({
     ...r,
