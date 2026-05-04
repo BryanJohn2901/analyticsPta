@@ -4,7 +4,7 @@ import { FormEvent, useMemo, useRef, useState } from "react";
 import {
   Activity, BadgeDollarSign, BarChart2, BookMarked, BookOpen, CalendarDays,
   CheckCircle2, ChevronDown, ChevronUp, CircleDollarSign, Dumbbell, FileText,
-  FileUp, Filter, ImageIcon, Link2, Loader2, Menu, Moon, Package, Repeat,
+  FileUp, Filter, ImageIcon, Link2, Loader2, Menu, Moon, Package, Plus, Repeat,
   SlidersHorizontal, Sun, Target, TrendingUp, Trophy, Upload, Users, Wallet,
   X, XCircle, Zap,
 } from "lucide-react";
@@ -191,22 +191,32 @@ interface ImportPopoverProps {
   campaignConfigs: Record<string, CampaignConfig>;
   onSaveCampaignConfig: (group: string, config: CampaignConfig) => void;
   onClose: () => void;
-  enabledSections: ProductCategory[];
-  onSetEnabledSections: (sections: ProductCategory[]) => void;
   onCampaignsVerified: (groupId: string, campaigns: CampaignSummary[]) => void;
 }
 
+// ─── Account row (dynamic "add what you need" UX) ─────────────────────────────
+interface AccountRow { rowId: string; groupId: string; accountId: string }
+
 function ImportPopover({
   onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
-  enabledSections, onSetEnabledSections, onCampaignsVerified,
+  onCampaignsVerified,
 }: ImportPopoverProps) {
   const [tab, setTab]                     = useState<ImportTab>("sheets");
   const [url, setUrl]                     = useState("");
   const [loading, setLoading]             = useState<"url" | "csv" | null>(null);
   const [accessToken, setAccessToken]     = useState(() => loadMetaCredentials().accessToken);
-  const [adAccountIds, setAdAccountIds]   = useState<Record<string, string>>(() =>
-    Object.fromEntries(CAMPAIGN_GROUPS.map((g) => [g.id, campaignConfigs[g.id]?.adAccountId ?? ""])),
+
+  // Rows: only groups that already have a saved account appear on open;
+  // user adds/removes rows freely with the + / × buttons.
+  const [accountRows, setAccountRows]     = useState<AccountRow[]>(() =>
+    Object.entries(campaignConfigs)
+      .filter(([, cfg]) => cfg?.adAccountId?.trim())
+      .map(([groupId, cfg]) => ({ rowId: groupId, groupId, accountId: cfg.adAccountId })),
   );
+
+  // Derived lookup — compatible with all handlers that key by groupId
+  const adAccountIds = Object.fromEntries(accountRows.map((r) => [r.groupId, r.accountId]));
+
   const [metaSaved, setMetaSaved]         = useState(false);
   const [fetchingAccounts, setFetchingAccounts] = useState(false);
   const [metaAccounts, setMetaAccounts]   = useState<MetaAdAccount[]>([]);
@@ -242,29 +252,25 @@ function ImportPopover({
     try { await onImportCsv(file); onClose(); } finally { setLoading(null); e.target.value = ""; }
   };
 
-  const visibleGroups = CAMPAIGN_GROUPS.filter((g) => enabledSections.includes(g.section as ProductCategory));
-
   const handleSaveMeta = async (e: FormEvent) => {
     e.preventDefault();
     setMetaImportError(null);
 
     // 1. Persist credentials + account configs
     saveMetaCredentials({ accessToken });
-    visibleGroups.forEach((g) => {
-      const id = adAccountIds[g.id]?.trim();
-      if (id) onSaveCampaignConfig(g.id, { adAccountId: id });
+    accountRows.forEach((r) => {
+      if (r.accountId.trim()) onSaveCampaignConfig(r.groupId, { adAccountId: r.accountId.trim() });
     });
 
-    // 2. Build campaign filter (only for groups with a subset selected, not all)
+    // 2. Build campaign filter (only for groups with a strict subset selected)
     const campaignFilter: Record<string, string[]> = {};
-    visibleGroups.forEach((g) => {
-      const accountId  = adAccountIds[g.id]?.trim();
+    accountRows.forEach((r) => {
+      const accountId = r.accountId.trim();
       if (!accountId) return;
-      const allCamps   = campaignsByAccount[accountId] ?? [];
-      const selected   = selectedCampaigns[g.id];
-      // Only filter when campaigns were fetched AND a strict subset is selected
+      const allCamps  = campaignsByAccount[accountId] ?? [];
+      const selected  = selectedCampaigns[r.groupId];
       if (allCamps.length > 0 && selected && selected.length < allCamps.length) {
-        campaignFilter[g.id] = selected;
+        campaignFilter[r.groupId] = selected;
       }
     });
 
@@ -349,11 +355,54 @@ function ImportPopover({
     }
   };
 
-  /** Verify all configured groups in parallel. */
+  /** Verify all configured rows in parallel. */
   const handleVerifyAll = async () => {
-    const groupsWithAccount = visibleGroups.filter((g) => adAccountIds[g.id]?.trim());
-    if (groupsWithAccount.length === 0) return;
-    await Promise.allSettled(groupsWithAccount.map((g) => handleVerifyGroup(g.id)));
+    const rowsWithAccount = accountRows.filter((r) => r.accountId.trim());
+    if (rowsWithAccount.length === 0) return;
+    await Promise.allSettled(rowsWithAccount.map((r) => handleVerifyGroup(r.groupId)));
+  };
+
+  /** Change which group a row maps to. */
+  const handleChangeRowGroup = (rowId: string, newGroupId: string) => {
+    const old = accountRows.find((r) => r.rowId === rowId);
+    setAccountRows((p) => p.map((r) => r.rowId === rowId ? { ...r, groupId: newGroupId, accountId: "" } : r));
+    if (old) {
+      setVerifyStatus((p) => { const c = { ...p }; delete c[old.groupId]; return c; });
+      setVerifyError((p)  => { const c = { ...p }; delete c[old.groupId]; return c; });
+      setSelectedCampaigns((p) => { const c = { ...p }; delete c[old.groupId]; return c; });
+    }
+    if (expandedGroup === old?.groupId) setExpandedGroup(null);
+  };
+
+  /** Update the account ID on a row (resets verify state). */
+  const handleChangeRowAccount = (rowId: string, newAccountId: string) => {
+    const row = accountRows.find((r) => r.rowId === rowId);
+    if (!row) return;
+    setAccountRows((p) => p.map((r) => r.rowId === rowId ? { ...r, accountId: newAccountId } : r));
+    setVerifyStatus((p) => { const c = { ...p }; delete c[row.groupId]; return c; });
+    setVerifyError((p)  => { const c = { ...p }; delete c[row.groupId]; return c; });
+    setSelectedCampaigns((p) => { const c = { ...p }; delete c[row.groupId]; return c; });
+    if (expandedGroup === row.groupId) setExpandedGroup(null);
+  };
+
+  /** Remove a row entirely. */
+  const handleRemoveRow = (rowId: string) => {
+    const row = accountRows.find((r) => r.rowId === rowId);
+    setAccountRows((p) => p.filter((r) => r.rowId !== rowId));
+    if (row) {
+      setVerifyStatus((p) => { const c = { ...p }; delete c[row.groupId]; return c; });
+      setVerifyError((p)  => { const c = { ...p }; delete c[row.groupId]; return c; });
+      setSelectedCampaigns((p) => { const c = { ...p }; delete c[row.groupId]; return c; });
+      if (expandedGroup === row.groupId) setExpandedGroup(null);
+    }
+  };
+
+  /** Add a new empty row using the first unconfigured group. */
+  const handleAddRow = () => {
+    const usedIds = new Set(accountRows.map((r) => r.groupId));
+    const next = CAMPAIGN_GROUPS.find((g) => !usedIds.has(g.id));
+    if (!next) return;
+    setAccountRows((p) => [...p, { rowId: `row-${Date.now()}`, groupId: next.id, accountId: "" }]);
   };
 
   /** Toggle a single campaign selection within a group. */
@@ -461,40 +510,6 @@ function ImportPopover({
         {tab === "meta" && (
           <form onSubmit={handleSaveMeta} className="space-y-4">
 
-            {/* Section selector */}
-            <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Categorias a configurar
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {(["pos","livros","ebooks","perpetuo","eventos"] as ProductCategory[]).map((sec) => {
-                  const active = enabledSections.includes(sec);
-                  const labels: Record<ProductCategory, string> = {
-                    pos: "Pós Graduação", livros: "Livros", ebooks: "Ebooks",
-                    perpetuo: "Perpétuo", eventos: "Eventos",
-                  };
-                  return (
-                    <button
-                      key={sec}
-                      type="button"
-                      onClick={() => {
-                        const next = active
-                          ? enabledSections.filter((s) => s !== sec)
-                          : [...enabledSections, sec];
-                        onSetEnabledSections(next);
-                      }}
-                      className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition ${
-                        active
-                          ? "border-brand bg-brand text-white"
-                          : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400"
-                      }`}
-                    >
-                      {labels[sec]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
 
             {/* Token + fetch button */}
             <div>
@@ -578,75 +593,80 @@ function ImportPopover({
               </p>
             </div>
 
-            {/* Ad account selector per campaign group */}
+            {/* ── Ad account rows ──────────────────────────────────────────── */}
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Ad Account por campanha
+                  Ad Accounts configurados
                 </label>
-                {/* Verify-all button */}
-                <button
-                  type="button"
-                  onClick={() => void handleVerifyAll()}
-                  disabled={!accessToken || visibleGroups.every((g) => !adAccountIds[g.id]?.trim())}
-                  className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
-                >
-                  <Activity size={10} />
-                  Verificar todas
-                </button>
+                {accountRows.some((r) => r.accountId.trim()) && (
+                  <button
+                    type="button"
+                    onClick={() => void handleVerifyAll()}
+                    disabled={!accessToken}
+                    className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
+                  >
+                    <Activity size={10} /> Verificar todas
+                  </button>
+                )}
               </div>
 
-              {/* Group list */}
-              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-                {visibleGroups.map((g, idx) => {
-                  const prevSection   = idx > 0 ? visibleGroups[idx - 1].section : null;
-                  const isNewSection  = g.section !== prevSection;
-                  const accountId     = adAccountIds[g.id]?.trim() ?? "";
-                  const campaigns     = accountId ? (campaignsByAccount[accountId] ?? []) : [];
-                  const isExpanded    = expandedGroup === g.id;
-                  const status        = verifyStatus[g.id] ?? "idle";
-                  const errMsg        = verifyError[g.id];
-                  const selected      = selectedCampaigns[g.id] ?? campaigns.map((c) => c.id);
-                  const allSelected   = selected.length === campaigns.length;
+              {/* Empty state */}
+              {accountRows.length === 0 && (
+                <div className="rounded-xl border-2 border-dashed border-slate-200 p-5 text-center dark:border-slate-600">
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                    Nenhuma conta configurada.<br />
+                    Clique em <strong className="text-slate-600 dark:text-slate-300">+ Adicionar campanha</strong> para começar.
+                  </p>
+                </div>
+              )}
 
-                  return (
-                    <div key={g.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-700">
-                      {/* Section divider */}
-                      {isNewSection && (
-                        <div className="border-b border-slate-100 bg-slate-50 px-3 py-1 dark:border-slate-700 dark:bg-slate-700/50">
-                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                            {SECTION_LABELS[g.section]}
-                          </p>
-                        </div>
-                      )}
+              {/* Row list */}
+              {accountRows.length > 0 && (
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+                  {accountRows.map((row) => {
+                    const g          = CAMPAIGN_GROUPS.find((x) => x.id === row.groupId)!;
+                    const accountId  = row.accountId.trim();
+                    const campaigns  = accountId ? (campaignsByAccount[accountId] ?? []) : [];
+                    const isExpanded = expandedGroup === row.groupId;
+                    const status     = verifyStatus[row.groupId] ?? "idle";
+                    const errMsg     = verifyError[row.groupId];
+                    const selected   = selectedCampaigns[row.groupId] ?? campaigns.map((c) => c.id);
+                    const allSelected = selected.length === campaigns.length;
 
-                      {/* Row */}
-                      <div className="px-2 py-1.5">
-                        <div className="flex items-center gap-1.5">
-                          {/* Icon */}
-                          <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${g.iconBg} dark:opacity-80`}>
-                            <g.icon size={10} className={g.iconColor} />
-                          </div>
+                    return (
+                      <div key={row.rowId} className="border-b border-slate-100 last:border-b-0 dark:border-slate-700">
+                        {/* Main row */}
+                        <div className="flex items-center gap-1.5 px-2 py-2">
 
-                          {/* Label */}
-                          <span className="w-[72px] flex-shrink-0 truncate text-[10px] text-slate-500 dark:text-slate-400" title={g.label}>
-                            {g.label}
-                          </span>
+                          {/* Group picker — grouped by section */}
+                          <select
+                            value={row.groupId}
+                            onChange={(e) => handleChangeRowGroup(row.rowId, e.target.value)}
+                            className="h-7 w-[140px] flex-shrink-0 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-[10px] text-slate-800 outline-none focus:border-blue-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                          >
+                            {(["pos","livros","ebooks","perpetuo","eventos"] as GroupSection[]).map((sec) => (
+                              <optgroup key={sec} label={SECTION_LABELS[sec]}>
+                                {CAMPAIGN_GROUPS.filter((grp) => grp.section === sec).map((grp) => {
+                                  const usedByOther = accountRows.some((r) => r.rowId !== row.rowId && r.groupId === grp.id);
+                                  return (
+                                    <option key={grp.id} value={grp.id} disabled={usedByOther}>
+                                      {grp.label}
+                                    </option>
+                                  );
+                                })}
+                              </optgroup>
+                            ))}
+                          </select>
 
-                          {/* Account selector: dropdown OR manual input */}
+                          {/* Account field: dropdown (if Conectar used) or manual input */}
                           {metaAccounts.length > 0 ? (
                             <select
-                              value={accountId}
-                              onChange={(e) => {
-                                setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }));
-                                // Reset verify state when account changes
-                                setVerifyStatus((p) => { const c = { ...p }; delete c[g.id]; return c; });
-                                setSelectedCampaigns((p) => { const c = { ...p }; delete c[g.id]; return c; });
-                                setExpandedGroup(null);
-                              }}
-                              className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-[10px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                              value={row.accountId}
+                              onChange={(e) => handleChangeRowAccount(row.rowId, e.target.value)}
+                              className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-[10px] text-slate-800 outline-none focus:border-blue-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
                             >
-                              <option value="">— selecionar —</option>
+                              <option value="">— selecionar conta —</option>
                               {metaAccounts.map((acc) => (
                                 <option key={acc.id} value={acc.id}>
                                   {acc.name}{acc.account_status !== 1 ? " ⚠" : ""}
@@ -655,28 +675,23 @@ function ImportPopover({
                             </select>
                           ) : (
                             <input
-                              value={accountId}
-                              onChange={(e) => {
-                                setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }));
-                                setVerifyStatus((p) => { const c = { ...p }; delete c[g.id]; return c; });
-                                setSelectedCampaigns((p) => { const c = { ...p }; delete c[g.id]; return c; });
-                                setExpandedGroup(null);
-                              }}
+                              value={row.accountId}
+                              onChange={(e) => handleChangeRowAccount(row.rowId, e.target.value)}
                               placeholder="act_123456789"
-                              className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                              className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] text-slate-800 placeholder-slate-300 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-600"
                             />
                           )}
 
-                          {/* Verify status badge + expand toggle */}
+                          {/* Verify status badge */}
                           {status === "loading" && (
                             <Loader2 size={13} className="flex-shrink-0 animate-spin text-blue-500" />
                           )}
                           {status === "ok" && campaigns.length > 0 && (
                             <button
                               type="button"
-                              onClick={() => void handleVerifyGroup(g.id)}
+                              onClick={() => void handleVerifyGroup(row.groupId)}
                               title={`${campaigns.length} campanhas — clique para ${isExpanded ? "fechar" : "filtrar"}`}
-                              className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 transition hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                              className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 transition hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400"
                             >
                               <CheckCircle2 size={10} />
                               {selected.length}/{campaigns.length}
@@ -691,63 +706,59 @@ function ImportPopover({
                           {status === "idle" && accountId && (
                             <button
                               type="button"
-                              onClick={() => void handleVerifyGroup(g.id)}
-                              title="Verificar e ver campanhas desta conta"
+                              onClick={() => void handleVerifyGroup(row.groupId)}
                               className="flex flex-shrink-0 items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400"
                             >
                               <Activity size={9} /> Verificar
                             </button>
                           )}
+
+                          {/* Remove row */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveRow(row.rowId)}
+                            title="Remover esta conta"
+                            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                          >
+                            <X size={12} />
+                          </button>
                         </div>
 
-                        {/* Inline error message */}
+                        {/* Inline error */}
                         {status === "error" && errMsg && (
-                          <p className="ml-7 mt-1 text-[9px] text-red-500 dark:text-red-400">{errMsg}</p>
+                          <p className="px-3 pb-1.5 text-[9px] text-red-500 dark:text-red-400">{errMsg}</p>
                         )}
 
                         {/* Campaign picker (expanded) */}
                         {isExpanded && campaigns.length > 0 && (
-                          <div className="ml-7 mt-1.5 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/50">
-                            {/* Select all / clear header */}
+                          <div className="mx-2 mb-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/50">
                             <div className="flex items-center justify-between border-b border-slate-200 px-2 py-1 dark:border-slate-600">
                               <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
                                 Campanhas ({selected.length}/{campaigns.length})
                               </span>
                               <button
                                 type="button"
-                                onClick={() => handleSelectAllCampaigns(g.id, campaigns, !allSelected)}
+                                onClick={() => handleSelectAllCampaigns(row.groupId, campaigns, !allSelected)}
                                 className="text-[9px] font-semibold text-blue-500 transition hover:text-blue-700 dark:text-blue-400"
                               >
                                 {allSelected ? "Desmarcar todas" : "Marcar todas"}
                               </button>
                             </div>
-                            {/* Campaign list */}
                             <div className="max-h-36 overflow-y-auto p-1">
                               {campaigns.map((camp) => {
                                 const checked = selected.includes(camp.id);
                                 return (
-                                  <label
-                                    key={camp.id}
-                                    className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 hover:bg-white dark:hover:bg-slate-600"
-                                  >
+                                  <label key={camp.id} className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 hover:bg-white dark:hover:bg-slate-600">
                                     <input
                                       type="checkbox"
                                       checked={checked}
-                                      onChange={() => handleToggleCampaign(g.id, camp.id, campaigns)}
+                                      onChange={() => handleToggleCampaign(row.groupId, camp.id, campaigns)}
                                       className="h-3 w-3 flex-shrink-0 rounded accent-blue-600"
                                     />
-                                    <span
-                                      className="flex-1 truncate text-[10px] text-slate-700 dark:text-slate-300"
-                                      title={camp.name}
-                                    >
+                                    <span className="flex-1 truncate text-[10px] text-slate-700 dark:text-slate-300" title={camp.name}>
                                       {camp.name}
                                     </span>
-                                    <span
-                                      className={`flex-shrink-0 text-[9px] font-bold ${
-                                        camp.status === "ACTIVE" ? "text-emerald-500" : "text-amber-400"
-                                      }`}
-                                      title={camp.status}
-                                    >
+                                    <span className={`flex-shrink-0 text-[9px] font-bold ${camp.status === "ACTIVE" ? "text-emerald-500" : "text-amber-400"}`} title={camp.status}>
                                       {camp.status === "ACTIVE" ? "●" : "◐"}
                                     </span>
                                   </label>
@@ -757,16 +768,20 @@ function ImportPopover({
                           </div>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
-              {metaAccounts.length === 0 && (
-                <p className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">
-                  Clique em <strong>Conectar</strong> para buscar suas contas automaticamente, ou digite o ID manualmente.
-                  Após configurar, clique em <strong>Verificar</strong> para confirmar os dados.
-                </p>
+              {/* Add row button */}
+              {accountRows.length < CAMPAIGN_GROUPS.length && (
+                <button
+                  type="button"
+                  onClick={handleAddRow}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-200 py-2.5 text-[11px] font-semibold text-slate-500 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:bg-blue-900/10 dark:hover:text-blue-400"
+                >
+                  <Plus size={13} /> Adicionar campanha
+                </button>
               )}
             </div>
 
@@ -1407,8 +1422,6 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                   campaignConfigs={campaignConfigs}
                   onSaveCampaignConfig={setCampaignConfig}
                   onClose={() => setShowImport(false)}
-                  enabledSections={enabledSections}
-                  onSetEnabledSections={setEnabledSections}
                   onCampaignsVerified={setCampaignsForGroup}
                 />
               )}
