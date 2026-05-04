@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ProductCategory } from "@/types/campaign";
 
 const STORAGE_KEY = "pta_campaign_store_v1";
@@ -43,7 +43,13 @@ function persist(state: StoreState): void {
 }
 
 export function useCampaignStore() {
-  const [state, setState] = useState<StoreState>(loadStore);
+  // Start with DEFAULT_STATE on both server and client to avoid hydration mismatch.
+  // localStorage is loaded in useEffect (runs only after hydration, client-only).
+  const [state, setState] = useState<StoreState>(DEFAULT_STATE);
+
+  useEffect(() => {
+    setState(loadStore());
+  }, []);
 
   const setSelectedGroup = useCallback((group: string) => {
     setState((prev) => {
