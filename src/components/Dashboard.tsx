@@ -9,8 +9,8 @@ import {
   X, XCircle, Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { CampaignData } from "@/types/campaign";
-import { CampaignConfig, useCampaignStore } from "@/hooks/useCampaignStore";
+import { CampaignData, ProductCategory } from "@/types/campaign";
+import { CampaignConfig, CampaignSummary, useCampaignStore } from "@/hooks/useCampaignStore";
 import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
 import {
   fetchMetaAdAccounts, fetchMetaCampaigns, loadMetaCredentials, saveMetaCredentials,
@@ -191,10 +191,14 @@ interface ImportPopoverProps {
   campaignConfigs: Record<string, CampaignConfig>;
   onSaveCampaignConfig: (group: string, config: CampaignConfig) => void;
   onClose: () => void;
+  enabledSections: ProductCategory[];
+  onSetEnabledSections: (sections: ProductCategory[]) => void;
+  onCampaignsVerified: (groupId: string, campaigns: CampaignSummary[]) => void;
 }
 
 function ImportPopover({
   onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
+  enabledSections, onSetEnabledSections, onCampaignsVerified,
 }: ImportPopoverProps) {
   const [tab, setTab]                     = useState<ImportTab>("sheets");
   const [url, setUrl]                     = useState("");
@@ -238,20 +242,22 @@ function ImportPopover({
     try { await onImportCsv(file); onClose(); } finally { setLoading(null); e.target.value = ""; }
   };
 
+  const visibleGroups = CAMPAIGN_GROUPS.filter((g) => enabledSections.includes(g.section as ProductCategory));
+
   const handleSaveMeta = async (e: FormEvent) => {
     e.preventDefault();
     setMetaImportError(null);
 
     // 1. Persist credentials + account configs
     saveMetaCredentials({ accessToken });
-    CAMPAIGN_GROUPS.forEach((g) => {
+    visibleGroups.forEach((g) => {
       const id = adAccountIds[g.id]?.trim();
       if (id) onSaveCampaignConfig(g.id, { adAccountId: id });
     });
 
     // 2. Build campaign filter (only for groups with a subset selected, not all)
     const campaignFilter: Record<string, string[]> = {};
-    CAMPAIGN_GROUPS.forEach((g) => {
+    visibleGroups.forEach((g) => {
       const accountId  = adAccountIds[g.id]?.trim();
       if (!accountId) return;
       const allCamps   = campaignsByAccount[accountId] ?? [];
@@ -331,6 +337,8 @@ function ImportPopover({
       if (campaigns.length === 0) {
         setVerifyError((p) => ({ ...p, [groupId]: "Nenhuma campanha ativa/pausada encontrada." }));
         setVerifyStatus((p) => ({ ...p, [groupId]: "error" }));
+      } else {
+        onCampaignsVerified(groupId, campaigns.map((c) => ({ id: c.id, name: c.name, status: c.status })));
       }
     } catch (e) {
       setVerifyStatus((p) => ({ ...p, [groupId]: "error" }));
@@ -343,7 +351,7 @@ function ImportPopover({
 
   /** Verify all configured groups in parallel. */
   const handleVerifyAll = async () => {
-    const groupsWithAccount = CAMPAIGN_GROUPS.filter((g) => adAccountIds[g.id]?.trim());
+    const groupsWithAccount = visibleGroups.filter((g) => adAccountIds[g.id]?.trim());
     if (groupsWithAccount.length === 0) return;
     await Promise.allSettled(groupsWithAccount.map((g) => handleVerifyGroup(g.id)));
   };
@@ -453,6 +461,41 @@ function ImportPopover({
         {tab === "meta" && (
           <form onSubmit={handleSaveMeta} className="space-y-4">
 
+            {/* Section selector */}
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Categorias a configurar
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {(["pos","livros","ebooks","perpetuo","eventos"] as ProductCategory[]).map((sec) => {
+                  const active = enabledSections.includes(sec);
+                  const labels: Record<ProductCategory, string> = {
+                    pos: "Pós Graduação", livros: "Livros", ebooks: "Ebooks",
+                    perpetuo: "Perpétuo", eventos: "Eventos",
+                  };
+                  return (
+                    <button
+                      key={sec}
+                      type="button"
+                      onClick={() => {
+                        const next = active
+                          ? enabledSections.filter((s) => s !== sec)
+                          : [...enabledSections, sec];
+                        onSetEnabledSections(next);
+                      }}
+                      className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                        active
+                          ? "border-brand bg-brand text-white"
+                          : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                      }`}
+                    >
+                      {labels[sec]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Token + fetch button */}
             <div>
               <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
@@ -545,7 +588,7 @@ function ImportPopover({
                 <button
                   type="button"
                   onClick={() => void handleVerifyAll()}
-                  disabled={!accessToken || CAMPAIGN_GROUPS.every((g) => !adAccountIds[g.id]?.trim())}
+                  disabled={!accessToken || visibleGroups.every((g) => !adAccountIds[g.id]?.trim())}
                   className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
                 >
                   <Activity size={10} />
@@ -555,8 +598,8 @@ function ImportPopover({
 
               {/* Group list */}
               <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-                {CAMPAIGN_GROUPS.map((g, idx) => {
-                  const prevSection   = idx > 0 ? CAMPAIGN_GROUPS[idx - 1].section : null;
+                {visibleGroups.map((g, idx) => {
+                  const prevSection   = idx > 0 ? visibleGroups[idx - 1].section : null;
                   const isNewSection  = g.section !== prevSection;
                   const accountId     = adAccountIds[g.id]?.trim() ?? "";
                   const campaigns     = accountId ? (campaignsByAccount[accountId] ?? []) : [];
@@ -773,9 +816,13 @@ interface CampaignPanelProps {
   dateFrom: string;
   dateTo: string;
   searchCampaign: string;
-  showCourseGroups: boolean;        // only true for "pos" category
+  showCourseGroups: boolean;
+  groups: GroupConfig[];
+  selectedCampaign: string;
+  campaignsByGroup: Record<string, CampaignSummary[]>;
   onSelectGroup: (id: string) => void;
   onSelectTurma: (t: string) => void;
+  onSelectCampaign: (id: string) => void;
   onToggleActive: (id: string, v: boolean) => void;
   onDateFrom: (v: string) => void;
   onDateTo: (v: string) => void;
@@ -787,7 +834,8 @@ interface CampaignPanelProps {
 function CampaignPanel({
   selectedGroup, selectedTurma, activeCampaigns, turmasByGroup,
   dateFrom, dateTo, searchCampaign, showCourseGroups,
-  onSelectGroup, onSelectTurma, onToggleActive,
+  groups, selectedCampaign, campaignsByGroup,
+  onSelectGroup, onSelectTurma, onSelectCampaign, onToggleActive,
   onDateFrom, onDateTo, onSearch, onClearFilters, hasActiveFilters,
 }: CampaignPanelProps) {
   const activeCount = Object.values(activeCampaigns).filter(Boolean).length;
@@ -824,11 +872,11 @@ function CampaignPanel({
 
         <div className="mx-4 my-1 h-px bg-slate-100 dark:bg-slate-700" />
 
-        {CAMPAIGN_GROUPS.map((group, idx) => {
+        {groups.map((group, idx) => {
           const isSelected  = selectedGroup === group.id;
           const isActive    = activeCampaigns[group.id] ?? false;
           const turmaList   = turmasByGroup[group.id] ?? [];
-          const prevSection = idx > 0 ? CAMPAIGN_GROUPS[idx - 1].section : null;
+          const prevSection = idx > 0 ? groups[idx - 1].section : null;
           const isNewSection = group.section !== prevSection;
 
           return (
@@ -906,6 +954,40 @@ function CampaignPanel({
                       <span className="text-[11px] italic text-slate-400 dark:text-slate-500">Sem turmas carregadas</span>
                     )}
                   </div>
+
+                  {/* Campaign selector — shown when a group is selected and campaigns are known */}
+                  {(campaignsByGroup[group.id] ?? []).length > 0 && (
+                    <div className="ml-[38px] mt-2 border-t border-slate-100 pt-2 dark:border-slate-700">
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Campanha</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          onClick={() => onSelectCampaign("all")}
+                          className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
+                            selectedCampaign === "all"
+                              ? "bg-brand text-white shadow-sm"
+                              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                          }`}
+                        >
+                          Todas
+                        </button>
+                        {(campaignsByGroup[group.id] ?? []).map((camp) => (
+                          <button
+                            key={camp.id}
+                            onClick={() => onSelectCampaign(camp.id)}
+                            title={camp.name}
+                            className={`max-w-[160px] truncate rounded-md px-2 py-1 text-[11px] font-semibold transition ${
+                              selectedCampaign === camp.id
+                                ? "bg-brand text-white shadow-sm"
+                                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                            }`}
+                          >
+                            {camp.status !== "ACTIVE" && <span className="mr-1 text-amber-400">◐</span>}
+                            {camp.name.length > 22 ? camp.name.slice(0, 22) + "…" : camp.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -982,21 +1064,55 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
 
   const {
     selectedGroup, selectedTurma, activeCampaigns, campaignConfigs,
-    selectedCategory,
+    selectedCategory, campaignsByGroup, selectedCampaign, enabledSections,
     setSelectedGroup, setSelectedTurma, toggleActive, setCampaignConfig,
-    setSelectedCategory,
+    setSelectedCategory, setCampaignsForGroup, setSelectedCampaign, setEnabledSections,
   } = useCampaignStore();
+
+  // ── Account → section map for Meta data ──────────────────────────────────────
+  const accountSectionMap = useMemo<Record<string, ProductCategory>>(() => {
+    const map: Record<string, ProductCategory> = {};
+    CAMPAIGN_GROUPS.forEach((g) => {
+      const rawId = campaignConfigs[g.id]?.adAccountId ?? "";
+      if (rawId) {
+        const bare = rawId.replace(/^act_/, "");
+        map[bare] = g.section as ProductCategory;
+        map[rawId] = g.section as ProductCategory;
+      }
+    });
+    return map;
+  }, [campaignConfigs]);
 
   // ── Category filtering (first pass) ─────────────────────────────────────────
   const categorizedCampaigns = useMemo(() => {
     if (!selectedCategory) return campaigns;
-    return campaigns.filter((c) => classifyCampaign(c.campaignName) === selectedCategory);
-  }, [campaigns, selectedCategory]);
+    return campaigns.filter((c) => {
+      if (c.id.startsWith("meta-")) {
+        // "meta-act_123456789-2026-04-01-campaignId"
+        const accountId = c.id.split("-")[1]; // "act_123456789"
+        return (
+          accountSectionMap[accountId] === selectedCategory ||
+          accountSectionMap[accountId.replace(/^act_/, "")] === selectedCategory
+        );
+      }
+      return classifyCampaign(c.campaignName) === selectedCategory;
+    });
+  }, [campaigns, selectedCategory, accountSectionMap]);
 
   const turmasByGroup = useMemo<Record<string, string[]>>(() => {
     const map: Record<string, Set<string>> = {};
     categorizedCampaigns.forEach((item) => {
-      const group = getLaunchGroup(item.campaignName);
+      let group = "";
+      if (item.id.startsWith("meta-")) {
+        const itemAccountId = item.id.split("-")[1];
+        const bare = itemAccountId.replace(/^act_/, "");
+        group = CAMPAIGN_GROUPS.find((g) => {
+          const a = campaignConfigs[g.id]?.adAccountId ?? "";
+          return a === itemAccountId || a.replace(/^act_/, "") === bare;
+        })?.id ?? "";
+      } else {
+        group = getLaunchGroup(item.campaignName);
+      }
       if (!group) return;
       const code = getSubLaunchCode(item.campaignName);
       if (!code) return;
@@ -1008,18 +1124,32 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
         Array.from(s).sort((a, b) => a.localeCompare(b, "pt-BR", { numeric: true })),
       ]),
     );
-  }, [categorizedCampaigns]);
+  }, [categorizedCampaigns, campaignConfigs]);
 
   const filteredCampaigns = useMemo(() => {
     return categorizedCampaigns.filter((item) => {
       if (dateFrom && item.date < dateFrom) return false;
-      if (dateTo   && item.date > dateTo)   return false;
-      if (selectedGroup !== "all" && getLaunchGroup(item.campaignName) !== selectedGroup) return false;
+      if (dateTo && item.date > dateTo) return false;
+      if (selectedGroup !== "all") {
+        const adAccountId = campaignConfigs[selectedGroup]?.adAccountId ?? "";
+        if (item.id.startsWith("meta-") && adAccountId) {
+          const itemAccountId = item.id.split("-")[1];
+          const bare = adAccountId.replace(/^act_/, "");
+          if (itemAccountId !== adAccountId && itemAccountId.replace(/^act_/, "") !== bare) return false;
+        } else if (!item.id.startsWith("meta-")) {
+          if (getLaunchGroup(item.campaignName) !== selectedGroup) return false;
+        }
+      }
       if (selectedTurma !== "all" && getSubLaunchCode(item.campaignName) !== selectedTurma) return false;
+      if (selectedCampaign !== "all") {
+        const groupCamps = campaignsByGroup[selectedGroup] ?? [];
+        const campName = groupCamps.find((c) => c.id === selectedCampaign)?.name;
+        if (campName && item.campaignName !== campName) return false;
+      }
       if (searchCampaign && !item.campaignName.toLowerCase().includes(searchCampaign.toLowerCase())) return false;
       return true;
     });
-  }, [categorizedCampaigns, dateFrom, dateTo, selectedGroup, selectedTurma, searchCampaign]);
+  }, [categorizedCampaigns, dateFrom, dateTo, selectedGroup, selectedTurma, selectedCampaign, searchCampaign, campaignConfigs, campaignsByGroup]);
 
   const totals             = aggregateTotals(filteredCampaigns);
   const dailyTrend         = buildDailyTrend(filteredCampaigns);
@@ -1028,19 +1158,27 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
   const aggregated         = useMemo(() => aggregateByCampaign(filteredCampaigns), [filteredCampaigns]);
 
   const showRightPanel     = mainTab !== "history" && mainTab !== "profiles" && mainTab !== "products";
-  const showCourseGroups   = selectedCategory === "pos";
+  const showCourseGroups   = selectedCategory !== null;
+  const sidebarGroups      = selectedCategory
+    ? CAMPAIGN_GROUPS.filter((g) => g.section === (selectedCategory as string))
+    : CAMPAIGN_GROUPS;
   const currentTab         = MAIN_TABS.find((t) => t.id === mainTab)!;
-  const hasActiveFilters   = !!(dateFrom || dateTo || searchCampaign || selectedGroup !== "all");
+  const hasActiveFilters   = !!(dateFrom || dateTo || searchCampaign || selectedGroup !== "all" || selectedCampaign !== "all");
 
   // Whether the current tab needs a category to be meaningful
   const needsCategory = mainTab !== "history" && mainTab !== "profiles" && mainTab !== "products";
 
   const handleClearFilters = () => {
-    setDateFrom(""); setDateTo(""); setSearchCampaign(""); setSelectedGroup("all");
+    setDateFrom(""); setDateTo(""); setSearchCampaign(""); setSelectedGroup("all"); setSelectedCampaign("all");
   };
 
   const handleSelectGroup = (id: string) => {
     setSelectedGroup(id);
+    setShowMobilePanel(false);
+  };
+
+  const handleSelectCampaign = (id: string) => {
+    setSelectedCampaign(id);
     setShowMobilePanel(false);
   };
 
@@ -1088,8 +1226,12 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
     selectedGroup, selectedTurma, activeCampaigns, turmasByGroup,
     dateFrom, dateTo, searchCampaign,
     showCourseGroups,
+    groups: sidebarGroups,
+    selectedCampaign,
+    campaignsByGroup,
     onSelectGroup: handleSelectGroup,
     onSelectTurma: (t) => { setSelectedTurma(t); setShowMobilePanel(false); },
+    onSelectCampaign: handleSelectCampaign,
     onToggleActive: toggleActive,
     onDateFrom: setDateFrom,
     onDateTo: setDateTo,
@@ -1265,6 +1407,9 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                   campaignConfigs={campaignConfigs}
                   onSaveCampaignConfig={setCampaignConfig}
                   onClose={() => setShowImport(false)}
+                  enabledSections={enabledSections}
+                  onSetEnabledSections={setEnabledSections}
+                  onCampaignsVerified={setCampaignsForGroup}
                 />
               )}
             </div>

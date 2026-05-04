@@ -9,13 +9,24 @@ export interface CampaignConfig {
   adAccountId: string;
 }
 
+export interface CampaignSummary {
+  id: string;
+  name: string;
+  status: string;
+}
+
 interface StoreState {
   activeCampaigns: Record<string, boolean>;
   selectedGroup: string;
   selectedTurma: string;
   campaignConfigs: Record<string, CampaignConfig>;
   selectedCategory: ProductCategory | null;
+  campaignsByGroup: Record<string, CampaignSummary[]>;
+  selectedCampaign: string;
+  enabledSections: ProductCategory[];
 }
+
+const ALL_SECTIONS: ProductCategory[] = ["pos", "livros", "ebooks", "perpetuo", "eventos"];
 
 const DEFAULT_STATE: StoreState = {
   activeCampaigns: {},
@@ -23,6 +34,9 @@ const DEFAULT_STATE: StoreState = {
   selectedTurma: "all",
   campaignConfigs: {},
   selectedCategory: null,
+  campaignsByGroup: {},
+  selectedCampaign: "all",
+  enabledSections: ALL_SECTIONS,
 };
 
 function loadStore(): StoreState {
@@ -53,7 +67,7 @@ export function useCampaignStore() {
 
   const setSelectedGroup = useCallback((group: string) => {
     setState((prev) => {
-      const next = { ...prev, selectedGroup: group, selectedTurma: "all" };
+      const next = { ...prev, selectedGroup: group, selectedTurma: "all", selectedCampaign: "all" };
       persist(next);
       return next;
     });
@@ -61,7 +75,7 @@ export function useCampaignStore() {
 
   const setSelectedTurma = useCallback((turma: string) => {
     setState((prev) => {
-      const next = { ...prev, selectedTurma: turma };
+      const next = { ...prev, selectedTurma: turma, selectedCampaign: "all" };
       persist(next);
       return next;
     });
@@ -91,13 +105,41 @@ export function useCampaignStore() {
 
   const setSelectedCategory = useCallback((cat: ProductCategory | null) => {
     setState((prev) => {
-      // Reset group/turma when switching category so stale filters don't linger
+      // Reset group/turma/campaign when switching category so stale filters don't linger
       const next = {
         ...prev,
         selectedCategory: cat,
         selectedGroup: "all",
         selectedTurma: "all",
+        selectedCampaign: "all",
       };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const setCampaignsForGroup = useCallback((groupId: string, campaigns: CampaignSummary[]) => {
+    setState((prev) => {
+      const next = {
+        ...prev,
+        campaignsByGroup: { ...prev.campaignsByGroup, [groupId]: campaigns },
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const setSelectedCampaign = useCallback((id: string) => {
+    setState((prev) => {
+      const next = { ...prev, selectedCampaign: id };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const setEnabledSections = useCallback((sections: ProductCategory[]) => {
+    setState((prev) => {
+      const next = { ...prev, enabledSections: sections };
       persist(next);
       return next;
     });
@@ -109,10 +151,16 @@ export function useCampaignStore() {
     activeCampaigns: state.activeCampaigns,
     campaignConfigs: state.campaignConfigs,
     selectedCategory: state.selectedCategory,
+    campaignsByGroup: state.campaignsByGroup,
+    selectedCampaign: state.selectedCampaign,
+    enabledSections: state.enabledSections,
     setSelectedGroup,
     setSelectedTurma,
     toggleActive,
     setCampaignConfig,
     setSelectedCategory,
+    setCampaignsForGroup,
+    setSelectedCampaign,
+    setEnabledSections,
   };
 }
