@@ -60,32 +60,45 @@ const MAIN_TABS: Array<{ id: MainTab; label: string; shortLabel: string; icon: R
 
 // ─── Campaign groups ──────────────────────────────────────────────────────────
 
+type GroupSection = "pos" | "livros" | "ebooks" | "perpetuo" | "eventos";
+
+const SECTION_LABELS: Record<GroupSection, string> = {
+  pos:      "Pós Graduação",
+  livros:   "Livros",
+  ebooks:   "Ebooks",
+  perpetuo: "Perpétuo",
+  eventos:  "Eventos",
+};
+
 interface GroupConfig {
   id: string; label: string; icon: React.ElementType;
+  section: GroupSection;
   iconBg: string; iconColor: string;
   activeDot: string; activePulse: string;
   selectedBg: string; selectedText: string; selectedBorder: string;
 }
 
 const CAMPAIGN_GROUPS: GroupConfig[] = [
-  // ── Pós-graduação ──────────────────────────────────────────────────────────
-  { id: "biomecanica",  label: "Biomecânica (BM)",          icon: BookOpen,    iconBg: "bg-blue-100",    iconColor: "text-blue-600",    activeDot: "bg-blue-500",    activePulse: "bg-blue-400",    selectedBg: "bg-blue-50",    selectedText: "text-blue-700",    selectedBorder: "border-blue-200" },
-  { id: "musculacao",   label: "Musculação (MPA)",           icon: Dumbbell,    iconBg: "bg-purple-100",  iconColor: "text-purple-600",  activeDot: "bg-purple-500",  activePulse: "bg-purple-400",  selectedBg: "bg-purple-50",  selectedText: "text-purple-700",  selectedBorder: "border-purple-200" },
-  { id: "fisiologia",   label: "Fisiologia (FE)",            icon: Activity,    iconBg: "bg-emerald-100", iconColor: "text-emerald-600", activeDot: "bg-emerald-500", activePulse: "bg-emerald-400", selectedBg: "bg-emerald-50", selectedText: "text-emerald-700", selectedBorder: "border-emerald-200" },
-  { id: "bodybuilding", label: "Bodybuilding (BB)",          icon: Trophy,      iconBg: "bg-orange-100",  iconColor: "text-orange-600",  activeDot: "bg-orange-500",  activePulse: "bg-orange-400",  selectedBg: "bg-orange-50",  selectedText: "text-orange-700",  selectedBorder: "border-orange-200" },
-  { id: "feminino",     label: "Trein. Feminino (SM)",       icon: Users,       iconBg: "bg-pink-100",    iconColor: "text-pink-600",    activeDot: "bg-pink-500",    activePulse: "bg-pink-400",    selectedBg: "bg-pink-50",    selectedText: "text-pink-700",    selectedBorder: "border-pink-200" },
-  { id: "funcional",    label: "Trein. Funcional (TF)",      icon: Zap,         iconBg: "bg-teal-100",    iconColor: "text-teal-600",    activeDot: "bg-teal-500",    activePulse: "bg-teal-400",    selectedBg: "bg-teal-50",    selectedText: "text-teal-700",    selectedBorder: "border-teal-200" },
+  // ── Pós Graduação ──────────────────────────────────────────────────────────
+  { section: "pos", id: "biomecanica",  label: "Biomecânica (BM)",           icon: BookOpen,    iconBg: "bg-blue-100",    iconColor: "text-blue-600",    activeDot: "bg-blue-500",    activePulse: "bg-blue-400",    selectedBg: "bg-blue-50",    selectedText: "text-blue-700",    selectedBorder: "border-blue-200" },
+  { section: "pos", id: "musculacao",   label: "Musculação (MPA)",            icon: Dumbbell,    iconBg: "bg-purple-100",  iconColor: "text-purple-600",  activeDot: "bg-purple-500",  activePulse: "bg-purple-400",  selectedBg: "bg-purple-50",  selectedText: "text-purple-700",  selectedBorder: "border-purple-200" },
+  { section: "pos", id: "fisiologia",   label: "Fisiologia (FE)",             icon: Activity,    iconBg: "bg-emerald-100", iconColor: "text-emerald-600", activeDot: "bg-emerald-500", activePulse: "bg-emerald-400", selectedBg: "bg-emerald-50", selectedText: "text-emerald-700", selectedBorder: "border-emerald-200" },
+  { section: "pos", id: "bodybuilding", label: "Bodybuilding (BB)",           icon: Trophy,      iconBg: "bg-orange-100",  iconColor: "text-orange-600",  activeDot: "bg-orange-500",  activePulse: "bg-orange-400",  selectedBg: "bg-orange-50",  selectedText: "text-orange-700",  selectedBorder: "border-orange-200" },
+  { section: "pos", id: "feminino",     label: "Trein. Feminino (SM)",        icon: Users,       iconBg: "bg-pink-100",    iconColor: "text-pink-600",    activeDot: "bg-pink-500",    activePulse: "bg-pink-400",    selectedBg: "bg-pink-50",    selectedText: "text-pink-700",    selectedBorder: "border-pink-200" },
+  { section: "pos", id: "funcional",    label: "Trein. Funcional (TF)",       icon: Zap,         iconBg: "bg-teal-100",    iconColor: "text-teal-600",    activeDot: "bg-teal-500",    activePulse: "bg-teal-400",    selectedBg: "bg-teal-50",    selectedText: "text-teal-700",    selectedBorder: "border-teal-200" },
   // ── Livros ─────────────────────────────────────────────────────────────────
-  { id: "livros",       label: "Livros",                     icon: BookMarked,  iconBg: "bg-green-100",   iconColor: "text-green-600",   activeDot: "bg-green-500",   activePulse: "bg-green-400",   selectedBg: "bg-green-50",   selectedText: "text-green-700",   selectedBorder: "border-green-200" },
+  { section: "livros",   id: "livros",       label: "Livro de Biomecânica",   icon: BookMarked,  iconBg: "bg-green-100",   iconColor: "text-green-600",   activeDot: "bg-green-500",   activePulse: "bg-green-400",   selectedBg: "bg-green-50",   selectedText: "text-green-700",   selectedBorder: "border-green-200" },
+  { section: "livros",   id: "livroMarketing", label: "Livro de Marketing",   icon: BookMarked,  iconBg: "bg-green-100",   iconColor: "text-green-600",   activeDot: "bg-green-500",   activePulse: "bg-green-400",   selectedBg: "bg-green-50",   selectedText: "text-green-700",   selectedBorder: "border-green-200" },
   // ── Ebooks ─────────────────────────────────────────────────────────────────
-  { id: "ebooks",       label: "Ebooks",                     icon: FileText,    iconBg: "bg-violet-100",  iconColor: "text-violet-600",  activeDot: "bg-violet-500",  activePulse: "bg-violet-400",  selectedBg: "bg-violet-50",  selectedText: "text-violet-700",  selectedBorder: "border-violet-200" },
+  { section: "ebooks",   id: "ebookJoelho",  label: "Ebook Bio Joelho",       icon: FileText,    iconBg: "bg-violet-100",  iconColor: "text-violet-600",  activeDot: "bg-violet-500",  activePulse: "bg-violet-400",  selectedBg: "bg-violet-50",  selectedText: "text-violet-700",  selectedBorder: "border-violet-200" },
+  { section: "ebooks",   id: "ebookColuna",  label: "Ebook Bio Coluna",       icon: FileText,    iconBg: "bg-violet-100",  iconColor: "text-violet-600",  activeDot: "bg-violet-500",  activePulse: "bg-violet-400",  selectedBg: "bg-violet-50",  selectedText: "text-violet-700",  selectedBorder: "border-violet-200" },
   // ── Perpétuo ───────────────────────────────────────────────────────────────
-  { id: "perpetuo",     label: "Notável Play",               icon: Repeat,      iconBg: "bg-amber-100",   iconColor: "text-amber-600",   activeDot: "bg-amber-500",   activePulse: "bg-amber-400",   selectedBg: "bg-amber-50",   selectedText: "text-amber-700",   selectedBorder: "border-amber-200" },
+  { section: "perpetuo", id: "perpetuo",     label: "Notável Play",           icon: Repeat,      iconBg: "bg-amber-100",   iconColor: "text-amber-600",   activeDot: "bg-amber-500",   activePulse: "bg-amber-400",   selectedBg: "bg-amber-50",   selectedText: "text-amber-700",   selectedBorder: "border-amber-200" },
   // ── Eventos ────────────────────────────────────────────────────────────────
-  { id: "bs",           label: "BS (Biomechanic Specialist)",icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
-  { id: "mentoria",     label: "Mentoria Scala",             icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
-  { id: "next",         label: "Next",                       icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
-  { id: "powertrainer", label: "Power Trainer",              icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
+  { section: "eventos",  id: "bs",           label: "BS (Biomechanic Spec.)", icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
+  { section: "eventos",  id: "mentoria",     label: "Mentoria Scala",         icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
+  { section: "eventos",  id: "next",         label: "Next",                   icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
+  { section: "eventos",  id: "powertrainer", label: "Power Trainer",          icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -566,13 +579,24 @@ function CampaignPanel({
 
         <div className="mx-4 my-1 h-px bg-slate-100 dark:bg-slate-700" />
 
-        {CAMPAIGN_GROUPS.map((group) => {
-          const isSelected = selectedGroup === group.id;
-          const isActive   = activeCampaigns[group.id] ?? false;
-          const turmaList  = turmasByGroup[group.id] ?? [];
+        {CAMPAIGN_GROUPS.map((group, idx) => {
+          const isSelected  = selectedGroup === group.id;
+          const isActive    = activeCampaigns[group.id] ?? false;
+          const turmaList   = turmasByGroup[group.id] ?? [];
+          const prevSection = idx > 0 ? CAMPAIGN_GROUPS[idx - 1].section : null;
+          const isNewSection = group.section !== prevSection;
 
           return (
             <div key={group.id}>
+              {/* Section divider — shown at the start of each new section */}
+              {isNewSection && (
+                <div className={`${idx > 0 ? "mt-1 border-t border-slate-100 dark:border-slate-700/60" : ""} px-4 pb-0.5 pt-2`}>
+                  <p className="text-[9px] font-bold uppercase tracking-widest"
+                    style={{ color: "var(--dm-text-tertiary)" }}>
+                    {SECTION_LABELS[group.section]}
+                  </p>
+                </div>
+              )}
               <div
                 role="button"
                 tabIndex={0}
