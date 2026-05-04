@@ -16,11 +16,18 @@ declare global {
   interface Window { supabase?: typeof supabaseClient; }
 }
 
+/** Tracks the currently active data source so the UI can show a disconnect badge */
+interface DataSource {
+  type: "google_sheets" | "csv";
+  label: string; // URL or filename
+}
+
 export default function Home() {
   const [campaigns, setCampaigns] = useState<CampaignData[]>([]);
   const [error, setError]         = useState<string | null>(null);
   const [session]                 = useState<Session | null>(null);
   const [realtimeActive, setRealtimeActive] = useState(false);
+  const [dataSource, setDataSource] = useState<DataSource | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
   const disconnectRealtime = () => {
@@ -29,6 +36,20 @@ export default function Home() {
       channelRef.current = null;
     }
     setRealtimeActive(false);
+  };
+
+  /** Disconnect current source — clears all campaign data without page reload */
+  const handleDisconnect = async (): Promise<void> => {
+    disconnectRealtime();
+    setCampaigns([]);
+    setDataSource(null);
+    setError(null);
+    if (session?.user.id && isSupabaseConfigured && supabaseClient) {
+      await supabaseClient
+        .from("campaign_metrics")
+        .delete()
+        .eq("user_id", session.user.id);
+    }
   };
 
   const handleGenerateDashboard = async (sheetUrl: string): Promise<void> => {
@@ -46,6 +67,7 @@ export default function Home() {
       } else {
         setCampaigns(data);
       }
+      setDataSource({ type: "google_sheets", label: sheetUrl });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível carregar os dados da planilha.");
     }
@@ -66,6 +88,7 @@ export default function Home() {
       } else {
         setCampaigns(data);
       }
+      setDataSource({ type: "csv", label: file.name });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível processar o CSV.");
     }
@@ -111,8 +134,10 @@ export default function Home() {
     <Dashboard
       campaigns={campaigns}
       error={error}
+      dataSource={dataSource}
       onImportCsv={handleCsvUpload}
       onImportUrl={handleGenerateDashboard}
+      onDisconnect={handleDisconnect}
     />
   );
 }

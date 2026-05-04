@@ -29,11 +29,18 @@ import { DashMonsterLogo } from "@/components/DashMonsterLogo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+interface DataSource {
+  type: "google_sheets" | "csv";
+  label: string;
+}
+
 interface DashboardProps {
   campaigns: CampaignData[];
   error?: string | null;
+  dataSource?: DataSource | null;
   onImportCsv: (file: File) => Promise<void>;
   onImportUrl: (url: string) => Promise<void>;
+  onDisconnect?: () => Promise<void>;
 }
 
 type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles" | "products";
@@ -484,7 +491,7 @@ function CampaignPanel({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: DashboardProps) {
+export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportUrl, onDisconnect }: DashboardProps) {
   const [mainTab, setMainTab]               = useState<MainTab>("overview");
   const [dateFrom, setDateFrom]             = useState("");
   const [dateTo, setDateTo]                 = useState("");
@@ -722,6 +729,36 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
               </button>
             )}
 
+            {/* Active data source badge — shown when data is loaded */}
+            {dataSource && (
+              <div className="flex h-8 items-center gap-1.5 rounded-lg border pl-2.5 pr-1 text-xs font-medium"
+                style={{
+                  backgroundColor: "var(--dm-success-bg)",
+                  borderColor: "var(--dm-success-border)",
+                  color: "var(--dm-success-text)",
+                }}
+              >
+                {dataSource.type === "google_sheets"
+                  ? <Link2 size={12} className="flex-shrink-0" />
+                  : <FileUp size={12} className="flex-shrink-0" />
+                }
+                <span className="hidden max-w-[120px] truncate sm:block" title={dataSource.label}>
+                  {dataSource.type === "google_sheets"
+                    ? new URL(dataSource.label).pathname.split("/")[3]?.slice(0, 12) + "…"
+                    : dataSource.label
+                  }
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onDisconnect?.()}
+                  title="Desconectar fonte de dados"
+                  className="ml-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            )}
+
             {/* Import button */}
             <div className="relative">
               <button
@@ -733,7 +770,9 @@ export function Dashboard({ campaigns, error, onImportCsv, onImportUrl }: Dashbo
                 }`}
               >
                 <FileUp size={13} />
-                <span className="hidden sm:inline">Importar dados</span>
+                <span className="hidden sm:inline">
+                  {dataSource ? "Trocar fonte" : "Importar dados"}
+                </span>
                 <span className="sm:hidden">Importar</span>
               </button>
               {showImport && (
