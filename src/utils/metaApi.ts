@@ -2,6 +2,33 @@ import type { CampaignData } from "@/types/campaign";
 
 const CREDS_KEY = "pta_meta_creds_v1";
 
+// ─── Campaigns ────────────────────────────────────────────────────────────────
+
+export interface MetaCampaign {
+  id: string;
+  name: string;
+  status: string;        // ACTIVE | PAUSED | DELETED | ARCHIVED
+  objective: string;
+  created_time: string;
+}
+
+/**
+ * Fetches all campaigns (ACTIVE + PAUSED) for the given ad account.
+ * Proxied through /api/meta/campaigns to avoid CORS.
+ */
+export async function fetchMetaCampaigns(
+  adAccountId: string,
+  accessToken: string,
+): Promise<MetaCampaign[]> {
+  if (!adAccountId) throw new Error("Informe o Ad Account ID.");
+  if (!accessToken) throw new Error("Informe o Access Token antes de buscar campanhas.");
+
+  const res  = await fetch(`/api/meta/campaigns?${new URLSearchParams({ adAccountId, accessToken })}`);
+  const body = await res.json() as MetaCampaign[] | { error: string };
+  if (!res.ok) throw new Error((body as { error: string }).error ?? `Meta API error ${res.status}`);
+  return body as MetaCampaign[];
+}
+
 // ─── Ad Accounts ──────────────────────────────────────────────────────────────
 
 export interface MetaAdAccount {
@@ -67,16 +94,22 @@ export interface MetaInsight {
 /**
  * Fetches campaign insights from Meta API for a given ad account and date range.
  * Returns one row per campaign per day (daily breakdown).
+ *
+ * @param campaignIds — optional list of campaign IDs to filter by (undefined = all)
  */
 export async function fetchMetaInsights(
   adAccountId: string,
   dateFrom: string,
   dateTo: string,
+  campaignIds?: string[],
 ): Promise<MetaInsight[]> {
   const { accessToken } = loadMetaCredentials();
   if (!accessToken) throw new Error("Token de acesso Meta não configurado.");
 
   const params = new URLSearchParams({ adAccountId, dateFrom, dateTo, accessToken });
+  if (campaignIds && campaignIds.length > 0) {
+    params.set("campaignIds", campaignIds.join(","));
+  }
   const res = await fetch(`/api/meta/insights?${params.toString()}`);
 
   if (!res.ok) {

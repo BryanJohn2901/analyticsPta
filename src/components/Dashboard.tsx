@@ -3,16 +3,19 @@
 import { FormEvent, useMemo, useRef, useState } from "react";
 import {
   Activity, BadgeDollarSign, BarChart2, BookMarked, BookOpen, CalendarDays,
-  CircleDollarSign, Dumbbell, FileText, FileUp, Filter, ImageIcon, Link2,
-  Loader2, Menu, Moon, Package, Repeat, SlidersHorizontal, Sun, Target,
-  TrendingUp, Trophy, Upload, Users, Wallet, X, Zap,
+  CheckCircle2, ChevronDown, ChevronUp, CircleDollarSign, Dumbbell, FileText,
+  FileUp, Filter, ImageIcon, Link2, Loader2, Menu, Moon, Package, Repeat,
+  SlidersHorizontal, Sun, Target, TrendingUp, Trophy, Upload, Users, Wallet,
+  X, XCircle, Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { CampaignData } from "@/types/campaign";
 import { CampaignConfig, useCampaignStore } from "@/hooks/useCampaignStore";
 import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
-import { fetchMetaAdAccounts, loadMetaCredentials, saveMetaCredentials } from "@/utils/metaApi";
-import type { MetaAdAccount } from "@/utils/metaApi";
+import {
+  fetchMetaAdAccounts, fetchMetaCampaigns, loadMetaCredentials, saveMetaCredentials,
+} from "@/utils/metaApi";
+import type { MetaAdAccount, MetaCampaign } from "@/utils/metaApi";
 import { CategoryGate, CATEGORY_LABEL, CATEGORY_ICON, CATEGORY_DOT } from "@/components/CategoryGate";
 import {
   aggregateByCampaign, aggregateTotals, buildBudgetDistribution,
@@ -41,7 +44,7 @@ interface DashboardProps {
   dataSource?: DataSource | null;
   onImportCsv: (file: File) => Promise<void>;
   onImportUrl: (url: string) => Promise<void>;
-  onImportMeta?: (accounts: Record<string, string>, dateFrom: string, dateTo: string) => Promise<void>;
+  onImportMeta?: (accounts: Record<string, string>, dateFrom: string, dateTo: string, campaignFilter?: Record<string, string[]>) => Promise<void>;
   onDisconnect?: () => Promise<void>;
 }
 
@@ -184,7 +187,7 @@ function dateRangeFromPreset(preset: DatePreset): { from: string; to: string } {
 interface ImportPopoverProps {
   onImportCsv: (file: File) => Promise<void>;
   onImportUrl: (url: string) => Promise<void>;
-  onImportMeta?: (accounts: Record<string, string>, dateFrom: string, dateTo: string) => Promise<void>;
+  onImportMeta?: (accounts: Record<string, string>, dateFrom: string, dateTo: string, campaignFilter?: Record<string, string[]>) => Promise<void>;
   campaignConfigs: Record<string, CampaignConfig>;
   onSaveCampaignConfig: (group: string, config: CampaignConfig) => void;
   onClose: () => void;
@@ -210,6 +213,18 @@ function ImportPopover({
   const [metaImportError, setMetaImportError] = useState<string | null>(null);
   const fileRef                           = useRef<HTMLInputElement>(null);
 
+  // ── Campaign picker state ────────────────────────────────────────────────────
+  // campaigns fetched per ad-account ID (shared across groups using the same account)
+  const [campaignsByAccount, setCampaignsByAccount] = useState<Record<string, MetaCampaign[]>>({});
+  // per-group: which campaign IDs are selected (undefined → all)
+  const [selectedCampaigns, setSelectedCampaigns]   = useState<Record<string, string[]>>({});
+  // per-group: expand/collapse campaign list
+  const [expandedGroup, setExpandedGroup]           = useState<string | null>(null);
+  // per-group: loading / ok / error status for verification
+  type VerifyStatus = "idle" | "loading" | "ok" | "error";
+  const [verifyStatus, setVerifyStatus]             = useState<Record<string, VerifyStatus>>({});
+  const [verifyError, setVerifyError]               = useState<Record<string, string>>({});
+
   const handleUrl = async (e: FormEvent) => {
     e.preventDefault();
     setLoading("url");
@@ -234,11 +249,29 @@ function ImportPopover({
       if (id) onSaveCampaignConfig(g.id, { adAccountId: id });
     });
 
-    // 2. Auto-fetch insights if handler is available
+    // 2. Build campaign filter (only for groups with a subset selected, not all)
+    const campaignFilter: Record<string, string[]> = {};
+    CAMPAIGN_GROUPS.forEach((g) => {
+      const accountId  = adAccountIds[g.id]?.trim();
+      if (!accountId) return;
+      const allCamps   = campaignsByAccount[accountId] ?? [];
+      const selected   = selectedCampaigns[g.id];
+      // Only filter when campaigns were fetched AND a strict subset is selected
+      if (allCamps.length > 0 && selected && selected.length < allCamps.length) {
+        campaignFilter[g.id] = selected;
+      }
+    });
+
+    // 3. Auto-fetch insights if handler is available
     if (onImportMeta) {
       setImportingMeta(true);
       try {
-        await onImportMeta(adAccountIds, dateRange.from, dateRange.to);
+        await onImportMeta(
+          adAccountIds,
+          dateRange.from,
+          dateRange.to,
+          Object.keys(campaignFilter).length > 0 ? campaignFilter : undefined,
+        );
         onClose(); // close popover on success
       } catch (err) {
         setMetaImportError(err instanceof Error ? err.message : "Falha ao buscar dados da Meta.");
@@ -263,6 +296,75 @@ function ImportPopover({
     } finally {
       setFetchingAccounts(false);
     }
+  };
+
+  /** Verify + fetch campaigns for a single group. Shows green/red status. */
+  const handleVerifyGroup = async (groupId: string) => {
+    const accountId = adAccountIds[groupId]?.trim();
+    if (!accountId || !accessToken) return;
+
+    // Toggle collapse if already expanded and OK
+    if (expandedGroup === groupId && verifyStatus[groupId] === "ok") {
+      setExpandedGroup(null);
+      return;
+    }
+
+    setExpandedGroup(groupId);
+    setVerifyStatus((p) => ({ ...p, [groupId]: "loading" }));
+    setVerifyError((p) => { const c = { ...p }; delete c[groupId]; return c; });
+
+    // Reuse cached data if already fetched for this account
+    if (campaignsByAccount[accountId]) {
+      setVerifyStatus((p) => ({ ...p, [groupId]: "ok" }));
+      return;
+    }
+
+    try {
+      const campaigns = await fetchMetaCampaigns(accountId, accessToken);
+      setCampaignsByAccount((p) => ({ ...p, [accountId]: campaigns }));
+      // Default: all campaigns selected
+      setSelectedCampaigns((p) => ({
+        ...p,
+        [groupId]: campaigns.map((c) => c.id),
+      }));
+      setVerifyStatus((p) => ({ ...p, [groupId]: "ok" }));
+      if (campaigns.length === 0) {
+        setVerifyError((p) => ({ ...p, [groupId]: "Nenhuma campanha ativa/pausada encontrada." }));
+        setVerifyStatus((p) => ({ ...p, [groupId]: "error" }));
+      }
+    } catch (e) {
+      setVerifyStatus((p) => ({ ...p, [groupId]: "error" }));
+      setVerifyError((p) => ({
+        ...p,
+        [groupId]: e instanceof Error ? e.message : "Erro ao verificar conta.",
+      }));
+    }
+  };
+
+  /** Verify all configured groups in parallel. */
+  const handleVerifyAll = async () => {
+    const groupsWithAccount = CAMPAIGN_GROUPS.filter((g) => adAccountIds[g.id]?.trim());
+    if (groupsWithAccount.length === 0) return;
+    await Promise.allSettled(groupsWithAccount.map((g) => handleVerifyGroup(g.id)));
+  };
+
+  /** Toggle a single campaign selection within a group. */
+  const handleToggleCampaign = (groupId: string, campaignId: string, allForAccount: MetaCampaign[]) => {
+    setSelectedCampaigns((p) => {
+      const current = p[groupId] ?? allForAccount.map((c) => c.id);
+      const next    = current.includes(campaignId)
+        ? current.filter((id) => id !== campaignId)
+        : [...current, campaignId];
+      return { ...p, [groupId]: next };
+    });
+  };
+
+  /** Select or deselect all campaigns for a group. */
+  const handleSelectAllCampaigns = (groupId: string, allForAccount: MetaCampaign[], selectAll: boolean) => {
+    setSelectedCampaigns((p) => ({
+      ...p,
+      [groupId]: selectAll ? allForAccount.map((c) => c.id) : [],
+    }));
   };
 
   const tabCls = (t: ImportTab) =>
@@ -435,49 +537,192 @@ function ImportPopover({
 
             {/* Ad account selector per campaign group */}
             <div>
-              <label className="mb-2 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Ad Account por campanha
-              </label>
-              <div className="space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-700/50">
-                {CAMPAIGN_GROUPS.map((g) => (
-                  <div key={g.id} className="flex items-center gap-2">
-                    {/* Campaign icon */}
-                    <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${g.iconBg} dark:opacity-80`}>
-                      <g.icon size={10} className={g.iconColor} />
-                    </div>
-                    <span className="w-24 flex-shrink-0 truncate text-[11px] text-slate-500 dark:text-slate-400">
-                      {g.label}
-                    </span>
-
-                    {/* Dropdown when accounts fetched, manual input otherwise */}
-                    {metaAccounts.length > 0 ? (
-                      <select
-                        value={adAccountIds[g.id] ?? ""}
-                        onChange={(e) => setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }))}
-                        className="h-7 flex-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
-                      >
-                        <option value="">— selecionar conta —</option>
-                        {metaAccounts.map((acc) => (
-                          <option key={acc.id} value={acc.id}>
-                            {acc.name} ({acc.id})
-                            {acc.account_status !== 1 ? " ⚠ inativa" : ""}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        value={adAccountIds[g.id] ?? ""}
-                        onChange={(e) => setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }))}
-                        placeholder="act_123456789"
-                        className="h-7 flex-1 rounded-md border border-slate-200 bg-white px-2 text-[11px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
-                      />
-                    )}
-                  </div>
-                ))}
+              <div className="mb-2 flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Ad Account por campanha
+                </label>
+                {/* Verify-all button */}
+                <button
+                  type="button"
+                  onClick={() => void handleVerifyAll()}
+                  disabled={!accessToken || CAMPAIGN_GROUPS.every((g) => !adAccountIds[g.id]?.trim())}
+                  className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
+                >
+                  <Activity size={10} />
+                  Verificar todas
+                </button>
               </div>
+
+              {/* Group list */}
+              <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+                {CAMPAIGN_GROUPS.map((g, idx) => {
+                  const prevSection   = idx > 0 ? CAMPAIGN_GROUPS[idx - 1].section : null;
+                  const isNewSection  = g.section !== prevSection;
+                  const accountId     = adAccountIds[g.id]?.trim() ?? "";
+                  const campaigns     = accountId ? (campaignsByAccount[accountId] ?? []) : [];
+                  const isExpanded    = expandedGroup === g.id;
+                  const status        = verifyStatus[g.id] ?? "idle";
+                  const errMsg        = verifyError[g.id];
+                  const selected      = selectedCampaigns[g.id] ?? campaigns.map((c) => c.id);
+                  const allSelected   = selected.length === campaigns.length;
+
+                  return (
+                    <div key={g.id} className="border-b border-slate-100 last:border-b-0 dark:border-slate-700">
+                      {/* Section divider */}
+                      {isNewSection && (
+                        <div className="border-b border-slate-100 bg-slate-50 px-3 py-1 dark:border-slate-700 dark:bg-slate-700/50">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                            {SECTION_LABELS[g.section]}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Row */}
+                      <div className="px-2 py-1.5">
+                        <div className="flex items-center gap-1.5">
+                          {/* Icon */}
+                          <div className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded ${g.iconBg} dark:opacity-80`}>
+                            <g.icon size={10} className={g.iconColor} />
+                          </div>
+
+                          {/* Label */}
+                          <span className="w-[72px] flex-shrink-0 truncate text-[10px] text-slate-500 dark:text-slate-400" title={g.label}>
+                            {g.label}
+                          </span>
+
+                          {/* Account selector: dropdown OR manual input */}
+                          {metaAccounts.length > 0 ? (
+                            <select
+                              value={accountId}
+                              onChange={(e) => {
+                                setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }));
+                                // Reset verify state when account changes
+                                setVerifyStatus((p) => { const c = { ...p }; delete c[g.id]; return c; });
+                                setSelectedCampaigns((p) => { const c = { ...p }; delete c[g.id]; return c; });
+                                setExpandedGroup(null);
+                              }}
+                              className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-[10px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                            >
+                              <option value="">— selecionar —</option>
+                              {metaAccounts.map((acc) => (
+                                <option key={acc.id} value={acc.id}>
+                                  {acc.name}{acc.account_status !== 1 ? " ⚠" : ""}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <input
+                              value={accountId}
+                              onChange={(e) => {
+                                setAdAccountIds((p) => ({ ...p, [g.id]: e.target.value }));
+                                setVerifyStatus((p) => { const c = { ...p }; delete c[g.id]; return c; });
+                                setSelectedCampaigns((p) => { const c = { ...p }; delete c[g.id]; return c; });
+                                setExpandedGroup(null);
+                              }}
+                              placeholder="act_123456789"
+                              className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                            />
+                          )}
+
+                          {/* Verify status badge + expand toggle */}
+                          {status === "loading" && (
+                            <Loader2 size={13} className="flex-shrink-0 animate-spin text-blue-500" />
+                          )}
+                          {status === "ok" && campaigns.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => void handleVerifyGroup(g.id)}
+                              title={`${campaigns.length} campanhas — clique para ${isExpanded ? "fechar" : "filtrar"}`}
+                              className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 transition hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                            >
+                              <CheckCircle2 size={10} />
+                              {selected.length}/{campaigns.length}
+                              {isExpanded ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
+                            </button>
+                          )}
+                          {status === "error" && (
+                            <span title={errMsg} className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-bold text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                              <XCircle size={10} /> Erro
+                            </span>
+                          )}
+                          {status === "idle" && accountId && (
+                            <button
+                              type="button"
+                              onClick={() => void handleVerifyGroup(g.id)}
+                              title="Verificar e ver campanhas desta conta"
+                              className="flex flex-shrink-0 items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400"
+                            >
+                              <Activity size={9} /> Verificar
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Inline error message */}
+                        {status === "error" && errMsg && (
+                          <p className="ml-7 mt-1 text-[9px] text-red-500 dark:text-red-400">{errMsg}</p>
+                        )}
+
+                        {/* Campaign picker (expanded) */}
+                        {isExpanded && campaigns.length > 0 && (
+                          <div className="ml-7 mt-1.5 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/50">
+                            {/* Select all / clear header */}
+                            <div className="flex items-center justify-between border-b border-slate-200 px-2 py-1 dark:border-slate-600">
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                Campanhas ({selected.length}/{campaigns.length})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectAllCampaigns(g.id, campaigns, !allSelected)}
+                                className="text-[9px] font-semibold text-blue-500 transition hover:text-blue-700 dark:text-blue-400"
+                              >
+                                {allSelected ? "Desmarcar todas" : "Marcar todas"}
+                              </button>
+                            </div>
+                            {/* Campaign list */}
+                            <div className="max-h-36 overflow-y-auto p-1">
+                              {campaigns.map((camp) => {
+                                const checked = selected.includes(camp.id);
+                                return (
+                                  <label
+                                    key={camp.id}
+                                    className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 hover:bg-white dark:hover:bg-slate-600"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => handleToggleCampaign(g.id, camp.id, campaigns)}
+                                      className="h-3 w-3 flex-shrink-0 rounded accent-blue-600"
+                                    />
+                                    <span
+                                      className="flex-1 truncate text-[10px] text-slate-700 dark:text-slate-300"
+                                      title={camp.name}
+                                    >
+                                      {camp.name}
+                                    </span>
+                                    <span
+                                      className={`flex-shrink-0 text-[9px] font-bold ${
+                                        camp.status === "ACTIVE" ? "text-emerald-500" : "text-amber-400"
+                                      }`}
+                                      title={camp.status}
+                                    >
+                                      {camp.status === "ACTIVE" ? "●" : "◐"}
+                                    </span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
               {metaAccounts.length === 0 && (
                 <p className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">
                   Clique em <strong>Conectar</strong> para buscar suas contas automaticamente, ou digite o ID manualmente.
+                  Após configurar, clique em <strong>Verificar</strong> para confirmar os dados.
                 </p>
               )}
             </div>

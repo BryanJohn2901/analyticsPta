@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   const adAccountId = sp.get("adAccountId");
   const dateFrom    = sp.get("dateFrom");
   const dateTo      = sp.get("dateTo");
+  const campaignIds = sp.get("campaignIds"); // optional: comma-separated campaign IDs
 
   if (!accessToken || !adAccountId || !dateFrom || !dateTo) {
     return NextResponse.json({ error: "Parâmetros obrigatórios ausentes." }, { status: 400 });
@@ -40,6 +41,17 @@ export async function GET(request: NextRequest) {
     time_increment: "1",          // daily breakdown for trend charts
     limit:          "500",
   });
+
+  // Optional campaign filter — limits results to specific campaign IDs
+  if (campaignIds) {
+    const ids = campaignIds.split(",").map((id) => id.trim()).filter(Boolean);
+    if (ids.length > 0) {
+      params.set(
+        "filtering",
+        JSON.stringify([{ field: "campaign.id", operator: "IN", value: ids }]),
+      );
+    }
+  }
 
   const url = `https://graph.facebook.com/${META_API_VERSION}/act_${accountId}/insights?${params.toString()}`;
 

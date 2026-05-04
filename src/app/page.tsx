@@ -107,6 +107,7 @@ export default function Home() {
     accounts: Record<string, string>,
     dateFrom: string,
     dateTo: string,
+    campaignFilter?: Record<string, string[]>,
   ): Promise<void> => {
     setError(null);
 
@@ -117,8 +118,14 @@ export default function Home() {
 
     const allData: CampaignData[] = [];
 
-    for (const [, adAccountId] of configured) {
-      const insights = await fetchMetaInsights(adAccountId, dateFrom, dateTo);
+    for (const [groupId, adAccountId] of configured) {
+      const campaignIds = campaignFilter?.[groupId];
+      const insights = await fetchMetaInsights(
+        adAccountId,
+        dateFrom,
+        dateTo,
+        campaignIds && campaignIds.length > 0 ? campaignIds : undefined,
+      );
       allData.push(...metaInsightsToCampaignData(insights, adAccountId));
     }
 
