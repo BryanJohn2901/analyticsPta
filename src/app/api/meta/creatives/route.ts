@@ -7,8 +7,16 @@ interface MetaAdRaw {
   name: string;
   campaign_id: string;
   campaign?: { name: string };
+  /** Shareable preview link — works for all ad formats, most reliable adLink source */
+  preview_shareable_link?: string;
   creative?: {
     thumbnail_url?: string;
+    /** Image URL for static image ads — fallback when thumbnail_url is absent */
+    image_url?: string;
+    /** Permalink to the Instagram post/reel used as the ad */
+    instagram_permalink_url?: string;
+    /** Direct preview URL for Instagram Story ads */
+    effective_instagram_story_url?: string;
     object_story_spec?: {
       link_data?:  { link?: string };
       video_data?: { call_to_action?: { value?: { link?: string } } };
@@ -26,8 +34,9 @@ export interface MetaCampaignCreative {
 /**
  * GET /api/meta/creatives?accessToken=EAAx...&adAccountId=act_123
  *
- * Returns one creative (thumbnail + link) per campaign, taking the first ad
- * that has a thumbnail_url. Fetches ACTIVE + PAUSED ads and follows pagination.
+ * Returns one creative (thumbnail + preview link) per campaign.
+ * Accumulates thumbnail_url/image_url and preview_shareable_link across ads
+ * until both are found. Fetches ACTIVE + PAUSED ads and follows pagination.
  */
 export async function GET(request: NextRequest) {
   const sp          = request.nextUrl.searchParams;
@@ -48,7 +57,7 @@ export async function GET(request: NextRequest) {
     `https://graph.facebook.com/${META_API_VERSION}/act_${accountId}/ads?` +
     new URLSearchParams({
       access_token:     accessToken,
-      fields:           "name,campaign_id,campaign{name},creative{thumbnail_url,object_story_spec}",
+      fields:           "name,campaign_id,campaign{name},preview_shareable_link,creative{thumbnail_url,image_url,instagram_permalink_url,effective_instagram_story_url,object_story_spec}",
       effective_status: JSON.stringify(["ACTIVE", "PAUSED"]),
       limit:            "200",
     }).toString();
@@ -70,7 +79,7 @@ export async function GET(request: NextRequest) {
     nextUrl = json.paging?.next ?? null;
   }
 
-  // One creative per campaign — first ad that has a thumbnail wins
+  // One creative per campaign — accumulate thumbnail + adLink across ads until both are found
   const byCampaign = new Map<string, MetaCampaignCreative>();
 
   for (const ad of allAds) {
@@ -78,11 +87,20 @@ export async function GET(request: NextRequest) {
     if (!campaignName) continue;
 
     const existing = byCampaign.get(campaignName);
-    if (existing?.thumbnailUrl) continue; // already have a thumbnail
+    if (existing?.thumbnailUrl && existing?.adLink) continue; // already complete
 
-    const thumbnailUrl = ad.creative?.thumbnail_url ?? "";
-    const spec         = ad.creative?.object_story_spec;
-    const adLink =
+    // thumbnail: video thumbnail → static image → nothing
+    const thumbnailUrl =
+      ad.creative?.thumbnail_url ??
+      ad.creative?.image_url ??
+      "";
+
+    // adLink: shareable preview (all formats) → Instagram permalink → story URL → object_story_spec fallbacks
+    const spec    = ad.creative?.object_story_spec;
+    const adLink  =
+      ad.preview_shareable_link ??
+      ad.creative?.instagram_permalink_url ??
+      ad.creative?.effective_instagram_story_url ??
       spec?.link_data?.link ??
       spec?.video_data?.call_to_action?.value?.link ??
       "";
@@ -90,8 +108,8 @@ export async function GET(request: NextRequest) {
     byCampaign.set(campaignName, {
       campaignId:   ad.campaign_id,
       campaignName,
-      thumbnailUrl,
-      adLink,
+      thumbnailUrl: existing?.thumbnailUrl || thumbnailUrl,
+      adLink:       existing?.adLink       || adLink,
     });
   }
 

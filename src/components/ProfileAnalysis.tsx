@@ -11,11 +11,20 @@ import {
 import {
   fetchMetaCampaigns, fetchMetaInsights, loadMetaCredentials, MetaInsight,
 } from "@/utils/metaApi";
-import { formatCurrency, formatNumber, formatPercent } from "@/utils/metrics";
+import { formatBRL, formatCompact, formatInt, formatPercent, safeNumber } from "@/lib/format";
+import { getTemplate, TEMPLATE_LIST, DEFAULT_PERSONALIZADO_CONFIG } from "@/lib/templates";
+import type { TemplateId, Template, PersonalizadoConfig } from "@/lib/templates/types";
+import { TemplateSelector } from "@/components/profiles/TemplateSelector";
+import { PersonalizadoBuilder } from "@/components/profiles/PersonalizadoBuilder";
 import {
   useAdvertiserStore, AdvertiserProfile, ActiveCampaign,
 } from "@/hooks/useAdvertiserStore";
 import type { CampaignConfig } from "@/hooks/useCampaignStore";
+
+const formatCurrency = formatBRL;
+const formatNumber = formatInt;
+
+const TEMPLATE_LS_KEY = "pta_profile_template_v1";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -74,10 +83,10 @@ function toAdsetRows(data: MetaInsight[]): AdsetRow[] {
       impressions: 0, reach: 0, clicks: 0, spend: 0, revenue: 0,
       cpm: 0, ctr: 0, purchases: 0, leads: 0, cpa: 0,
     };
-    cur.impressions += d.impressions;
-    cur.reach       += d.reach;
-    cur.clicks      += d.clicks;
-    cur.spend       += d.spend;
+    cur.impressions += safeNumber(d.impressions);
+    cur.reach       += safeNumber(d.reach);
+    cur.clicks      += safeNumber(d.clicks);
+    cur.spend       += safeNumber(d.spend);
     cur.purchases   += getActionValue(d.actions, "purchase");
     cur.leads       += getActionValue(d.actions, "lead")
                      + getActionValue(d.actions, "onsite_conversion.lead_grouped");
@@ -445,12 +454,13 @@ function ProfileCard({
 // ─── Single-campaign analysis panel ──────────────────────────────────────────
 
 function CampaignAnalysisPanel({
-  adAccountId, campaign, dateFrom, dateTo,
+  adAccountId, campaign, dateFrom, dateTo, template,
 }: {
   adAccountId: string;
   campaign: ActiveCampaign;
   dateFrom: string;
   dateTo: string;
+  template: Template;
 }) {
   const [data, setData]       = useState<AdsetRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -509,95 +519,144 @@ function CampaignAnalysisPanel({
     );
   }
 
-  // ── Funnel steps ──────────────────────────────────────────────────────────────
-  type FunnelStep = { label: string; value: string; connector?: string; accent: string };
-  const funnelSteps: FunnelStep[] = [
-    { label: "Impressões",     value: formatNumber(totalImpressions), accent: "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20",    connector: `CTR ${formatPercent(avgCtr / 100)}` },
-    { label: "Cliques no link",value: formatNumber(totalClicks),      accent: "border-violet-200 bg-violet-50 dark:border-violet-800 dark:bg-violet-900/20",
-      connector: totalLeads > 0 ? `Tx de captura ${formatPercent(txCaptura / 100)}` : undefined },
-    ...(totalLeads > 0 ? [{ label: "Leads", value: formatNumber(totalLeads), accent: "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20", connector: `Tx de conversão ${formatPercent(txConversao / 100)}` } as FunnelStep] : []),
-    ...(totalLeads === 0 ? [{ label: "Tx de conversão", value: formatPercent(txConversao / 100), accent: "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800", connector: undefined } as FunnelStep] : [{ label: "", value: "", accent: "", connector: undefined } as FunnelStep].filter(() => false)),
-    { label: "Vendas",         value: formatNumber(totalPurchases),   accent: "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" },
-  ];
+  // ── Template-driven values ────────────────────────────────────────────────────
+  const tpl = template;
+  const rawValues: Record<string, number> = {
+    impressions:   totalImpressions,
+    reach:         data.reduce((s, r) => s + r.reach, 0),
+    clicks:        totalClicks,
+    spend:         totalSpend,
+    revenue:       totalRevenue,
+    leads:         totalLeads,
+    sales:         totalPurchases,
+    tickets:       totalPurchases,   // imersão maps purchases → tickets
+    // page_views / profile_visits / new_followers not returned by campaign-level API
+    page_views:    0,
+    profile_visits: 0,
+    new_followers:  0,
+  };
+  const derived   = tpl.derive(rawValues);
+  const kpiValues = { ...rawValues, ...derived };
+
+  const KPI_ACCENT: Record<string, string> = {
+    brand: "text-indigo-600 dark:text-indigo-400",
+    sky:   "text-sky-600 dark:text-sky-400",
+    green: "text-emerald-600 dark:text-emerald-400",
+    rose:  "text-rose-600 dark:text-rose-400",
+    amber: "text-amber-600 dark:text-amber-400",
+    slate: "text-slate-600 dark:text-slate-400",
+  };
 
   return (
     <div className="space-y-4">
 
-      {/* ── Visão Geral KPIs ────────────────────────────────────────────────── */}
+      {/* ── KPIs dirigidos pelo template ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        {[
-          { label: "Investimento",  value: formatCurrency(totalSpend),                                       accent: "text-blue-600 dark:text-blue-400" },
-          { label: "Faturamento",   value: totalRevenue > 0 ? formatCurrency(totalRevenue) : "—",            accent: "text-emerald-600 dark:text-emerald-400" },
-          { label: "Vendas",        value: formatNumber(totalPurchases),                                     accent: "text-emerald-600 dark:text-emerald-400" },
-          { label: "CPA Médio",     value: cpaMedia > 0 ? formatCurrency(cpaMedia) : "—",                   accent: "text-rose-600 dark:text-rose-400" },
-          { label: "ROAS",          value: roas > 0 ? `${roas.toFixed(2)}x` : "—",                          accent: "text-violet-600 dark:text-violet-400" },
-        ].map((kpi) => (
-          <article key={kpi.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <p className="text-xs text-slate-500 dark:text-slate-400">{kpi.label}</p>
-            <p className={`mt-1 text-lg font-bold ${kpi.accent}`}>{kpi.value}</p>
-          </article>
-        ))}
+        {tpl.kpis.map((kpi) => {
+          const val = kpiValues[kpi.id] ?? 0;
+          const display = val > 0 ? kpi.format(val) : "—";
+          return (
+            <article key={kpi.id} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+              <p className="text-xs text-slate-500 dark:text-slate-400">{kpi.label}</p>
+              <p className={`mt-1 text-lg font-bold ${KPI_ACCENT[kpi.color] ?? ""}`}>{display}</p>
+            </article>
+          );
+        })}
       </div>
 
       {/* ── Layout: funil + tabela lado a lado ──────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
 
-        {/* Funil de vendas */}
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        {/* Funil dirigido pelo template */}
+        <article className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Funil de vendas</h3>
           <div className="flex flex-col items-stretch gap-0">
-            {funnelSteps.map((step, i) => (
-              <div key={step.label} className="flex flex-col items-center">
-                <div className={`w-full rounded-lg border px-3 py-2.5 text-center ${step.accent}`}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    {step.label}
-                  </p>
-                  <p className="mt-0.5 text-base font-bold text-slate-900 dark:text-slate-100">
-                    {step.value}
-                  </p>
-                </div>
-                {step.connector && i < funnelSteps.length - 1 && (
-                  <div className="flex flex-col items-center py-1">
-                    <div className="h-2 w-px bg-slate-300 dark:bg-slate-600" />
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-                      {step.connector}
-                    </span>
-                    <div className="h-2 w-px bg-slate-300 dark:bg-slate-600" />
+            {tpl.funnel.map((stage, i) => {
+              const val  = kpiValues[stage.id] ?? 0;
+              const prev = i > 0 ? (kpiValues[tpl.funnel[i - 1].id] ?? 0) : null;
+              const rate = prev !== null && prev > 0 ? val / prev : null;
+              return (
+                <div key={stage.id} className="flex flex-col items-center">
+                  {i > 0 && rate !== null && stage.rateFromPrev && (
+                    <div className="flex flex-col items-center py-1">
+                      <div className="h-2 w-px bg-slate-300 dark:bg-slate-600" />
+                      <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                        {stage.rateFromPrev} {formatPercent(rate)}
+                      </span>
+                      <div className="h-2 w-px bg-slate-300 dark:bg-slate-600" />
+                    </div>
+                  )}
+                  {i > 0 && (rate === null || !stage.rateFromPrev) && (
+                    <div className="h-3 w-px bg-slate-300 dark:bg-slate-600" />
+                  )}
+                  <div
+                    className="w-full min-w-0 overflow-hidden rounded-lg border border-slate-200 px-3 py-2.5 text-center"
+                    style={{ background: stage.bg }}
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                      {stage.label}
+                    </p>
+                    <p className="mt-0.5 truncate text-base font-bold text-slate-900">
+                      {formatCompact(val)}
+                    </p>
                   </div>
-                )}
-                {!step.connector && i < funnelSteps.length - 1 && (
-                  <div className="h-3 w-px bg-slate-300 dark:bg-slate-600" />
-                )}
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </article>
 
-        {/* Vendas por campanha */}
+        {/* Tabela dirigida pelo template */}
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Vendas por Campanha</h3>
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{tpl.table.title}</h3>
             {loading && <Loader2 size={13} className="animate-spin text-slate-400" />}
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-700">
               <thead className="bg-slate-50 text-left text-[10px] uppercase tracking-wider text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
                 <tr>
-                  {["Campanha","Compras","Investimento","Leads","CPA"].map((h) => (
-                    <th key={h} className="px-3 py-2 font-semibold">{h}</th>
+                  {tpl.table.columns.map((col) => (
+                    <th key={col.id} className={`px-3 py-2 font-semibold ${col.align === "right" ? "text-right" : ""}`}>
+                      {col.label}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-700 dark:text-slate-300">
-                {data.map((r, i) => (
-                  <tr key={r.name} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 ${i === 0 ? "bg-blue-50/60 dark:bg-blue-900/10" : ""}`}>
-                    <td className="max-w-[280px] truncate px-3 py-2 font-medium" title={r.name}>{r.name}</td>
-                    <td className="whitespace-nowrap px-3 py-2 font-bold text-emerald-700 dark:text-emerald-400">{r.purchases > 0 ? formatNumber(r.purchases) : "—"}</td>
-                    <td className="whitespace-nowrap px-3 py-2">{formatCurrency(r.spend)}</td>
-                    <td className="whitespace-nowrap px-3 py-2">{r.leads > 0 ? formatNumber(r.leads) : "—"}</td>
-                    <td className="whitespace-nowrap px-3 py-2">{r.cpa > 0 ? formatCurrency(r.cpa) : "—"}</td>
-                  </tr>
-                ))}
+                {data.map((r, i) => {
+                  const rowValues: Record<string, number> = {
+                    impressions: r.impressions, reach: r.reach, clicks: r.clicks,
+                    spend: r.spend, revenue: r.revenue, leads: r.leads,
+                    sales: r.purchases, tickets: r.purchases, cpa: r.cpa,
+                    page_views: 0, profile_visits: 0, new_followers: 0,
+                  };
+                  const rowDerived = tpl.derive(rowValues);
+                  const rowAll = { ...rowValues, ...rowDerived };
+                  return (
+                    <tr key={r.name} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 ${i === 0 ? "bg-blue-50/60 dark:bg-blue-900/10" : ""}`}>
+                      {tpl.table.columns.map((col) => {
+                        if (col.id === "name" || col.id === "campaign") {
+                          return (
+                            <td key={col.id} className="max-w-[280px] truncate px-3 py-2 font-medium" title={r.name}>
+                              {r.name}
+                            </td>
+                          );
+                        }
+                        if (col.id === "adset") {
+                          return <td key={col.id} className="px-3 py-2 text-slate-400">—</td>;
+                        }
+                        const v = rowAll[col.id] ?? 0;
+                        const formatted = col.format ? (v > 0 ? col.format(v) : "—") : String(v);
+                        return (
+                          <td key={col.id} className={`whitespace-nowrap px-3 py-2 ${col.align === "right" ? "text-right tabular-nums" : ""}`}>
+                            {formatted}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -641,11 +700,59 @@ function ProfileDetailView({
 }) {
   const { addCampaignToProfile, removeCampaignFromProfile } = useAdvertiserStore();
   const [activeCampId, setActiveCampId] = useState<string>(profile.campaigns[0]?.id ?? "");
-  const [dateFrom, setDateFrom]         = useState(daysAgoStr(30));
+  const [dateFrom, setDateFrom]         = useState(daysAgoStr(14));
   const [dateTo, setDateTo]             = useState(todayStr());
   const [showAddPanel, setShowAddPanel] = useState(false);
+  const [addPanelAccountId, setAddPanelAccountId] = useState(profile.adAccountId);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const hasToken = Boolean(loadMetaCredentials().accessToken);
+
+  // Template state — persisted per profile in localStorage
+  const [templateId, setTemplateId] = useState<TemplateId>(() => {
+    if (typeof window === "undefined") return "pos";
+    try {
+      const stored = JSON.parse(localStorage.getItem(TEMPLATE_LS_KEY) ?? "{}") as Record<string, TemplateId>;
+      return stored[profile.id] ?? "pos";
+    } catch { return "pos"; }
+  });
+  const [showTemplateModal, setShowTemplateModal] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const stored = JSON.parse(localStorage.getItem(TEMPLATE_LS_KEY) ?? "{}") as Record<string, TemplateId>;
+      return !stored[profile.id]; // show modal on first visit
+    } catch { return true; }
+  });
+  const [showBuilder, setShowBuilder] = useState(false);
+
+  const PERSONALIZADO_LS_KEY = "pta_personalizado_v1";
+  const [personalizadoConfig, setPersonalizadoConfig] = useState<PersonalizadoConfig>(() => {
+    if (typeof window === "undefined") return DEFAULT_PERSONALIZADO_CONFIG;
+    try {
+      const stored = JSON.parse(localStorage.getItem(PERSONALIZADO_LS_KEY) ?? "{}") as Record<string, PersonalizadoConfig>;
+      return stored[profile.id] ?? DEFAULT_PERSONALIZADO_CONFIG;
+    } catch { return DEFAULT_PERSONALIZADO_CONFIG; }
+  });
+
+  const handlePersonalizadoChange = (cfg: PersonalizadoConfig) => {
+    setPersonalizadoConfig(cfg);
+    try {
+      const stored = JSON.parse(localStorage.getItem(PERSONALIZADO_LS_KEY) ?? "{}") as Record<string, PersonalizadoConfig>;
+      localStorage.setItem(PERSONALIZADO_LS_KEY, JSON.stringify({ ...stored, [profile.id]: cfg }));
+    } catch {}
+  };
+
+  const handleTemplateChange = (id: TemplateId) => {
+    setTemplateId(id);
+    setShowTemplateModal(false);
+    if (id === "personalizado") setShowBuilder(true);
+    try {
+      const stored = JSON.parse(localStorage.getItem(TEMPLATE_LS_KEY) ?? "{}") as Record<string, TemplateId>;
+      localStorage.setItem(TEMPLATE_LS_KEY, JSON.stringify({ ...stored, [profile.id]: id }));
+    } catch {}
+  };
+
+  // Resolved template — personalizado is built from config, others are static
+  const resolvedTemplate = getTemplate(templateId, personalizadoConfig);
 
   // Keep activeCampId in sync when campaigns list changes
   useEffect(() => {
@@ -699,8 +806,14 @@ function ProfileDetailView({
               </p>
             </div>
           </div>
-          {/* Date range */}
-          <div className="flex items-center gap-2">
+          {/* Template selector + Date range */}
+          <div className="flex flex-wrap items-center gap-2">
+            <TemplateSelector
+              current={templateId}
+              onChange={handleTemplateChange}
+              variant="dropdown"
+              onOpenBuilder={() => setShowBuilder(true)}
+            />
             <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
               className="h-8 rounded-md border border-slate-300 px-2 text-xs text-slate-700 outline-none focus:border-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200" />
             <span className="text-xs text-slate-400">até</span>
@@ -772,7 +885,7 @@ function ProfileDetailView({
               <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                 Adicionar campanha ao perfil
               </p>
-              <button type="button" onClick={() => setShowAddPanel(false)}
+              <button type="button" onClick={() => { setShowAddPanel(false); setAddPanelAccountId(profile.adAccountId); }}
                 className="text-slate-400 hover:text-slate-600 dark:text-slate-500">
                 <X size={13} />
               </button>
@@ -782,10 +895,31 @@ function ProfileDetailView({
                 <Key size={11} /> Configure o Access Token em Importar dados → Meta Ads.
               </p>
             ) : (
-              <CampaignFetcher
-                adAccountId={profile.adAccountId}
-                onSelect={handleAddCampaign}
-              />
+              <div className="space-y-2">
+                <div>
+                  <p className="mb-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Ad Account ID</p>
+                  <input
+                    type="text"
+                    value={addPanelAccountId}
+                    onChange={(e) => setAddPanelAccountId(e.target.value)}
+                    placeholder="act_524658353530105"
+                    className="h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                  />
+                  {addPanelAccountId !== profile.adAccountId && (
+                    <button
+                      type="button"
+                      onClick={() => setAddPanelAccountId(profile.adAccountId)}
+                      className="mt-1 text-[10px] text-slate-400 underline hover:text-slate-600 dark:text-slate-500"
+                    >
+                      ↺ Usar conta do perfil ({profile.adAccountId})
+                    </button>
+                  )}
+                </div>
+                <CampaignFetcher
+                  adAccountId={addPanelAccountId}
+                  onSelect={handleAddCampaign}
+                />
+              </div>
             )}
           </div>
         )}
@@ -815,14 +949,47 @@ function ProfileDetailView({
         </div>
       )}
 
+      {/* Template selector modal — shown on first visit to this profile */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white p-8 shadow-2xl dark:bg-slate-900">
+            <h2 className="mb-2 text-xl font-bold text-slate-900 dark:text-slate-100">
+              Qual tipo de campanha é essa?
+            </h2>
+            <p className="mb-6 text-sm text-slate-500 dark:text-slate-400">
+              Escolha o template para ver os KPIs e funil corretos para este perfil.
+            </p>
+            <TemplateSelector
+              current={templateId}
+              onChange={handleTemplateChange}
+              variant="modal"
+              onOpenBuilder={() => setShowBuilder(true)}
+            />
+            <p className="mt-4 text-center text-xs text-slate-400 dark:text-slate-500">
+              Você pode trocar o template a qualquer momento no header do perfil.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Personalizado builder modal */}
+      {showBuilder && (
+        <PersonalizadoBuilder
+          config={personalizadoConfig}
+          onChange={handlePersonalizadoChange}
+          onClose={() => setShowBuilder(false)}
+        />
+      )}
+
       {/* Per-campaign analysis */}
       {hasToken && activeCampaign && (
         <CampaignAnalysisPanel
-          key={`${activeCampaign.id}-${dateFrom}-${dateTo}`}
+          key={`${activeCampaign.id}-${dateFrom}-${dateTo}-${templateId}-${JSON.stringify(personalizadoConfig)}`}
           adAccountId={profile.adAccountId}
           campaign={activeCampaign}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          template={resolvedTemplate}
         />
       )}
     </div>

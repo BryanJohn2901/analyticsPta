@@ -60,13 +60,13 @@ const MONTH_LABELS: Record<string, string> = {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FormState {
-  product: string; month: string; year: string;
+  product: string; month: string; year: string; campaignEndDate: string;
   investment: string; cpm: string; reach: string; clicks: string;
   pageViews: string; preCheckouts: string; sales: string; revenue: string;
 }
 
 const EMPTY_FORM: FormState = {
-  product: "", month: "JANEIRO", year: String(new Date().getFullYear()),
+  product: "", month: "JANEIRO", year: String(new Date().getFullYear()), campaignEndDate: "",
   investment: "", cpm: "", reach: "", clicks: "",
   pageViews: "", preCheckouts: "", sales: "", revenue: "",
 };
@@ -91,6 +91,7 @@ const buildRow = (form: FormState): HistoricalRow => {
   return {
     product: form.product.trim(), month: form.month, year, monthKey,
     monthLabel: `${abbr}/${String(year).slice(2)}`,
+    campaignEndDate: form.campaignEndDate || undefined,
     investment, cpm: p(form.cpm), reach,
     ctr: reach > 0 ? (clicks / reach) * 100 : 0, clicks,
     pageViewRate: clicks > 0 ? (pageViews / clicks) * 100 : 0, pageViews,
@@ -103,6 +104,7 @@ const buildRow = (form: FormState): HistoricalRow => {
 
 const rowToForm = (r: HistoricalRow): FormState => ({
   product: r.product, month: r.month, year: String(r.year),
+  campaignEndDate: r.campaignEndDate ?? "",
   investment: r.investment > 0 ? String(r.investment) : "",
   cpm: r.cpm > 0 ? String(r.cpm) : "",
   reach: r.reach > 0 ? String(r.reach) : "",
@@ -175,6 +177,10 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
               <label className={labelCls}>
                 Ano *
                 <input type="number" required min={2020} max={2099} value={form.year} onChange={set("year")} className={fieldCls} />
+              </label>
+              <label className={labelCls}>
+                Término da campanha
+                <input type="date" value={form.campaignEndDate} onChange={set("campaignEndDate")} className={fieldCls} />
               </label>
             </div>
           </div>

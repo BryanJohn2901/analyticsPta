@@ -5,6 +5,7 @@ export interface HistoricalRow {
   year: number;
   monthKey: string;   // "2025-03" for sorting
   monthLabel: string; // "Mar/25" for display
+  campaignEndDate?: string; // "YYYY-MM-DD"
   investment: number;
   cpm: number;
   reach: number;

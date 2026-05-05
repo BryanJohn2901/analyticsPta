@@ -6,7 +6,7 @@ import {
   CheckCircle2, ChevronDown, ChevronUp, CircleDollarSign, Dumbbell, FileText,
   FileUp, Filter, Flag, GraduationCap, Home, ImageIcon, Link2, Loader2, Menu, Moon,
   MousePointerClick, Package, Plus, Repeat, RotateCcw, SlidersHorizontal, Sun,
-  Target, TrendingUp, Trophy, Upload, Users, Wallet, X, XCircle, Zap,
+  Target, Trash2, TrendingUp, Trophy, Upload, Users, Wallet, X, XCircle, Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { CampaignData, ProductCategory } from "@/types/campaign";
@@ -323,9 +323,9 @@ interface AccountRow { rowId: string; groupId: string; accountId: string }
 function ImportPopover({
   onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
   onCampaignsVerified, savedCampaignsByGroup, savedSelectedCampaigns, onSaveCampaignSelection,
-  customGroups, onAddCustomGroup,
-}: ImportPopoverProps) {
-  const [tab, setTab]                     = useState<ImportTab>("sheets");
+  customGroups, onAddCustomGroup, initialTab,
+}: ImportPopoverProps & { initialTab?: ImportTab }) {
+  const [tab, setTab]                     = useState<ImportTab>(initialTab ?? "sheets");
   const [url, setUrl]                     = useState("");
   const [loading, setLoading]             = useState<"url" | "csv" | null>(null);
   const [accessToken, setAccessToken]     = useState(() => loadMetaCredentials().accessToken);
@@ -770,20 +770,38 @@ function ImportPopover({
 
             {/* ── Ad account rows ──────────────────────────────────────────── */}
             {showAccountsSection && <div>
-              <div className="mb-2 flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  Ad Accounts configurados
-                </label>
-                {accountRows.some((r) => r.accountId.trim()) && (
-                  <button
-                    type="button"
-                    onClick={() => void handleVerifyAll()}
-                    disabled={!accessToken}
-                    className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
-                  >
-                    <Activity size={10} /> Verificar todas
-                  </button>
-                )}
+              <div className="mb-1 flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Ad Accounts configurados
+                  </label>
+                  {accountRows.length > 0 && (
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                      {accountRows.length} conta{accountRows.length > 1 ? "s" : ""} salva{accountRows.length > 1 ? "s" : ""} — edite ou remova conforme necessário
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {accountRows.some((r) => r.accountId.trim()) && (
+                    <button
+                      type="button"
+                      onClick={() => void handleVerifyAll()}
+                      disabled={!accessToken}
+                      className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
+                    >
+                      <Activity size={10} /> Verificar todas
+                    </button>
+                  )}
+                  {accountRows.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setAccountRows([])}
+                      className="flex items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-[10px] font-semibold text-red-500 transition hover:border-red-400 hover:bg-red-50 dark:border-red-800 dark:bg-slate-700 dark:text-red-400 dark:hover:bg-red-900/20"
+                    >
+                      <X size={10} /> Limpar tudo
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Empty state */}
@@ -1486,6 +1504,12 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
   const [dateTo, setDateTo]                 = useState("");
   const [searchCampaign, setSearchCampaign] = useState("");
   const [showImport, setShowImport]         = useState(false);
+  const [importInitialTab, setImportInitialTab] = useState<ImportTab>("meta");
+
+  const openImport = (tab: ImportTab = "meta") => {
+    setImportInitialTab(tab);
+    setShowImport(true);
+  };
   const [showMobileNav, setShowMobileNav]   = useState(false);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
 
@@ -1927,10 +1951,22 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
               )}
             </div>
 
+            {/* Limpar dados — only shown when a source is active */}
+            {dataSource && onDisconnect && (
+              <button
+                onClick={() => void onDisconnect()}
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-500 transition hover:border-red-400 hover:bg-red-50 dark:border-red-800 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-900/20"
+                title="Zerar os dados importados"
+              >
+                <Trash2 size={13} />
+                <span className="hidden sm:inline">Limpar dados</span>
+              </button>
+            )}
+
             {/* Import button */}
             <div className="relative">
               <button
-                onClick={() => setShowImport((v) => !v)}
+                onClick={() => showImport ? setShowImport(false) : openImport("meta")}
                 className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
                   showImport
                     ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
@@ -1957,6 +1993,7 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                   onSaveCampaignSelection={setCampaignSelectionForGroup}
                   customGroups={customGroups}
                   onAddCustomGroup={addCustomGroup}
+                  initialTab={importInitialTab}
                 />
               )}
             </div>
@@ -1980,23 +2017,80 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
 
           {mainTab === "overview" && selectedCategory && (
             campaigns.length === 0 ? (
-              /* Empty state */
-              <div className="flex flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800 md:py-24">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-700">
-                  <TrendingUp size={28} className="text-slate-300 dark:text-slate-500" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-base font-bold text-slate-700 dark:text-slate-200">Nenhuma campanha carregada</p>
-                  <p className="text-sm text-slate-400 dark:text-slate-500">
-                    Clique em <span className="font-semibold text-blue-600">Importar dados</span> para começar
+              /* ── Welcome screen ─────────────────────────────────────────────── */
+              <div className="mx-auto max-w-2xl space-y-6 py-6">
+                {/* Hero */}
+                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
+                    <TrendingUp size={26} className="text-brand" />
+                  </div>
+                  <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Bem-vindo ao DashMonster</h1>
+                  <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
+                    Conecte sua fonte de dados para começar a analisar suas campanhas
                   </p>
                 </div>
-                <button
-                  onClick={() => setShowImport(true)}
-                  className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover"
-                >
-                  <FileUp size={15} /> Importar dados
-                </button>
+
+                {/* Connection options */}
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {/* Meta Ads */}
+                  <button
+                    type="button"
+                    onClick={() => openImport("meta")}
+                    className="group flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50 hover:shadow-md dark:border-blue-800 dark:bg-blue-900/10 dark:hover:border-blue-600 dark:hover:bg-blue-900/20"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 transition group-hover:bg-blue-200 dark:bg-blue-900/40">
+                      <Zap size={20} className="text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Meta Ads</p>
+                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Conecte via Access Token</p>
+                    </div>
+                    <span className="rounded-full bg-blue-600 px-3 py-1 text-[11px] font-semibold text-white">
+                      Conectar →
+                    </span>
+                  </button>
+
+                  {/* Google Sheets */}
+                  <button
+                    type="button"
+                    onClick={() => openImport("sheets")}
+                    className="group flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/50 p-6 text-center transition hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-800 dark:bg-emerald-900/10 dark:hover:border-emerald-600 dark:hover:bg-emerald-900/20"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 transition group-hover:bg-emerald-200 dark:bg-emerald-900/40">
+                      <Link2 size={20} className="text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Google Sheets</p>
+                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Cole a URL da planilha</p>
+                    </div>
+                    <span className="rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white">
+                      Importar →
+                    </span>
+                  </button>
+
+                  {/* CSV */}
+                  <button
+                    type="button"
+                    onClick={() => openImport("csv")}
+                    className="group flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-violet-200 bg-violet-50/50 p-6 text-center transition hover:border-violet-400 hover:bg-violet-50 hover:shadow-md dark:border-violet-800 dark:bg-violet-900/10 dark:hover:border-violet-600 dark:hover:bg-violet-900/20"
+                  >
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 transition group-hover:bg-violet-200 dark:bg-violet-900/40">
+                      <Upload size={20} className="text-violet-600 dark:text-violet-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Arquivo CSV</p>
+                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Faça upload do seu CSV</p>
+                    </div>
+                    <span className="rounded-full bg-violet-600 px-3 py-1 text-[11px] font-semibold text-white">
+                      Upload →
+                    </span>
+                  </button>
+                </div>
+
+                {/* Tip */}
+                <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
+                  Dica: use <strong className="text-slate-600 dark:text-slate-300">Meta Ads</strong> para dados em tempo real direto da sua conta de anúncios
+                </p>
               </div>
             ) : (
               <div className="space-y-5">

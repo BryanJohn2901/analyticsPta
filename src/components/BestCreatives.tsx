@@ -258,16 +258,14 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
     fetchMetaCreatives(adAccountId, accessToken)
       .then((results) => {
         for (const r of results) {
-          if (!r.thumbnailUrl) continue;
+          if (!r.thumbnailUrl && !r.adLink) continue;
           const existing = storeRef.current[r.campaignName];
-          // Only auto-fill if the user hasn't manually set a URL
-          if (!existing?.mediaUrl) {
-            saveCreative(r.campaignName, {
-              mediaUrl: r.thumbnailUrl,
-              adLink:   existing?.adLink  || r.adLink,
-              notes:    existing?.notes   || "",
-            });
-          }
+          // Preserve manually-set mediaUrl; always refresh adLink from API if user hasn't set one
+          saveCreative(r.campaignName, {
+            mediaUrl: existing?.mediaUrl || r.thumbnailUrl,
+            adLink:   existing?.adLink   || r.adLink,
+            notes:    existing?.notes    || "",
+          });
         }
       })
       .catch(() => {})

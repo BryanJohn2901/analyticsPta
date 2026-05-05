@@ -1,4 +1,5 @@
 import type { CampaignData } from "@/types/campaign";
+import { safeNumber } from "@/lib/format";
 
 const CREDS_KEY = "pta_meta_creds_v1";
 
@@ -79,12 +80,12 @@ export interface MetaInsight {
   campaign_name: string;
   campaign_id:   string;
   adset_name?:   string;  // present when level="adset" (kept for ProfileAnalysis compatibility)
-  impressions:   number;
-  reach:         number;
-  clicks:        number;
-  spend:         number;  // investment in account currency
-  cpm:           number;
-  ctr:           number;  // percentage — e.g. 2.34 means 2.34% → divide by 100 for decimal
+  impressions:   string | number; // Meta API returns numeric strings
+  reach:         string | number;
+  clicks:        string | number;
+  spend:         string | number; // investment in account currency
+  cpm:           string | number;
+  ctr:           string | number; // percentage — e.g. "2.34" means 2.34% → divide by 100 for decimal
   date_start:    string;
   date_stop:     string;
   actions?:       MetaAction[]; // conversion counts
@@ -168,9 +169,9 @@ export function metaInsightsToCampaignData(
   adAccountId: string,
 ): CampaignData[] {
   return insights.map((row) => {
-    const investment = parseFloat(String(row.spend)) || 0;
-    const clicks     = parseFloat(String(row.clicks)) || 0;
-    const impressions = parseFloat(String(row.impressions)) || 0;
+    const investment  = safeNumber(row.spend);
+    const clicks      = safeNumber(row.clicks);
+    const impressions = safeNumber(row.impressions);
 
     // Conversions — try most specific purchase types first
     const conversions = pickAction(
@@ -189,7 +190,7 @@ export function metaInsightsToCampaignData(
     );
 
     // Meta returns CTR as percentage string ("2.34" = 2.34%) — convert to decimal
-    const ctr = (parseFloat(String(row.ctr)) || 0) / 100;
+    const ctr = safeNumber(row.ctr) / 100;
 
     return {
       id:             `meta-${adAccountId}-${row.date_start}-${row.campaign_id}`,
