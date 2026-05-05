@@ -38,9 +38,11 @@ interface AdsetRow {
   reach: number;
   clicks: number;
   spend: number;
+  revenue: number;
   cpm: number;
   ctr: number;
   purchases: number;
+  leads: number;
   cpa: number;
 }
 
@@ -54,19 +56,33 @@ function getActionValue(actions: MetaInsight["actions"], type: string): number {
   return Number(actions?.find((a) => a.action_type === type)?.value ?? 0);
 }
 
+function pickActionValue(avs: MetaInsight["action_values"], ...types: string[]): number {
+  if (!avs) return 0;
+  for (const t of types) {
+    const f = avs.find((a) => a.action_type === t);
+    if (f) return parseFloat(f.value) || 0;
+  }
+  return 0;
+}
+
 function toAdsetRows(data: MetaInsight[]): AdsetRow[] {
   const map = new Map<string, AdsetRow>();
   data.forEach((d) => {
     const key = d.adset_name ?? d.campaign_name;
     const cur = map.get(key) ?? {
       name: key,
-      impressions: 0, reach: 0, clicks: 0, spend: 0, cpm: 0, ctr: 0, purchases: 0, cpa: 0,
+      impressions: 0, reach: 0, clicks: 0, spend: 0, revenue: 0,
+      cpm: 0, ctr: 0, purchases: 0, leads: 0, cpa: 0,
     };
     cur.impressions += d.impressions;
     cur.reach       += d.reach;
     cur.clicks      += d.clicks;
     cur.spend       += d.spend;
     cur.purchases   += getActionValue(d.actions, "purchase");
+    cur.leads       += getActionValue(d.actions, "lead")
+                     + getActionValue(d.actions, "onsite_conversion.lead_grouped");
+    cur.revenue     += pickActionValue(d.action_values, "purchase", "omni_purchase",
+                       "offsite_conversion.fb_pixel_purchase");
     map.set(key ?? "", cur);
   });
   return Array.from(map.values()).map((r) => ({
@@ -454,9 +470,19 @@ function CampaignAnalysisPanel({
 
   useEffect(() => { void load(); }, [load]);
 
-  const totalSpend     = data.reduce((s, r) => s + r.spend, 0);
-  const totalPurchases = data.reduce((s, r) => s + r.purchases, 0);
-  const totalClicks    = data.reduce((s, r) => s + r.clicks, 0);
+  // ── Totals ────────────────────────────────────────────────────────────────────
+  const totalSpend       = data.reduce((s, r) => s + r.spend,       0);
+  const totalRevenue     = data.reduce((s, r) => s + r.revenue,     0);
+  const totalPurchases   = data.reduce((s, r) => s + r.purchases,   0);
+  const totalClicks      = data.reduce((s, r) => s + r.clicks,      0);
+  const totalImpressions = data.reduce((s, r) => s + r.impressions, 0);
+  const totalLeads       = data.reduce((s, r) => s + r.leads,       0);
+  const avgCtr           = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
+  const txCaptura        = totalClicks    > 0 ? (totalLeads    / totalClicks)    * 100 : 0;
+  const txConversao      = totalLeads     > 0 ? (totalPurchases / totalLeads)    * 100
+                         : totalClicks   > 0 ? (totalPurchases / totalClicks)   * 100 : 0;
+  const cpaMedia         = totalPurchases > 0 ? totalSpend / totalPurchases : 0;
+  const roas             = totalSpend     > 0 ? totalRevenue / totalSpend        : 0;
 
   if (loading && data.length === 0) {
     return (
@@ -483,93 +509,123 @@ function CampaignAnalysisPanel({
     );
   }
 
+  // ── Funnel steps ──────────────────────────────────────────────────────────────
+  type FunnelStep = { label: string; value: string; connector?: string; accent: string };
+  const funnelSteps: FunnelStep[] = [
+    { label: "Impressões",     value: formatNumber(totalImpressions), accent: "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-900/20",    connector: `CTR ${formatPercent(avgCtr / 100)}` },
+    { label: "Cliques no link",value: formatNumber(totalClicks),      accent: "border-violet-200 bg-violet-50 dark:border-violet-800 dark:bg-violet-900/20",
+      connector: totalLeads > 0 ? `Tx de captura ${formatPercent(txCaptura / 100)}` : undefined },
+    ...(totalLeads > 0 ? [{ label: "Leads", value: formatNumber(totalLeads), accent: "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20", connector: `Tx de conversão ${formatPercent(txConversao / 100)}` } as FunnelStep] : []),
+    ...(totalLeads === 0 ? [{ label: "Tx de conversão", value: formatPercent(txConversao / 100), accent: "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800", connector: undefined } as FunnelStep] : [{ label: "", value: "", accent: "", connector: undefined } as FunnelStep].filter(() => false)),
+    { label: "Vendas",         value: formatNumber(totalPurchases),   accent: "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/20" },
+  ];
+
   return (
     <div className="space-y-4">
-      {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+
+      {/* ── Visão Geral KPIs ────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {[
-          { label: "Total Investido", value: formatCurrency(totalSpend) },
-          { label: "Total Cliques",   value: formatNumber(totalClicks) },
-          { label: "Total Compras",   value: formatNumber(totalPurchases) },
-          { label: "CPA Médio",       value: totalPurchases > 0 ? formatCurrency(totalSpend / totalPurchases) : "—" },
+          { label: "Investimento",  value: formatCurrency(totalSpend),                                       accent: "text-blue-600 dark:text-blue-400" },
+          { label: "Faturamento",   value: totalRevenue > 0 ? formatCurrency(totalRevenue) : "—",            accent: "text-emerald-600 dark:text-emerald-400" },
+          { label: "Vendas",        value: formatNumber(totalPurchases),                                     accent: "text-emerald-600 dark:text-emerald-400" },
+          { label: "CPA Médio",     value: cpaMedia > 0 ? formatCurrency(cpaMedia) : "—",                   accent: "text-rose-600 dark:text-rose-400" },
+          { label: "ROAS",          value: roas > 0 ? `${roas.toFixed(2)}x` : "—",                          accent: "text-violet-600 dark:text-violet-400" },
         ].map((kpi) => (
           <article key={kpi.label} className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <p className="text-xs text-slate-500 dark:text-slate-400">{kpi.label}</p>
-            <p className="mt-1 text-lg font-bold text-slate-900 dark:text-slate-100">{kpi.value}</p>
+            <p className={`mt-1 text-lg font-bold ${kpi.accent}`}>{kpi.value}</p>
           </article>
         ))}
       </div>
 
-      {/* Spend chart */}
-      <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Investimento por Conjunto de Anúncios</h3>
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.slice(0, 10)} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 120 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
-              <XAxis type="number" stroke="#64748b" tick={{ fontSize: 10, fill: "#64748b" }}
-                tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-              <YAxis type="category" dataKey="name" stroke="#64748b" tick={{ fontSize: 10, fill: "#64748b" }} width={115} />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #334155", background: "#1e293b", color: "#f1f5f9", fontSize: 12 }}
-                formatter={(v) => [formatCurrency(Number(v)), "Investimento"]}
-              />
-              <Bar dataKey="spend" name="Investimento" fill="#2563eb" radius={[0, 3, 3, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </article>
+      {/* ── Layout: funil + tabela lado a lado ──────────────────────────────── */}
+      <div className="grid gap-4 lg:grid-cols-[220px_1fr]">
 
-      {/* CTR chart */}
-      <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">CTR por Conjunto (top 10)</h3>
-        <div className="h-48">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.slice(0, 10)} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="name" stroke="#64748b" tick={{ fontSize: 9, fill: "#64748b" }}
-                tickFormatter={(v: string) => v.length > 12 ? v.slice(0, 12) + "…" : v} />
-              <YAxis stroke="#64748b" tick={{ fontSize: 10, fill: "#64748b" }} tickFormatter={(v) => `${v.toFixed(1)}%`} />
-              <Tooltip
-                contentStyle={{ borderRadius: 8, border: "1px solid #334155", background: "#1e293b", color: "#f1f5f9", fontSize: 12 }}
-                formatter={(v) => [`${Number(v).toFixed(2)}%`, "CTR"]}
-              />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="ctr" name="CTR (%)" fill="#8b5cf6" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </article>
+        {/* Funil de vendas */}
+        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Funil de vendas</h3>
+          <div className="flex flex-col items-stretch gap-0">
+            {funnelSteps.map((step, i) => (
+              <div key={step.label} className="flex flex-col items-center">
+                <div className={`w-full rounded-lg border px-3 py-2.5 text-center ${step.accent}`}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    {step.label}
+                  </p>
+                  <p className="mt-0.5 text-base font-bold text-slate-900 dark:text-slate-100">
+                    {step.value}
+                  </p>
+                </div>
+                {step.connector && i < funnelSteps.length - 1 && (
+                  <div className="flex flex-col items-center py-1">
+                    <div className="h-2 w-px bg-slate-300 dark:bg-slate-600" />
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                      {step.connector}
+                    </span>
+                    <div className="h-2 w-px bg-slate-300 dark:bg-slate-600" />
+                  </div>
+                )}
+                {!step.connector && i < funnelSteps.length - 1 && (
+                  <div className="h-3 w-px bg-slate-300 dark:bg-slate-600" />
+                )}
+              </div>
+            ))}
+          </div>
+        </article>
 
-      {/* Detail table */}
-      <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Detalhamento por Conjunto</h3>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-700">
-            <thead className="bg-slate-50 text-left uppercase tracking-wide text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
-              <tr>
-                {["Conjunto","Investimento","Alcance","Cliques","CTR","CPM","Compras","CPA"].map((h) => (
-                  <th key={h} className="px-3 py-2 font-semibold">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-700 dark:text-slate-300">
-              {data.map((r) => (
-                <tr key={r.name} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                  <td className="max-w-[200px] truncate px-3 py-2 font-medium" title={r.name}>{r.name}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{formatCurrency(r.spend)}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{formatNumber(r.reach)}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{formatNumber(r.clicks)}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{formatPercent(r.ctr)}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{formatCurrency(r.cpm)}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{r.purchases > 0 ? formatNumber(r.purchases) : "—"}</td>
-                  <td className="whitespace-nowrap px-3 py-2">{r.cpa > 0 ? formatCurrency(r.cpa) : "—"}</td>
+        {/* Vendas por campanha */}
+        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Vendas por Campanha</h3>
+            {loading && <Loader2 size={13} className="animate-spin text-slate-400" />}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-700">
+              <thead className="bg-slate-50 text-left text-[10px] uppercase tracking-wider text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
+                <tr>
+                  {["Campanha","Compras","Investimento","Leads","CPA"].map((h) => (
+                    <th key={h} className="px-3 py-2 font-semibold">{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </article>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-700 dark:text-slate-300">
+                {data.map((r, i) => (
+                  <tr key={r.name} className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 ${i === 0 ? "bg-blue-50/60 dark:bg-blue-900/10" : ""}`}>
+                    <td className="max-w-[280px] truncate px-3 py-2 font-medium" title={r.name}>{r.name}</td>
+                    <td className="whitespace-nowrap px-3 py-2 font-bold text-emerald-700 dark:text-emerald-400">{r.purchases > 0 ? formatNumber(r.purchases) : "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-2">{formatCurrency(r.spend)}</td>
+                    <td className="whitespace-nowrap px-3 py-2">{r.leads > 0 ? formatNumber(r.leads) : "—"}</td>
+                    <td className="whitespace-nowrap px-3 py-2">{r.cpa > 0 ? formatCurrency(r.cpa) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      </div>
+
+      {/* ── Investimento por conjunto (chart) ───────────────────────────────── */}
+      {data.length > 1 && (
+        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Investimento por Conjunto de Anúncios</h3>
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.slice(0, 10)} layout="vertical" margin={{ top: 0, right: 16, bottom: 0, left: 120 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false} />
+                <XAxis type="number" stroke="#64748b" tick={{ fontSize: 10, fill: "#64748b" }}
+                  tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="name" stroke="#64748b" tick={{ fontSize: 10, fill: "#64748b" }} width={115}
+                  tickFormatter={(v: string) => v.length > 18 ? v.slice(0, 18) + "…" : v} />
+                <Tooltip
+                  contentStyle={{ borderRadius: 8, border: "1px solid #334155", background: "#1e293b", color: "#f1f5f9", fontSize: 12 }}
+                  formatter={(v) => [formatCurrency(Number(v)), "Investimento"]}
+                />
+                <Bar dataKey="spend" name="Investimento" fill="#2563eb" radius={[0, 3, 3, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </article>
+      )}
     </div>
   );
 }
@@ -695,11 +751,15 @@ function ProfileDetailView({
             </div>
           ))}
 
-          {/* Add campaign button */}
+          {/* Add campaign — styled as a proper tab */}
           <button
             type="button"
             onClick={() => setShowAddPanel(!showAddPanel)}
-            className="flex items-center gap-1 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-[11px] font-semibold text-slate-400 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-blue-500 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[11px] font-semibold transition ${
+              showAddPanel
+                ? "border-brand bg-brand text-white"
+                : "border-dashed border-slate-300 bg-white text-slate-400 hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-700/50 dark:text-slate-500 dark:hover:border-blue-500 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+            }`}
           >
             <Plus size={11} /> Adicionar campanha
           </button>

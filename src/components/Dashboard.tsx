@@ -345,8 +345,11 @@ function ImportPopover({
   const [fetchingAccounts, setFetchingAccounts] = useState(false);
   const [metaAccounts, setMetaAccounts]   = useState<MetaAdAccount[]>([]);
   const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [openDropdownRow, setOpenDropdownRow] = useState<string | null>(null);
   const [datePreset, setDatePreset]       = useState<DatePreset>("30d");
   const dateRange = dateRangeFromPreset(datePreset);
+  // Show the full accounts section only after "Conectar" or if accounts were previously saved
+  const showAccountsSection = metaAccounts.length > 0 || accountRows.some((r) => r.accountId.trim());
   const [importingMeta, setImportingMeta] = useState(false);
   const [metaImportError, setMetaImportError] = useState<string | null>(null);
   const fileRef                           = useRef<HTMLInputElement>(null);
@@ -725,12 +728,19 @@ function ImportPopover({
                 style={{ backgroundColor: "var(--dm-success-bg)", borderColor: "var(--dm-success-border)", color: "var(--dm-success-text)" }}
               >
                 <Activity size={12} className="flex-shrink-0" />
-                {metaAccounts.length} conta{metaAccounts.length > 1 ? "s" : ""} encontrada{metaAccounts.length > 1 ? "s" : ""} — selecione abaixo
+                {metaAccounts.length} conta{metaAccounts.length > 1 ? "s" : ""} encontrada{metaAccounts.length > 1 ? "s" : ""} — selecione abaixo ou digite manualmente
               </div>
             )}
 
+            {/* ── Separator — only show the rest after token connected ──── */}
+            {!showAccountsSection && (
+              <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
+                Conecte o token acima para configurar período e contas.
+              </p>
+            )}
+
             {/* Date range preset */}
-            <div>
+            {showAccountsSection && (<div>
               <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Período de dados
               </label>
@@ -756,10 +766,10 @@ function ImportPopover({
                   : `De ${dateRange.from} até ${dateRange.to}`
                 }
               </p>
-            </div>
+            </div>)}
 
             {/* ── Ad account rows ──────────────────────────────────────────── */}
-            <div>
+            {showAccountsSection && <div>
               <div className="mb-2 flex items-center justify-between">
                 <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                   Ad Accounts configurados
@@ -828,28 +838,43 @@ function ImportPopover({
                             ))}
                           </select>
 
-                          {/* Account field: dropdown (if Conectar used) or manual input */}
-                          {metaAccounts.length > 0 ? (
-                            <select
-                              value={row.accountId}
-                              onChange={(e) => handleChangeRowAccount(row.rowId, e.target.value)}
-                              className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-[10px] text-slate-800 outline-none focus:border-blue-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                            >
-                              <option value="">— selecionar conta —</option>
-                              {metaAccounts.map((acc) => (
-                                <option key={acc.id} value={acc.id}>
-                                  {acc.name}{acc.account_status !== 1 ? " ⚠" : ""}
-                                </option>
-                              ))}
-                            </select>
-                          ) : (
+                          {/* Account field: combobox — type manually OR click arrow to pick */}
+                          <div className="relative min-w-0 flex-1">
                             <input
                               value={row.accountId}
                               onChange={(e) => handleChangeRowAccount(row.rowId, e.target.value)}
                               placeholder="act_123456789"
-                              className="h-7 min-w-0 flex-1 rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] text-slate-800 placeholder-slate-300 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-600"
+                              className="h-7 w-full rounded-md border border-slate-200 bg-slate-50 pl-2 pr-6 text-[10px] text-slate-800 placeholder-slate-300 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-600"
                             />
-                          )}
+                            {metaAccounts.length > 0 && (
+                              <button
+                                type="button"
+                                title="Ver contas disponíveis"
+                                onClick={() => setOpenDropdownRow(openDropdownRow === row.rowId ? null : row.rowId)}
+                                className="absolute right-0.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+                              >
+                                <ChevronDown size={11} className={`transition-transform ${openDropdownRow === row.rowId ? "rotate-180" : ""}`} />
+                              </button>
+                            )}
+                            {openDropdownRow === row.rowId && metaAccounts.length > 0 && (
+                              <div className="absolute left-0 top-full z-30 mt-0.5 max-h-44 w-full min-w-[220px] overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
+                                {metaAccounts.map((acc) => (
+                                  <button
+                                    key={acc.id}
+                                    type="button"
+                                    onClick={() => { handleChangeRowAccount(row.rowId, acc.id); setOpenDropdownRow(null); }}
+                                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-[10px] transition hover:bg-slate-50 dark:hover:bg-slate-700 ${acc.id === row.accountId ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
+                                  >
+                                    <span className="flex-1 min-w-0">
+                                      <span className="block truncate font-semibold text-slate-800 dark:text-slate-200">{acc.name}</span>
+                                      <span className="block font-mono text-[9px] text-slate-400">{acc.id}</span>
+                                    </span>
+                                    {acc.account_status !== 1 && <span className="shrink-0 text-[9px] text-amber-500">⚠ Inativa</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
 
                           {/* Verify status badge */}
                           {status === "loading" && (
@@ -1044,7 +1069,7 @@ function ImportPopover({
                   </button>
                 </div>
               )}
-            </div>
+            </div>}
 
             {/* Import error */}
             {metaImportError && (
