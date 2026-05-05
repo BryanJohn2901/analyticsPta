@@ -9,7 +9,8 @@ import {
   GraduationCap, Key, Loader2, Plus, RefreshCw, Repeat, Trash2, Users, X, Zap,
 } from "lucide-react";
 import {
-  fetchMetaCampaigns, fetchMetaInsights, loadMetaCredentials, MetaInsight,
+  fetchMetaCampaigns, fetchMetaInsights, fetchMetaAdAccounts,
+  loadMetaCredentials, MetaInsight, MetaAdAccount,
 } from "@/utils/metaApi";
 import { formatBRL, formatCompact, formatInt, formatPercent, safeNumber } from "@/lib/format";
 import { getTemplate, TEMPLATE_LIST, DEFAULT_PERSONALIZADO_CONFIG } from "@/lib/templates";
@@ -127,112 +128,215 @@ function avatarStyle(name: string) {
   return AVATAR_STYLES[(name.charCodeAt(0) ?? 0) % AVATAR_STYLES.length];
 }
 
-// ─── Campaign Fetcher (inline inside form) ────────────────────────────────────
+// ─── Add Campaign Panel ───────────────────────────────────────────────────────
+// Full panel: account picker → campaign list → multi-add without closing
 
-function CampaignFetcher({
-  adAccountId,
-  onSelect,
+function AddCampaignPanel({
+  defaultAccountId,
+  alreadyAddedIds,
+  onAdd,
+  onClose,
 }: {
-  adAccountId: string;
-  onSelect: (campaign: ActiveCampaign) => void;
+  defaultAccountId: string;
+  alreadyAddedIds: Set<string>;
+  onAdd: (campaign: ActiveCampaign) => void;
+  onClose?: () => void;
 }) {
-  type FetchState = "idle" | "loading" | "done" | "error";
-  const [state, setState]       = useState<FetchState>("idle");
-  const [campaigns, setCampaigns] = useState<{ id: string; name: string; status: string }[]>([]);
-  const [error, setError]       = useState<string | null>(null);
-  const hasToken = Boolean(loadMetaCredentials().accessToken);
+  const token = loadMetaCredentials().accessToken;
+  const hasToken = Boolean(token);
 
-  const fetchCampaigns = async () => {
-    if (!adAccountId.trim() || !hasToken) return;
-    setState("loading"); setError(null);
+  // ── Account picker state ──
+  const [accountId, setAccountId]           = useState(defaultAccountId);
+  const [accounts, setAccounts]             = useState<MetaAdAccount[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [accountsError, setAccountsError]   = useState<string | null>(null);
+  const [showAccountPicker, setShowAccountPicker] = useState(false);
+
+  // ── Campaign list state ──
+  const [campaigns, setCampaigns]           = useState<{ id: string; name: string; status: string }[]>([]);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
+  const [campaignsError, setCampaignsError] = useState<string | null>(null);
+  const [addedThisSession, setAddedThisSession] = useState<Set<string>>(new Set());
+
+  const fetchAccounts = async () => {
+    setAccountsLoading(true); setAccountsError(null);
     try {
-      const token = loadMetaCredentials().accessToken;
-      const result = await fetchMetaCampaigns(adAccountId.trim(), token);
-      setCampaigns(result);
-      setState("done");
+      const list = await fetchMetaAdAccounts(token);
+      setAccounts(list);
+      setShowAccountPicker(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Erro ao buscar campanhas.");
-      setState("error");
+      setAccountsError(e instanceof Error ? e.message : "Erro ao buscar contas.");
+    } finally {
+      setAccountsLoading(false);
     }
   };
 
-  if (!adAccountId.trim()) return null;
+  const fetchCampaigns = async (id = accountId) => {
+    const trimmed = id.trim();
+    if (!trimmed) return;
+    setCampaignsLoading(true); setCampaignsError(null); setCampaigns([]);
+    try {
+      const list = await fetchMetaCampaigns(trimmed, token);
+      setCampaigns(list);
+    } catch (e) {
+      setCampaignsError(e instanceof Error ? e.message : "Erro ao buscar campanhas.");
+    } finally {
+      setCampaignsLoading(false);
+    }
+  };
+
+  const handleSelectAccount = (acc: MetaAdAccount) => {
+    setAccountId(acc.id);
+    setShowAccountPicker(false);
+    void fetchCampaigns(acc.id);
+  };
+
+  const handleAdd = (camp: { id: string; name: string }) => {
+    onAdd({ id: camp.id, name: camp.name });
+    setAddedThisSession((prev) => new Set([...prev, camp.id]));
+  };
+
+  const inputCls = "h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200";
+
+  if (!hasToken) {
+    return (
+      <p className="flex items-center gap-1.5 text-[11px] text-amber-600 dark:text-amber-400">
+        <Key size={11} /> Configure o Access Token em <strong>Importar dados → Meta Ads</strong>.
+      </p>
+    );
+  }
 
   return (
-    <div className="space-y-2">
-      {!hasToken && (
-        <p className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400">
-          <Key size={10} /> Configure o Access Token em Importar dados → Meta Ads primeiro.
+    <div className="space-y-3">
+
+      {/* ── Account ID row ── */}
+      <div className="space-y-1.5">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+          Ad Account
         </p>
-      )}
-
-      {state === "idle" && hasToken && (
-        <button
-          type="button"
-          onClick={() => void fetchCampaigns()}
-          className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-[11px] font-semibold text-blue-600 transition hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
-        >
-          <Zap size={11} /> Buscar campanhas do Ad Account
-        </button>
-      )}
-
-      {state === "loading" && (
-        <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-          <Loader2 size={12} className="animate-spin" /> Buscando campanhas…
-        </div>
-      )}
-
-      {state === "error" && (
-        <div className="flex items-start gap-1.5 text-[11px] text-red-600 dark:text-red-400">
-          <AlertCircle size={11} className="mt-0.5 flex-shrink-0" />
-          <span>{error}</span>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={accountId}
+            onChange={(e) => { setAccountId(e.target.value); setCampaigns([]); setCampaignsError(null); }}
+            placeholder="act_524658353530105"
+            className={inputCls}
+          />
+          {/* Buscar minhas contas */}
           <button
             type="button"
-            onClick={() => setState("idle")}
-            className="ml-auto text-[10px] underline"
+            onClick={() => void fetchAccounts()}
+            disabled={accountsLoading}
+            title="Listar todas as contas disponíveis para este token"
+            className="flex flex-shrink-0 items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold text-slate-600 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:border-blue-500"
           >
-            Tentar novamente
+            {accountsLoading ? <Loader2 size={10} className="animate-spin" /> : <Users size={10} />}
+            {accountsLoading ? "Buscando…" : "Ver contas"}
           </button>
+          {/* Buscar campanhas */}
+          <button
+            type="button"
+            onClick={() => void fetchCampaigns()}
+            disabled={!accountId.trim() || campaignsLoading}
+            title="Buscar campanhas desta conta"
+            className="flex flex-shrink-0 items-center gap-1 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-[10px] font-semibold text-blue-600 transition hover:bg-blue-100 disabled:opacity-50 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+          >
+            {campaignsLoading ? <Loader2 size={10} className="animate-spin" /> : <Zap size={10} />}
+            {campaignsLoading ? "Buscando…" : "Campanhas"}
+          </button>
+        </div>
+
+        {/* Account error */}
+        {accountsError && (
+          <p className="text-[10px] text-red-500 dark:text-red-400">{accountsError}</p>
+        )}
+
+        {/* Account picker dropdown */}
+        {showAccountPicker && accounts.length > 0 && (
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-md dark:border-slate-600 dark:bg-slate-800">
+            <div className="flex items-center justify-between border-b border-slate-100 px-3 py-1.5 dark:border-slate-700">
+              <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">
+                {accounts.length} conta{accounts.length > 1 ? "s" : ""} disponível{accounts.length > 1 ? "eis" : ""}
+              </p>
+              <button type="button" onClick={() => setShowAccountPicker(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={11} />
+              </button>
+            </div>
+            <div className="max-h-40 overflow-y-auto">
+              {accounts.map((acc) => (
+                <button
+                  key={acc.id}
+                  type="button"
+                  onClick={() => handleSelectAccount(acc)}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition hover:bg-slate-50 dark:hover:bg-slate-700"
+                >
+                  <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${acc.account_status === 1 ? "bg-emerald-500" : "bg-slate-400"}`} />
+                  <span className="flex-1 truncate font-medium text-slate-700 dark:text-slate-300">{acc.name}</span>
+                  <span className="font-mono text-[9px] text-slate-400 dark:text-slate-500">{acc.id}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Campaigns list ── */}
+      {campaignsError && (
+        <div className="flex items-start gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+          <AlertCircle size={11} className="mt-0.5 flex-shrink-0" />
+          <span className="flex-1">{campaignsError}</span>
+          <button type="button" onClick={() => void fetchCampaigns()} className="text-[10px] underline">Tentar novamente</button>
         </div>
       )}
 
-      {state === "done" && campaigns.length === 0 && (
-        <p className="text-[11px] text-slate-400 dark:text-slate-500">Nenhuma campanha ativa/pausada encontrada.</p>
-      )}
-
-      {state === "done" && campaigns.length > 0 && (
+      {!campaignsLoading && campaigns.length > 0 && (
         <div>
           <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            Selecione a campanha ativa
+            Campanhas — clique para adicionar
           </p>
-          <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/40">
-            {campaigns.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onSelect({ id: c.id, name: c.name })}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition hover:bg-white dark:hover:bg-slate-600"
-              >
-                <span
-                  className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${c.status === "ACTIVE" ? "bg-emerald-500" : "bg-amber-400"}`}
-                />
-                <span className="flex-1 truncate font-medium text-slate-700 dark:text-slate-300" title={c.name}>
-                  {c.name}
-                </span>
-                <span className={`flex-shrink-0 text-[9px] ${c.status === "ACTIVE" ? "text-emerald-500" : "text-amber-400"}`}>
-                  {c.status === "ACTIVE" ? "ATIVO" : "PAUSADO"}
-                </span>
-              </button>
-            ))}
+          <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 bg-white dark:border-slate-600 dark:bg-slate-800">
+            {campaigns.map((c) => {
+              const alreadyAdded = alreadyAddedIds.has(c.id);
+              const justAdded    = addedThisSession.has(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => !alreadyAdded && !justAdded && handleAdd(c)}
+                  disabled={alreadyAdded || justAdded}
+                  className={`flex w-full items-center gap-2 border-b border-slate-100 px-3 py-2 text-left text-[11px] last:border-b-0 transition dark:border-slate-700 ${
+                    alreadyAdded || justAdded
+                      ? "cursor-default opacity-60"
+                      : "hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                  }`}
+                >
+                  <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${c.status === "ACTIVE" ? "bg-emerald-500" : "bg-amber-400"}`} />
+                  <span className="flex-1 truncate font-medium text-slate-700 dark:text-slate-300" title={c.name}>{c.name}</span>
+                  {(alreadyAdded || justAdded) ? (
+                    <span className="flex items-center gap-0.5 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                      <CheckCircle2 size={8} /> Adicionada
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[9px] font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+                      + Adicionar
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
-          <button
-            type="button"
-            onClick={() => setState("idle")}
-            className="mt-1 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-          >
-            ↺ Recarregar
-          </button>
+          {addedThisSession.size > 0 && (
+            <p className="mt-1.5 text-[10px] text-emerald-600 dark:text-emerald-400">
+              ✓ {addedThisSession.size} campanha{addedThisSession.size > 1 ? "s adicionadas" : " adicionada"} — feche o painel quando terminar
+            </p>
+          )}
         </div>
+      )}
+
+      {!campaignsLoading && campaigns.length === 0 && !campaignsError && (
+        <p className="text-[11px] text-slate-400 dark:text-slate-500">
+          Digite ou selecione um Ad Account e clique em <strong>Campanhas</strong> para listar.
+        </p>
       )}
     </div>
   );
@@ -326,10 +430,9 @@ function ProfileForm({
           )}
         </div>
 
-        {/* Campaign fetcher — shown once Ad Account is filled */}
+        {/* Campaign picker — shown once Ad Account is filled */}
         {form.adAccountId.trim() && (
           <div className="space-y-2">
-            {/* Already selected campaigns */}
             {form.campaigns.length > 0 && (
               <div className="space-y-1">
                 <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
@@ -338,9 +441,7 @@ function ProfileForm({
                 {form.campaigns.map((c) => (
                   <div key={c.id} className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 dark:border-emerald-800 dark:bg-emerald-900/20">
                     <CheckCircle2 size={11} className="flex-shrink-0 text-emerald-500" />
-                    <span className="flex-1 truncate text-[11px] font-medium text-emerald-800 dark:text-emerald-300" title={c.name}>
-                      {c.name}
-                    </span>
+                    <span className="flex-1 truncate text-[11px] font-medium text-emerald-800 dark:text-emerald-300" title={c.name}>{c.name}</span>
                     <button type="button" onClick={() => handleRemoveCampaign(c.id)}
                       className="text-emerald-400 transition hover:text-red-500 dark:text-emerald-600">
                       <X size={11} />
@@ -349,11 +450,14 @@ function ProfileForm({
                 ))}
               </div>
             )}
-
-            <CampaignFetcher
-              adAccountId={form.adAccountId}
-              onSelect={handleSelectCampaign}
-            />
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-600 dark:bg-slate-700/30">
+              <AddCampaignPanel
+                key={form.adAccountId}
+                defaultAccountId={form.adAccountId}
+                alreadyAddedIds={new Set(form.campaigns.map((c) => c.id))}
+                onAdd={handleSelectCampaign}
+              />
+            </div>
           </div>
         )}
 
@@ -703,7 +807,6 @@ function ProfileDetailView({
   const [dateFrom, setDateFrom]         = useState(daysAgoStr(14));
   const [dateTo, setDateTo]             = useState(todayStr());
   const [showAddPanel, setShowAddPanel] = useState(false);
-  const [addPanelAccountId, setAddPanelAccountId] = useState(profile.adAccountId);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const hasToken = Boolean(loadMetaCredentials().accessToken);
 
@@ -764,7 +867,7 @@ function ProfileDetailView({
   const handleAddCampaign = (camp: ActiveCampaign) => {
     addCampaignToProfile(profile.id, camp);
     setActiveCampId(camp.id);
-    setShowAddPanel(false);
+    // Panel stays open so user can add more campaigns
   };
 
   const handleRemoveCampaign = (campId: string) => {
@@ -880,47 +983,23 @@ function ProfileDetailView({
 
         {/* Add campaign panel */}
         {showAddPanel && (
-          <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-800 dark:bg-blue-900/10">
-            <div className="mb-2 flex items-center justify-between">
+          <div className="mt-3 rounded-lg border border-blue-200 bg-blue-50/40 p-3 dark:border-blue-800 dark:bg-blue-900/10">
+            <div className="mb-3 flex items-center justify-between">
               <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                 Adicionar campanha ao perfil
               </p>
-              <button type="button" onClick={() => { setShowAddPanel(false); setAddPanelAccountId(profile.adAccountId); }}
+              <button type="button" onClick={() => setShowAddPanel(false)}
                 className="text-slate-400 hover:text-slate-600 dark:text-slate-500">
                 <X size={13} />
               </button>
             </div>
-            {!hasToken ? (
-              <p className="flex items-center gap-1 text-[11px] text-amber-600 dark:text-amber-400">
-                <Key size={11} /> Configure o Access Token em Importar dados → Meta Ads.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <div>
-                  <p className="mb-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">Ad Account ID</p>
-                  <input
-                    type="text"
-                    value={addPanelAccountId}
-                    onChange={(e) => setAddPanelAccountId(e.target.value)}
-                    placeholder="act_524658353530105"
-                    className="h-8 w-full rounded-md border border-slate-200 bg-white px-2.5 text-xs text-slate-800 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                  />
-                  {addPanelAccountId !== profile.adAccountId && (
-                    <button
-                      type="button"
-                      onClick={() => setAddPanelAccountId(profile.adAccountId)}
-                      className="mt-1 text-[10px] text-slate-400 underline hover:text-slate-600 dark:text-slate-500"
-                    >
-                      ↺ Usar conta do perfil ({profile.adAccountId})
-                    </button>
-                  )}
-                </div>
-                <CampaignFetcher
-                  adAccountId={addPanelAccountId}
-                  onSelect={handleAddCampaign}
-                />
-              </div>
-            )}
+            <AddCampaignPanel
+              key={profile.id}
+              defaultAccountId={profile.adAccountId}
+              alreadyAddedIds={new Set(profile.campaigns.map((c) => c.id))}
+              onAdd={handleAddCampaign}
+              onClose={() => setShowAddPanel(false)}
+            />
           </div>
         )}
       </div>
