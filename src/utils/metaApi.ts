@@ -120,6 +120,30 @@ export async function fetchMetaInsights(
   return (await res.json()) as MetaInsight[];
 }
 
+// ─── Creatives ────────────────────────────────────────────────────────────────
+
+export interface MetaCampaignCreative {
+  campaignId:   string;
+  campaignName: string;
+  thumbnailUrl: string;
+  adLink:       string;
+}
+
+/**
+ * Fetches one creative (thumbnail + link) per campaign for the given ad account.
+ * Proxied through /api/meta/creatives to avoid CORS.
+ */
+export async function fetchMetaCreatives(
+  adAccountId: string,
+  accessToken: string,
+): Promise<MetaCampaignCreative[]> {
+  if (!adAccountId || !accessToken) return [];
+  const res  = await fetch(`/api/meta/creatives?${new URLSearchParams({ adAccountId, accessToken })}`);
+  const body = await res.json() as MetaCampaignCreative[] | { error: string };
+  if (!res.ok) throw new Error((body as { error: string }).error ?? `Meta API error ${res.status}`);
+  return body as MetaCampaignCreative[];
+}
+
 // ─── Transformation ──────────────────────────────────────────────────────────
 
 /** Finds the numeric value of a specific action_type in a Meta actions array. */
