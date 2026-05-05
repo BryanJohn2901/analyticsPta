@@ -15,6 +15,14 @@ export interface CampaignSummary {
   status: string;
 }
 
+export type GroupSection = "pos" | "livros" | "ebooks" | "perpetuo" | "eventos";
+
+export interface CustomGroup {
+  id: string;
+  label: string;
+  section: GroupSection;
+}
+
 interface StoreState {
   activeCampaigns: Record<string, boolean>;
   selectedGroup: string;
@@ -23,7 +31,9 @@ interface StoreState {
   selectedCategory: ProductCategory | null;
   campaignsByGroup: Record<string, CampaignSummary[]>;
   selectedCampaign: string;
+  selectedCampaignsByGroup: Record<string, string[]>;
   enabledSections: ProductCategory[];
+  customGroups: CustomGroup[];
 }
 
 const ALL_SECTIONS: ProductCategory[] = ["pos", "livros", "ebooks", "perpetuo", "eventos"];
@@ -36,7 +46,9 @@ const DEFAULT_STATE: StoreState = {
   selectedCategory: null,
   campaignsByGroup: {},
   selectedCampaign: "all",
+  selectedCampaignsByGroup: {},
   enabledSections: ALL_SECTIONS,
+  customGroups: [],
 };
 
 function loadStore(): StoreState {
@@ -145,6 +157,50 @@ export function useCampaignStore() {
     });
   }, []);
 
+  const addCustomGroup = useCallback((group: CustomGroup) => {
+    setState((prev) => {
+      if (prev.customGroups.some((g) => g.id === group.id)) return prev;
+      const next = { ...prev, customGroups: [...prev.customGroups, group] };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const removeCustomGroup = useCallback((id: string) => {
+    setState((prev) => {
+      const next = {
+        ...prev,
+        customGroups: prev.customGroups.filter((g) => g.id !== id),
+        campaignConfigs: Object.fromEntries(
+          Object.entries(prev.campaignConfigs).filter(([k]) => k !== id),
+        ),
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const setCampaignSelectionForGroup = useCallback((groupId: string, ids: string[]) => {
+    setState((prev) => {
+      const next = {
+        ...prev,
+        selectedCampaignsByGroup: { ...prev.selectedCampaignsByGroup, [groupId]: ids },
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const clearCampaignSelectionForGroup = useCallback((groupId: string) => {
+    setState((prev) => {
+      const newMap = { ...prev.selectedCampaignsByGroup };
+      delete newMap[groupId];
+      const next = { ...prev, selectedCampaignsByGroup: newMap };
+      persist(next);
+      return next;
+    });
+  }, []);
+
   return {
     selectedGroup: state.selectedGroup,
     selectedTurma: state.selectedTurma,
@@ -154,6 +210,7 @@ export function useCampaignStore() {
     campaignsByGroup: state.campaignsByGroup,
     selectedCampaign: state.selectedCampaign,
     enabledSections: state.enabledSections,
+    customGroups: state.customGroups,
     setSelectedGroup,
     setSelectedTurma,
     toggleActive,
@@ -162,5 +219,10 @@ export function useCampaignStore() {
     setCampaignsForGroup,
     setSelectedCampaign,
     setEnabledSections,
+    addCustomGroup,
+    removeCustomGroup,
+    selectedCampaignsByGroup: state.selectedCampaignsByGroup,
+    setCampaignSelectionForGroup,
+    clearCampaignSelectionForGroup,
   };
 }

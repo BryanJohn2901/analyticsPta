@@ -105,7 +105,7 @@ export const CATEGORY_CONFIGS: CategoryConfig[] = [
     label: "Eventos",
     description: "Eventos presenciais, mentorias e imersões",
     icon: CalendarDays,
-    tags: ["BS", "Mentoria Scala", "Next", "Power Trainer"],
+    tags: ["Biomechanic Specialist", "Mentoria Scala", "Next", "Power Trainer"],
     vars: {
       bg:          "var(--dm-cat-eventos-bg)",
       border:      "var(--dm-cat-eventos-border)",

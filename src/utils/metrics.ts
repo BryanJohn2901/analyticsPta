@@ -61,8 +61,9 @@ export const aggregateTotals = (campaigns: CampaignData[]): DashboardTotals => {
   const roi = (roas - 1) * 100;
   const averageCpa = safeDivide(totals.totalInvestment, totals.totalConversions);
   const averageCtr = safeDivide(totals.totalClicks, totals.totalImpressions) * 100;
-  const averageConversionRate =
-    safeDivide(totals.totalConversions, totals.totalClicks) * 100;
+  const averageConversionRate = safeDivide(totals.totalConversions, totals.totalClicks) * 100;
+  const averageCpc = safeDivide(totals.totalInvestment, totals.totalClicks);
+  const averageCpm = safeDivide(totals.totalInvestment, totals.totalImpressions) * 1000;
 
   return {
     ...totals,
@@ -71,6 +72,8 @@ export const aggregateTotals = (campaigns: CampaignData[]): DashboardTotals => {
     averageCpa,
     averageCtr,
     averageConversionRate,
+    averageCpc,
+    averageCpm,
   };
 };
 

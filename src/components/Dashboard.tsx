@@ -1,16 +1,16 @@
 "use client";
 
-import { FormEvent, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity, BadgeDollarSign, BarChart2, BookMarked, BookOpen, CalendarDays,
   CheckCircle2, ChevronDown, ChevronUp, CircleDollarSign, Dumbbell, FileText,
-  FileUp, Filter, ImageIcon, Link2, Loader2, Menu, Moon, Package, Plus, Repeat,
-  SlidersHorizontal, Sun, Target, TrendingUp, Trophy, Upload, Users, Wallet,
-  X, XCircle, Zap,
+  FileUp, Filter, Flag, GraduationCap, Home, ImageIcon, Link2, Loader2, Menu, Moon,
+  MousePointerClick, Package, Plus, Repeat, RotateCcw, SlidersHorizontal, Sun,
+  Target, TrendingUp, Trophy, Upload, Users, Wallet, X, XCircle, Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { CampaignData, ProductCategory } from "@/types/campaign";
-import { CampaignConfig, CampaignSummary, useCampaignStore } from "@/hooks/useCampaignStore";
+import { CampaignConfig, CampaignSummary, CustomGroup, GroupSection, useCampaignStore } from "@/hooks/useCampaignStore";
 import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
 import {
   fetchMetaAdAccounts, fetchMetaCampaigns, loadMetaCredentials, saveMetaCredentials,
@@ -22,8 +22,10 @@ import {
   buildCampaignComparison, buildDailyTrend, formatCurrency, formatNumber, formatPercent,
 } from "@/utils/metrics";
 import { KpiCard } from "@/components/KpiCard";
+import { FunnelCard } from "@/components/FunnelCard";
 import { ChartsSection } from "@/components/charts/ChartsSection";
 import { CampaignTable } from "@/components/CampaignTable";
+import { useGoalsStore, type Goals } from "@/hooks/useGoalsStore";
 import { CampaignAnalysis } from "@/components/CampaignAnalysis";
 import { HistoricalView } from "@/components/HistoricalView";
 import { BestCreatives } from "@/components/BestCreatives";
@@ -50,6 +52,17 @@ interface DashboardProps {
 
 type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles" | "products";
 
+type SortBy = "date-desc" | "date-asc" | "invest-desc" | "invest-asc" | "roas-desc" | "ctr-desc";
+
+const SORT_LABELS: Record<SortBy, string> = {
+  "date-desc":   "Mais recente",
+  "date-asc":    "Mais antigo",
+  "invest-desc": "Maior investimento",
+  "invest-asc":  "Menor investimento",
+  "roas-desc":   "Maior ROAS",
+  "ctr-desc":    "Maior CTR",
+};
+
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
 const MAIN_TABS: Array<{ id: MainTab; label: string; shortLabel: string; icon: React.ElementType }> = [
@@ -62,16 +75,6 @@ const MAIN_TABS: Array<{ id: MainTab; label: string; shortLabel: string; icon: R
 ];
 
 // ─── Campaign groups ──────────────────────────────────────────────────────────
-
-type GroupSection = "pos" | "livros" | "ebooks" | "perpetuo" | "eventos";
-
-const SECTION_LABELS: Record<GroupSection, string> = {
-  pos:      "Pós Graduação",
-  livros:   "Livros",
-  ebooks:   "Ebooks",
-  perpetuo: "Perpétuo",
-  eventos:  "Eventos",
-};
 
 interface GroupConfig {
   id: string; label: string; icon: React.ElementType;
@@ -98,11 +101,28 @@ const CAMPAIGN_GROUPS: GroupConfig[] = [
   // ── Perpétuo ───────────────────────────────────────────────────────────────
   { section: "perpetuo", id: "perpetuo",     label: "Notável Play",           icon: Repeat,      iconBg: "bg-amber-100",   iconColor: "text-amber-600",   activeDot: "bg-amber-500",   activePulse: "bg-amber-400",   selectedBg: "bg-amber-50",   selectedText: "text-amber-700",   selectedBorder: "border-amber-200" },
   // ── Eventos ────────────────────────────────────────────────────────────────
-  { section: "eventos",  id: "bs",           label: "BS (Biomechanic Spec.)", icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
+  { section: "eventos",  id: "bs",           label: "Biomechanic Specialist", icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
   { section: "eventos",  id: "mentoria",     label: "Mentoria Scala",         icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
   { section: "eventos",  id: "next",         label: "Next",                   icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
   { section: "eventos",  id: "powertrainer", label: "Power Trainer",          icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
 ];
+
+// Default styles for custom-created groups (keyed by section)
+const SECTION_DEFAULTS: Record<GroupSection, Omit<GroupConfig, "id" | "label" | "section">> = {
+  pos:      { icon: GraduationCap, iconBg: "bg-blue-100",   iconColor: "text-blue-600",   activeDot: "bg-blue-500",   activePulse: "bg-blue-400",   selectedBg: "bg-blue-50",   selectedText: "text-blue-700",   selectedBorder: "border-blue-200" },
+  livros:   { icon: BookMarked,    iconBg: "bg-green-100",  iconColor: "text-green-600",  activeDot: "bg-green-500",  activePulse: "bg-green-400",  selectedBg: "bg-green-50",  selectedText: "text-green-700",  selectedBorder: "border-green-200" },
+  ebooks:   { icon: FileText,      iconBg: "bg-violet-100", iconColor: "text-violet-600", activeDot: "bg-violet-500", activePulse: "bg-violet-400", selectedBg: "bg-violet-50", selectedText: "text-violet-700", selectedBorder: "border-violet-200" },
+  perpetuo: { icon: Repeat,        iconBg: "bg-amber-100",  iconColor: "text-amber-600",  activeDot: "bg-amber-500",  activePulse: "bg-amber-400",  selectedBg: "bg-amber-50",  selectedText: "text-amber-700",  selectedBorder: "border-amber-200" },
+  eventos:  { icon: CalendarDays,  iconBg: "bg-rose-100",   iconColor: "text-rose-600",   activeDot: "bg-rose-500",   activePulse: "bg-rose-400",   selectedBg: "bg-rose-50",   selectedText: "text-rose-700",   selectedBorder: "border-rose-200" },
+};
+
+const SECTION_LABELS: Record<GroupSection, string> = {
+  pos:      "Pós Graduação",
+  livros:   "Livros",
+  ebooks:   "Ebooks",
+  perpetuo: "Perpétuo",
+  eventos:  "Eventos",
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -115,6 +135,104 @@ const getSubLaunchCode = (name: string): string => {
   if (!match?.[1]) return "";
   return match[1].replace(/[\s-]/g, "").toUpperCase();
 };
+
+// ─── Goals Panel ─────────────────────────────────────────────────────────────
+
+interface GoalField {
+  key: keyof Goals;
+  label: string;
+  placeholder: string;
+  prefix?: string;
+  suffix?: string;
+}
+
+const GOAL_FIELDS: GoalField[] = [
+  { key: "ctr",         label: "CTR",         placeholder: "Ex: 2.0",  suffix: "%" },
+  { key: "roas",        label: "ROAS",        placeholder: "Ex: 3.0",  suffix: "x" },
+  { key: "roi",         label: "ROI",         placeholder: "Ex: 200",  suffix: "%" },
+  { key: "cpa",         label: "CPA",         placeholder: "Ex: 50",   prefix: "R$" },
+  { key: "cpc",         label: "CPC",         placeholder: "Ex: 1.50", prefix: "R$" },
+  { key: "cpm",         label: "CPM",         placeholder: "Ex: 15",   prefix: "R$" },
+  { key: "conversions", label: "Conversões",  placeholder: "Ex: 100"  },
+  { key: "investment",  label: "Orçamento",   placeholder: "Ex: 5000", prefix: "R$" },
+];
+
+function GoalsPanel({
+  goals, groupLabel, onSetGoal, onReset, onClose,
+}: {
+  goals: Goals;
+  groupLabel: string;
+  onSetGoal: <K extends keyof Goals>(key: K, value: Goals[K]) => void;
+  onReset: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="fixed inset-0 z-40" onClick={onClose} />
+      <div className="absolute right-0 top-full z-50 mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <Flag size={14} className="text-brand" />
+              <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Metas de Performance</p>
+            </div>
+            <p className="pl-[22px] text-[10px] text-slate-400 dark:text-slate-500">
+              {groupLabel}
+            </p>
+          </div>
+          <button onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700">
+            <X size={14} />
+          </button>
+        </div>
+
+        <div className="p-5">
+          <p className="mb-4 text-[11px] text-slate-400 dark:text-slate-500">
+            Defina metas para cada métrica. Os KPIs mostrarão progresso em tempo real.
+          </p>
+          <div className="space-y-3">
+            {GOAL_FIELDS.map(({ key, label, placeholder, prefix, suffix }) => (
+              <div key={key} className="flex items-center gap-3">
+                <span className="w-24 flex-shrink-0 text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span>
+                <div className="relative flex-1">
+                  {prefix && (
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">{prefix}</span>
+                  )}
+                  <input
+                    type="number"
+                    min={0}
+                    step="any"
+                    value={goals[key] ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value === "" ? null : Number(e.target.value);
+                      onSetGoal(key, v as Goals[typeof key]);
+                    }}
+                    placeholder={placeholder}
+                    className={`h-8 w-full rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-400 ${prefix ? "pl-7 pr-3" : suffix ? "pl-3 pr-7" : "px-3"}`}
+                  />
+                  {suffix && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">{suffix}</span>
+                  )}
+                </div>
+                {goals[key] != null && (
+                  <button type="button" onClick={() => onSetGoal(key, null as Goals[typeof key])}
+                    className="flex-shrink-0 text-slate-300 transition hover:text-red-400 dark:text-slate-600">
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <button type="button" onClick={onReset}
+            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-[11px] font-semibold text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-500 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-red-900/20 dark:hover:text-red-400">
+            <RotateCcw size={11} /> Limpar todas as metas
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
 
 // ─── Theme Toggle ─────────────────────────────────────────────────────────────
 
@@ -192,6 +310,11 @@ interface ImportPopoverProps {
   onSaveCampaignConfig: (group: string, config: CampaignConfig) => void;
   onClose: () => void;
   onCampaignsVerified: (groupId: string, campaigns: CampaignSummary[]) => void;
+  savedCampaignsByGroup: Record<string, CampaignSummary[]>;
+  savedSelectedCampaigns: Record<string, string[]>;
+  onSaveCampaignSelection: (groupId: string, ids: string[]) => void;
+  customGroups: CustomGroup[];
+  onAddCustomGroup: (group: CustomGroup) => void;
 }
 
 // ─── Account row (dynamic "add what you need" UX) ─────────────────────────────
@@ -199,7 +322,8 @@ interface AccountRow { rowId: string; groupId: string; accountId: string }
 
 function ImportPopover({
   onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
-  onCampaignsVerified,
+  onCampaignsVerified, savedCampaignsByGroup, savedSelectedCampaigns, onSaveCampaignSelection,
+  customGroups, onAddCustomGroup,
 }: ImportPopoverProps) {
   const [tab, setTab]                     = useState<ImportTab>("sheets");
   const [url, setUrl]                     = useState("");
@@ -227,11 +351,51 @@ function ImportPopover({
   const [metaImportError, setMetaImportError] = useState<string | null>(null);
   const fileRef                           = useRef<HTMLInputElement>(null);
 
+  // ── All groups (static + custom) ────────────────────────────────────────────
+  const allGroupsInPopover = useMemo<GroupConfig[]>(() => [
+    ...CAMPAIGN_GROUPS,
+    ...customGroups.map((cg): GroupConfig => ({
+      ...SECTION_DEFAULTS[cg.section as GroupSection],
+      id: cg.id,
+      label: cg.label,
+      section: cg.section as GroupSection,
+    })),
+  ], [customGroups]);
+
+  // ── Add-campaign multi-step wizard ──────────────────────────────────────────
+  type WizardStep = "idle" | "section" | "group" | "new-name";
+  const [wizardStep, setWizardStep]         = useState<WizardStep>("idle");
+  const [wizardSection, setWizardSection]   = useState<GroupSection | null>(null);
+  const [wizardNewName, setWizardNewName]   = useState("");
+
+  const wizardGroupsForSection = useMemo(
+    () => allGroupsInPopover.filter((g) => g.section === wizardSection),
+    [allGroupsInPopover, wizardSection],
+  );
+
+  const usedGroupIds = new Set(accountRows.map((r) => r.groupId));
+
+  const handleWizardSelectGroup = (groupId: string) => {
+    setAccountRows((p) => [...p, { rowId: `row-${Date.now()}`, groupId, accountId: "" }]);
+    setWizardStep("idle"); setWizardSection(null); setWizardNewName("");
+  };
+
+  const handleWizardCreateNew = () => {
+    const name = wizardNewName.trim();
+    if (!name || !wizardSection) return;
+    const id = `custom-${wizardSection}-${Date.now()}`;
+    onAddCustomGroup({ id, label: name, section: wizardSection });
+    setAccountRows((p) => [...p, { rowId: `row-${Date.now()}`, groupId: id, accountId: "" }]);
+    setWizardStep("idle"); setWizardSection(null); setWizardNewName("");
+  };
+
+  const cancelWizard = () => { setWizardStep("idle"); setWizardSection(null); setWizardNewName(""); };
+
   // ── Campaign picker state ────────────────────────────────────────────────────
   // campaigns fetched per ad-account ID (shared across groups using the same account)
   const [campaignsByAccount, setCampaignsByAccount] = useState<Record<string, MetaCampaign[]>>({});
-  // per-group: which campaign IDs are selected (undefined → all)
-  const [selectedCampaigns, setSelectedCampaigns]   = useState<Record<string, string[]>>({});
+  // per-group: which campaign IDs are selected — init from persisted store
+  const [selectedCampaigns, setSelectedCampaigns]   = useState<Record<string, string[]>>(() => ({ ...savedSelectedCampaigns }));
   // per-group: expand/collapse campaign list
   const [expandedGroup, setExpandedGroup]           = useState<string | null>(null);
   // per-group: loading / ok / error status for verification
@@ -334,11 +498,14 @@ function ImportPopover({
     try {
       const campaigns = await fetchMetaCampaigns(accountId, accessToken);
       setCampaignsByAccount((p) => ({ ...p, [accountId]: campaigns }));
-      // Default: all campaigns selected
-      setSelectedCampaigns((p) => ({
-        ...p,
-        [groupId]: campaigns.map((c) => c.id),
-      }));
+      // Restore previous selection if it exists; otherwise default to all selected
+      setSelectedCampaigns((p) => {
+        const existing = savedSelectedCampaigns[groupId];
+        return {
+          ...p,
+          [groupId]: existing?.length ? existing : campaigns.map((c) => c.id),
+        };
+      });
       setVerifyStatus((p) => ({ ...p, [groupId]: "ok" }));
       if (campaigns.length === 0) {
         setVerifyError((p) => ({ ...p, [groupId]: "Nenhuma campanha ativa/pausada encontrada." }));
@@ -398,30 +565,28 @@ function ImportPopover({
   };
 
   /** Add a new empty row using the first unconfigured group. */
-  const handleAddRow = () => {
+  const handleAddRow = (forcedGroupId?: string) => {
     const usedIds = new Set(accountRows.map((r) => r.groupId));
-    const next = CAMPAIGN_GROUPS.find((g) => !usedIds.has(g.id));
-    if (!next) return;
-    setAccountRows((p) => [...p, { rowId: `row-${Date.now()}`, groupId: next.id, accountId: "" }]);
+    const targetId = forcedGroupId ?? allGroupsInPopover.find((g) => !usedIds.has(g.id))?.id;
+    if (!targetId) return;
+    setAccountRows((p) => [...p, { rowId: `row-${Date.now()}`, groupId: targetId, accountId: "" }]);
   };
 
   /** Toggle a single campaign selection within a group. */
-  const handleToggleCampaign = (groupId: string, campaignId: string, allForAccount: MetaCampaign[]) => {
-    setSelectedCampaigns((p) => {
-      const current = p[groupId] ?? allForAccount.map((c) => c.id);
-      const next    = current.includes(campaignId)
-        ? current.filter((id) => id !== campaignId)
-        : [...current, campaignId];
-      return { ...p, [groupId]: next };
-    });
+  const handleToggleCampaign = (groupId: string, campaignId: string, allForAccount: Array<{ id: string }>) => {
+    const current = selectedCampaigns[groupId] ?? allForAccount.map((c) => c.id);
+    const next    = current.includes(campaignId)
+      ? current.filter((id) => id !== campaignId)
+      : [...current, campaignId];
+    setSelectedCampaigns((p) => ({ ...p, [groupId]: next }));
+    onSaveCampaignSelection(groupId, next);
   };
 
   /** Select or deselect all campaigns for a group. */
-  const handleSelectAllCampaigns = (groupId: string, allForAccount: MetaCampaign[], selectAll: boolean) => {
-    setSelectedCampaigns((p) => ({
-      ...p,
-      [groupId]: selectAll ? allForAccount.map((c) => c.id) : [],
-    }));
+  const handleSelectAllCampaigns = (groupId: string, allForAccount: Array<{ id: string }>, selectAll: boolean) => {
+    const next = selectAll ? allForAccount.map((c) => c.id) : [];
+    setSelectedCampaigns((p) => ({ ...p, [groupId]: next }));
+    onSaveCampaignSelection(groupId, next);
   };
 
   const tabCls = (t: ImportTab) =>
@@ -625,11 +790,15 @@ function ImportPopover({
               {accountRows.length > 0 && (
                 <div className="overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
                   {accountRows.map((row) => {
-                    const g          = CAMPAIGN_GROUPS.find((x) => x.id === row.groupId)!;
+                    const g          = allGroupsInPopover.find((x) => x.id === row.groupId) ?? CAMPAIGN_GROUPS[0];
                     const accountId  = row.accountId.trim();
-                    const campaigns  = accountId ? (campaignsByAccount[accountId] ?? []) : [];
+                    // Use live-fetched campaigns first; fall back to saved data from previous session
+                    const liveCampaigns  = accountId ? (campaignsByAccount[accountId] ?? []) : [];
+                    const savedCamps     = savedCampaignsByGroup[row.groupId] ?? [];
+                    const campaigns: (MetaCampaign | CampaignSummary)[] = liveCampaigns.length > 0 ? liveCampaigns : savedCamps;
+                    const isRestored = liveCampaigns.length === 0 && savedCamps.length > 0;
                     const isExpanded = expandedGroup === row.groupId;
-                    const status     = verifyStatus[row.groupId] ?? "idle";
+                    const status     = isRestored && verifyStatus[row.groupId] === undefined ? "ok" : (verifyStatus[row.groupId] ?? "idle");
                     const errMsg     = verifyError[row.groupId];
                     const selected   = selectedCampaigns[row.groupId] ?? campaigns.map((c) => c.id);
                     const allSelected = selected.length === campaigns.length;
@@ -647,7 +816,7 @@ function ImportPopover({
                           >
                             {(["pos","livros","ebooks","perpetuo","eventos"] as GroupSection[]).map((sec) => (
                               <optgroup key={sec} label={SECTION_LABELS[sec]}>
-                                {CAMPAIGN_GROUPS.filter((grp) => grp.section === sec).map((grp) => {
+                                {allGroupsInPopover.filter((grp) => grp.section === sec).map((grp) => {
                                   const usedByOther = accountRows.some((r) => r.rowId !== row.rowId && r.groupId === grp.id);
                                   return (
                                     <option key={grp.id} value={grp.id} disabled={usedByOther}>
@@ -690,8 +859,12 @@ function ImportPopover({
                             <button
                               type="button"
                               onClick={() => void handleVerifyGroup(row.groupId)}
-                              title={`${campaigns.length} campanhas — clique para ${isExpanded ? "fechar" : "filtrar"}`}
-                              className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold text-emerald-600 transition hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              title={`${campaigns.length} campanhas${isRestored ? " (salvas)" : ""} — clique para ${isExpanded ? "fechar" : "filtrar"}`}
+                              className={`flex flex-shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold transition ${
+                                isRestored
+                                  ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400"
+                                  : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400"
+                              }`}
                             >
                               <CheckCircle2 size={10} />
                               {selected.length}/{campaigns.length}
@@ -773,15 +946,103 @@ function ImportPopover({
                 </div>
               )}
 
-              {/* Add row button */}
-              {accountRows.length < CAMPAIGN_GROUPS.length && (
-                <button
-                  type="button"
-                  onClick={handleAddRow}
-                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-200 py-2.5 text-[11px] font-semibold text-slate-500 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:bg-blue-900/10 dark:hover:text-blue-400"
-                >
+              {/* Add campaign — multi-step wizard */}
+              {accountRows.length < allGroupsInPopover.length && wizardStep === "idle" && (
+                <button type="button" onClick={() => setWizardStep("section")}
+                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-200 py-2.5 text-[11px] font-semibold text-slate-500 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:bg-blue-900/10 dark:hover:text-blue-400">
                   <Plus size={13} /> Adicionar campanha
                 </button>
+              )}
+
+              {/* Step 1 — choose section */}
+              {wizardStep === "section" && (
+                <div className="mt-2 overflow-hidden rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-800 dark:bg-blue-900/10">
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    Tipo de produto:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(["pos","livros","ebooks","perpetuo","eventos"] as GroupSection[]).map((sec) => (
+                      <button key={sec} type="button" onClick={() => { setWizardSection(sec); setWizardStep("group"); }}
+                        className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:border-blue-400 hover:bg-blue-50 dark:border-blue-700 dark:bg-slate-700 dark:text-blue-300 dark:hover:bg-slate-600">
+                        {SECTION_LABELS[sec]}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={cancelWizard}
+                    className="mt-2 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
+                    ✕ Cancelar
+                  </button>
+                </div>
+              )}
+
+              {/* Step 2 — choose existing or create new */}
+              {wizardStep === "group" && wizardSection && (
+                <div className="mt-2 overflow-hidden rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-800 dark:bg-blue-900/10">
+                  <button type="button" onClick={() => setWizardStep("section")}
+                    className="mb-2 flex items-center gap-1 text-[10px] text-blue-500 hover:text-blue-700 dark:text-blue-400">
+                    ← {SECTION_LABELS[wizardSection]}
+                  </button>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                    Selecione ou crie:
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {wizardGroupsForSection.map((g) => {
+                      const isUsed = usedGroupIds.has(g.id);
+                      return (
+                        <button key={g.id} type="button" disabled={isUsed}
+                          onClick={() => handleWizardSelectGroup(g.id)}
+                          className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                            isUsed
+                              ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-700 dark:text-slate-600"
+                              : "border-blue-200 bg-white text-blue-700 hover:border-blue-400 hover:bg-blue-50 dark:border-blue-700 dark:bg-slate-700 dark:text-blue-300"
+                          }`}>
+                          {g.label}{isUsed ? " ✓" : ""}
+                        </button>
+                      );
+                    })}
+                    <button type="button" onClick={() => setWizardStep("new-name")}
+                      className="rounded-lg border border-dashed border-emerald-400 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+                      <Plus size={10} className="mr-0.5 inline" /> Criar novo
+                    </button>
+                  </div>
+                  <button type="button" onClick={cancelWizard}
+                    className="mt-2 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
+                    ✕ Cancelar
+                  </button>
+                </div>
+              )}
+
+              {/* Step 3 — new name input */}
+              {wizardStep === "new-name" && wizardSection && (
+                <div className="mt-2 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-800 dark:bg-emerald-900/10">
+                  <button type="button" onClick={() => setWizardStep("group")}
+                    className="mb-2 flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-800 dark:text-emerald-400">
+                    ← {SECTION_LABELS[wizardSection]}
+                  </button>
+                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                    Nome do novo produto:
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={wizardNewName}
+                      onChange={(e) => setWizardNewName(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleWizardCreateNew()}
+                      placeholder={`Ex: Pós em ${SECTION_LABELS[wizardSection]}…`}
+                      autoFocus
+                      className="h-8 flex-1 rounded-lg border border-emerald-200 bg-white px-2 text-xs text-slate-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:border-emerald-700 dark:bg-slate-700 dark:text-slate-200"
+                    />
+                    <button type="button" onClick={handleWizardCreateNew}
+                      disabled={!wizardNewName.trim()}
+                      className="flex h-8 items-center gap-1 rounded-lg bg-emerald-600 px-3 text-[11px] font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50">
+                      Criar
+                    </button>
+                  </div>
+                  <button type="button" onClick={cancelWizard}
+                    className="mt-2 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
+                    ✕ Cancelar
+                  </button>
+                </div>
               )}
             </div>
 
@@ -835,6 +1096,8 @@ interface CampaignPanelProps {
   groups: GroupConfig[];
   selectedCampaign: string;
   campaignsByGroup: Record<string, CampaignSummary[]>;
+  checkedCampaignIds: string[];
+  sortBy: SortBy;
   onSelectGroup: (id: string) => void;
   onSelectTurma: (t: string) => void;
   onSelectCampaign: (id: string) => void;
@@ -843,17 +1106,39 @@ interface CampaignPanelProps {
   onDateTo: (v: string) => void;
   onSearch: (v: string) => void;
   onClearFilters: () => void;
+  onSortBy: (v: SortBy) => void;
+  onCheckedCampaignIds: (ids: string[]) => void;
+  onClearCampaignFilter: () => void;
+  isFilterExplicit: boolean;
   hasActiveFilters: boolean;
 }
 
 function CampaignPanel({
   selectedGroup, selectedTurma, activeCampaigns, turmasByGroup,
   dateFrom, dateTo, searchCampaign, showCourseGroups,
-  groups, selectedCampaign, campaignsByGroup,
+  groups, selectedCampaign, campaignsByGroup, checkedCampaignIds, sortBy,
   onSelectGroup, onSelectTurma, onSelectCampaign, onToggleActive,
-  onDateFrom, onDateTo, onSearch, onClearFilters, hasActiveFilters,
+  onDateFrom, onDateTo, onSearch, onClearFilters, onSortBy, onCheckedCampaignIds,
+  onClearCampaignFilter, isFilterExplicit, hasActiveFilters,
 }: CampaignPanelProps) {
   const activeCount = Object.values(activeCampaigns).filter(Boolean).length;
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [campSearch, setCampSearch] = useState("");
+
+  // Flatten all campaign names across all groups for search suggestions
+  const allCampaignNames = useMemo(() => {
+    const seen = new Set<string>();
+    Object.values(campaignsByGroup).forEach((camps) =>
+      camps.forEach((c) => seen.add(c.name)),
+    );
+    return Array.from(seen).sort();
+  }, [campaignsByGroup]);
+
+  const searchSuggestions = useMemo(() => {
+    if (!searchCampaign || searchCampaign.length < 2) return [];
+    const q = searchCampaign.toLowerCase();
+    return allCampaignNames.filter((n) => n.toLowerCase().includes(q)).slice(0, 7);
+  }, [searchCampaign, allCampaignNames]);
 
   return (
     <div className="flex h-full flex-col">
@@ -970,39 +1255,105 @@ function CampaignPanel({
                     )}
                   </div>
 
-                  {/* Campaign selector — shown when a group is selected and campaigns are known */}
-                  {(campaignsByGroup[group.id] ?? []).length > 0 && (
-                    <div className="ml-[38px] mt-2 border-t border-slate-100 pt-2 dark:border-slate-700">
-                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Campanha</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        <button
-                          onClick={() => onSelectCampaign("all")}
-                          className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
-                            selectedCampaign === "all"
-                              ? "bg-brand text-white shadow-sm"
-                              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                          }`}
-                        >
-                          Todas
-                        </button>
-                        {(campaignsByGroup[group.id] ?? []).map((camp) => (
-                          <button
-                            key={camp.id}
-                            onClick={() => onSelectCampaign(camp.id)}
-                            title={camp.name}
-                            className={`max-w-[160px] truncate rounded-md px-2 py-1 text-[11px] font-semibold transition ${
-                              selectedCampaign === camp.id
-                                ? "bg-brand text-white shadow-sm"
-                                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                            }`}
-                          >
-                            {camp.status !== "ACTIVE" && <span className="mr-1 text-amber-400">◐</span>}
-                            {camp.name.length > 22 ? camp.name.slice(0, 22) + "…" : camp.name}
-                          </button>
-                        ))}
+                  {/* Campaign selector — checkbox list with search */}
+                  {(campaignsByGroup[group.id] ?? []).length > 0 && (() => {
+                    const camps = campaignsByGroup[group.id] ?? [];
+                    const allIds = camps.map((c) => c.id);
+                    const visibleCamps = campSearch
+                      ? camps.filter((c) => c.name.toLowerCase().includes(campSearch.toLowerCase()))
+                      : camps;
+                    // isFilterExplicit = key exists in store (even if empty = deselect-all)
+                    const activeChecked = isFilterExplicit ? checkedCampaignIds.length : allIds.length;
+                    const allExplicit = isFilterExplicit && checkedCampaignIds.length === allIds.length;
+                    const noneExplicit = isFilterExplicit && checkedCampaignIds.length === 0;
+                    return (
+                      <div className="ml-[38px] mt-2 border-t border-slate-100 pt-2 dark:border-slate-700">
+                        {/* Header row */}
+                        <div className="mb-1.5 flex items-center justify-between">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                            Campanha{" "}
+                            <span className={`rounded px-1 text-[9px] font-bold ${isFilterExplicit ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"}`}>
+                              {activeChecked}/{allIds.length}
+                            </span>
+                          </p>
+                          <div className="flex items-center gap-1.5">
+                            {isFilterExplicit ? (
+                              <>
+                                {!allExplicit && (
+                                  <button type="button" onClick={() => onCheckedCampaignIds([...allIds])}
+                                    className="text-[9px] font-semibold text-blue-500 transition hover:text-blue-700 dark:text-blue-400">
+                                    Sel. tudo
+                                  </button>
+                                )}
+                                {!noneExplicit && (
+                                  <button type="button" onClick={() => onCheckedCampaignIds([])}
+                                    className="text-[9px] font-semibold text-slate-400 transition hover:text-red-500 dark:text-slate-500 dark:hover:text-red-400">
+                                    Desmarcar
+                                  </button>
+                                )}
+                                <button type="button" onClick={onClearCampaignFilter}
+                                  className="text-[9px] font-semibold text-slate-300 transition hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400">
+                                  Limpar
+                                </button>
+                              </>
+                            ) : (
+                              <button type="button" onClick={() => onCheckedCampaignIds([...allIds])}
+                                className="text-[9px] font-semibold text-slate-400 transition hover:text-blue-500 dark:text-slate-500 dark:hover:text-blue-400">
+                                Filtrar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {/* Search inside campaign list */}
+                        <div className="relative mb-1.5">
+                          <input
+                            type="text"
+                            value={campSearch}
+                            onChange={(e) => setCampSearch(e.target.value)}
+                            placeholder={`Buscar entre ${allIds.length} campanhas…`}
+                            className="h-6 w-full rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
+                          />
+                          {campSearch && (
+                            <button onClick={() => setCampSearch("")}
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                              <X size={9} />
+                            </button>
+                          )}
+                        </div>
+                        <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800/50">
+                          {visibleCamps.length === 0 && (
+                            <p className="px-2 py-2 text-[10px] italic text-slate-400 dark:text-slate-500">
+                              Nenhuma campanha encontrada.
+                            </p>
+                          )}
+                          {visibleCamps.map((camp) => {
+                            const isChecked = !isFilterExplicit || checkedCampaignIds.includes(camp.id);
+                            return (
+                              <label key={camp.id}
+                                className="flex cursor-pointer items-center gap-2 px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    const base = isFilterExplicit ? checkedCampaignIds : [...allIds];
+                                    const next = isChecked
+                                      ? base.filter((id) => id !== camp.id)
+                                      : [...base, camp.id];
+                                    onCheckedCampaignIds(next);
+                                  }}
+                                  className="h-3 w-3 flex-shrink-0 rounded accent-blue-600"
+                                />
+                                <span className="flex-1 truncate text-[10px] text-slate-700 dark:text-slate-300" title={camp.name}>
+                                  {camp.status !== "ACTIVE" && <span className="mr-0.5 text-amber-400">◐</span>}
+                                  {camp.name.length > 26 ? camp.name.slice(0, 26) + "…" : camp.name}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -1048,7 +1399,9 @@ function CampaignPanel({
           <input
             type="text"
             value={searchCampaign}
-            onChange={(e) => onSearch(e.target.value)}
+            onChange={(e) => { onSearch(e.target.value); setShowSuggestions(true); }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             placeholder="Buscar campanha…"
             className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-600"
           />
@@ -1060,7 +1413,41 @@ function CampaignPanel({
               <X size={12} />
             </button>
           )}
+          {/* Search suggestions dropdown */}
+          {showSuggestions && searchSuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800">
+              {searchSuggestions.map((name) => (
+                <button
+                  key={name}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); onSearch(name); setShowSuggestions(false); }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] text-slate-700 transition hover:bg-blue-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                >
+                  <Filter size={9} className="flex-shrink-0 text-slate-300 dark:text-slate-600" />
+                  <span className="truncate">{name}</span>
+                </button>
+              ))}
+              {allCampaignNames.filter((n) => n.toLowerCase().includes(searchCampaign.toLowerCase())).length > 7 && (
+                <p className="px-3 py-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+                  +{allCampaignNames.filter((n) => n.toLowerCase().includes(searchCampaign.toLowerCase())).length - 7} mais resultados
+                </p>
+              )}
+            </div>
+          )}
         </div>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Ordenar por</span>
+          <select
+            value={sortBy}
+            onChange={(e) => onSortBy(e.target.value as SortBy)}
+            className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
+          >
+            {(Object.entries(SORT_LABELS) as [SortBy, string][]).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        </label>
       </div>
     </div>
   );
@@ -1077,17 +1464,70 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
   const [showMobileNav, setShowMobileNav]   = useState(false);
   const [showMobilePanel, setShowMobilePanel] = useState(false);
 
+  const [sortBy, setSortBy] = useState<SortBy>("date-desc");
+  const [checkedCampaignIds, setCheckedCampaignIds] = useState<string[]>([]);
+  const [showGoals, setShowGoals] = useState(false);
+
+  const { getGoals, setGoal, resetGoals } = useGoalsStore();
+
   const {
     selectedGroup, selectedTurma, activeCampaigns, campaignConfigs,
-    selectedCategory, campaignsByGroup, selectedCampaign, enabledSections,
+    selectedCategory, campaignsByGroup, selectedCampaign, selectedCampaignsByGroup, enabledSections,
+    customGroups, addCustomGroup,
     setSelectedGroup, setSelectedTurma, toggleActive, setCampaignConfig,
     setSelectedCategory, setCampaignsForGroup, setSelectedCampaign, setEnabledSections,
+    setCampaignSelectionForGroup, clearCampaignSelectionForGroup,
   } = useCampaignStore();
+
+  // Goals are per-group; "all" uses the "global" bucket
+  const goalsGroupKey = selectedGroup === "all" ? "global" : selectedGroup;
+  const goals = getGoals(goalsGroupKey);
+
+  // Sync sidebar checkboxes from persisted selections whenever the selected group changes.
+  // This makes import selections propagate automatically to the analysis filter.
+  useEffect(() => {
+    if (selectedGroup === "all") {
+      setCheckedCampaignIds([]);
+    } else {
+      const saved = selectedCampaignsByGroup[selectedGroup];
+      setCheckedCampaignIds(saved?.length ? saved : []);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroup]);
+
+  // Persist sidebar checkbox changes back to the store so they survive remounts.
+  const handleCheckedCampaignIds = useCallback((ids: string[]) => {
+    setCheckedCampaignIds(ids);
+    if (selectedGroup !== "all") {
+      setCampaignSelectionForGroup(selectedGroup, ids);
+    }
+  }, [selectedGroup, setCampaignSelectionForGroup]);
+
+  // Clear the filter entirely (removes the key from the store → back to "show all" with no filter active)
+  const handleClearCampaignFilter = useCallback(() => {
+    setCheckedCampaignIds([]);
+    if (selectedGroup !== "all") clearCampaignSelectionForGroup(selectedGroup);
+  }, [selectedGroup, clearCampaignSelectionForGroup]);
+
+  // Whether an explicit filter is active for the current group
+  // (key exists in store even if empty = "deselect all" mode where nothing should show)
+  const isFilterExplicit = selectedGroup !== "all" && selectedGroup in selectedCampaignsByGroup;
+
+  // Merge static groups with custom-created ones
+  const allGroups = useMemo<GroupConfig[]>(() => [
+    ...CAMPAIGN_GROUPS,
+    ...customGroups.map((cg): GroupConfig => ({
+      ...SECTION_DEFAULTS[cg.section as GroupSection],
+      id: cg.id,
+      label: cg.label,
+      section: cg.section as GroupSection,
+    })),
+  ], [customGroups]);
 
   // ── Account → section map for Meta data ──────────────────────────────────────
   const accountSectionMap = useMemo<Record<string, ProductCategory>>(() => {
     const map: Record<string, ProductCategory> = {};
-    CAMPAIGN_GROUPS.forEach((g) => {
+    allGroups.forEach((g) => {
       const rawId = campaignConfigs[g.id]?.adAccountId ?? "";
       if (rawId) {
         const bare = rawId.replace(/^act_/, "");
@@ -1121,7 +1561,7 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
       if (item.id.startsWith("meta-")) {
         const itemAccountId = item.id.split("-")[1];
         const bare = itemAccountId.replace(/^act_/, "");
-        group = CAMPAIGN_GROUPS.find((g) => {
+        group = allGroups.find((g) => {
           const a = campaignConfigs[g.id]?.adAccountId ?? "";
           return a === itemAccountId || a.replace(/^act_/, "") === bare;
         })?.id ?? "";
@@ -1161,10 +1601,30 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
         const campName = groupCamps.find((c) => c.id === selectedCampaign)?.name;
         if (campName && item.campaignName !== campName) return false;
       }
+      if (isFilterExplicit && selectedGroup !== "all") {
+        if (checkedCampaignIds.length === 0) return false; // deselect-all mode
+        const groupCamps = campaignsByGroup[selectedGroup] ?? [];
+        const checkedNames = new Set(
+          groupCamps.filter((c) => checkedCampaignIds.includes(c.id)).map((c) => c.name),
+        );
+        if (checkedNames.size > 0 && !checkedNames.has(item.campaignName)) return false;
+      }
       if (searchCampaign && !item.campaignName.toLowerCase().includes(searchCampaign.toLowerCase())) return false;
       return true;
     });
-  }, [categorizedCampaigns, dateFrom, dateTo, selectedGroup, selectedTurma, selectedCampaign, searchCampaign, campaignConfigs, campaignsByGroup]);
+  }, [categorizedCampaigns, dateFrom, dateTo, selectedGroup, selectedTurma, selectedCampaign, checkedCampaignIds, isFilterExplicit, searchCampaign, campaignConfigs, campaignsByGroup]);
+
+  const sortedCampaigns = useMemo(() => {
+    const s = [...filteredCampaigns];
+    switch (sortBy) {
+      case "date-asc":    return s.sort((a, b) => a.date.localeCompare(b.date));
+      case "invest-desc": return s.sort((a, b) => b.investment - a.investment);
+      case "invest-asc":  return s.sort((a, b) => a.investment - b.investment);
+      case "roas-desc":   return s.sort((a, b) => b.roas - a.roas);
+      case "ctr-desc":    return s.sort((a, b) => b.ctr - a.ctr);
+      default:            return s.sort((a, b) => b.date.localeCompare(a.date));
+    }
+  }, [filteredCampaigns, sortBy]);
 
   const totals             = aggregateTotals(filteredCampaigns);
   const dailyTrend         = buildDailyTrend(filteredCampaigns);
@@ -1175,20 +1635,21 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
   const showRightPanel     = mainTab !== "history" && mainTab !== "profiles" && mainTab !== "products";
   const showCourseGroups   = selectedCategory !== null;
   const sidebarGroups      = selectedCategory
-    ? CAMPAIGN_GROUPS.filter((g) => g.section === (selectedCategory as string))
-    : CAMPAIGN_GROUPS;
+    ? allGroups.filter((g) => g.section === (selectedCategory as string))
+    : allGroups;
   const currentTab         = MAIN_TABS.find((t) => t.id === mainTab)!;
-  const hasActiveFilters   = !!(dateFrom || dateTo || searchCampaign || selectedGroup !== "all" || selectedCampaign !== "all");
+  const hasActiveFilters   = !!(dateFrom || dateTo || searchCampaign || selectedGroup !== "all" || selectedCampaign !== "all" || isFilterExplicit);
 
   // Whether the current tab needs a category to be meaningful
   const needsCategory = mainTab !== "history" && mainTab !== "profiles" && mainTab !== "products";
 
   const handleClearFilters = () => {
-    setDateFrom(""); setDateTo(""); setSearchCampaign(""); setSelectedGroup("all"); setSelectedCampaign("all");
+    setDateFrom(""); setDateTo(""); setSearchCampaign(""); setSelectedGroup("all"); setSelectedCampaign("all"); setCheckedCampaignIds([]);
   };
 
   const handleSelectGroup = (id: string) => {
     setSelectedGroup(id);
+    setCheckedCampaignIds([]);
     setShowMobilePanel(false);
   };
 
@@ -1244,6 +1705,8 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
     groups: sidebarGroups,
     selectedCampaign,
     campaignsByGroup,
+    checkedCampaignIds,
+    sortBy,
     onSelectGroup: handleSelectGroup,
     onSelectTurma: (t) => { setSelectedTurma(t); setShowMobilePanel(false); },
     onSelectCampaign: handleSelectCampaign,
@@ -1252,6 +1715,10 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
     onDateTo: setDateTo,
     onSearch: setSearchCampaign,
     onClearFilters: handleClearFilters,
+    onSortBy: setSortBy,
+    onCheckedCampaignIds: handleCheckedCampaignIds,
+    onClearCampaignFilter: handleClearCampaignFilter,
+    isFilterExplicit,
     hasActiveFilters,
   };
 
@@ -1281,10 +1748,15 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
       >
         {/* Brand */}
         <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5 dark:border-slate-700">
-          <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => { setMainTab("overview"); setSelectedCategory(null); setShowMobileNav(false); }}
+            className="flex items-center gap-2.5 transition hover:opacity-80"
+            title="Voltar ao início"
+          >
             <DashMonsterLogo size={32} />
             <span className="text-sm font-bold text-slate-900 dark:text-slate-100">DashMonster</span>
-          </div>
+          </button>
           <button
             onClick={() => setShowMobileNav(false)}
             className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 lg:hidden"
@@ -1324,8 +1796,16 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
 
             {/* Breadcrumb + category chip */}
             <div className="flex flex-wrap items-center gap-1.5 text-sm">
-              <span className="hidden text-slate-400 dark:text-slate-500 md:inline">Dashboard</span>
-              <span className="hidden text-slate-300 dark:text-slate-600 md:inline">/</span>
+              <button
+                type="button"
+                onClick={() => { setMainTab("overview"); setSelectedCategory(null); }}
+                className="flex items-center gap-1 text-slate-400 transition hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+                title="Voltar ao início"
+              >
+                <Home size={13} />
+                <span className="hidden md:inline">Dashboard</span>
+              </button>
+              <span className="text-slate-300 dark:text-slate-600">/</span>
               <span className="font-semibold text-slate-800 dark:text-slate-100">{currentTab.label}</span>
 
               {/* Category chip — click to change */}
@@ -1398,6 +1878,30 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
               </div>
             )}
 
+            {/* Goals button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowGoals((v) => !v)}
+                className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
+                  showGoals
+                    ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                }`}
+              >
+                <Flag size={13} />
+                <span className="hidden sm:inline">Metas</span>
+              </button>
+              {showGoals && (
+                <GoalsPanel
+                  goals={goals}
+                  groupLabel={selectedGroup === "all" ? "Global" : (allGroups.find(g => g.id === selectedGroup)?.label ?? selectedGroup)}
+                  onSetGoal={(key, value) => setGoal(goalsGroupKey, key, value)}
+                  onReset={() => resetGoals(goalsGroupKey)}
+                  onClose={() => setShowGoals(false)}
+                />
+              )}
+            </div>
+
             {/* Import button */}
             <div className="relative">
               <button
@@ -1423,6 +1927,11 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                   onSaveCampaignConfig={setCampaignConfig}
                   onClose={() => setShowImport(false)}
                   onCampaignsVerified={setCampaignsForGroup}
+                  savedCampaignsByGroup={campaignsByGroup}
+                  savedSelectedCampaigns={selectedCampaignsByGroup}
+                  onSaveCampaignSelection={setCampaignSelectionForGroup}
+                  customGroups={customGroups}
+                  onAddCustomGroup={addCustomGroup}
                 />
               )}
             </div>
@@ -1475,28 +1984,109 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                     </button>
                   </div>
                 )}
+                {/* Primary KPIs */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
-                  <KpiCard title="Total Investido"  value={formatCurrency(totals.totalInvestment)} subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}               icon={Wallet}           accentColor="blue" />
-                  <KpiCard title="Receita Total"     value={formatCurrency(totals.totalRevenue)}    subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}                              icon={CircleDollarSign} accentColor="emerald" />
-                  <KpiCard title="Conversões"        value={formatNumber(totals.totalConversions)}  subtitle={`Tx.: ${formatPercent(totals.averageConversionRate)}`}            icon={Target}           accentColor="violet" />
-                  <KpiCard title="ROI"               value={formatPercent(totals.roi)}              subtitle="Retorno sobre investimento"                                       icon={TrendingUp}       accentColor="amber" />
-                  <KpiCard title="CPA Médio"         value={formatCurrency(totals.averageCpa)}      subtitle="Custo por aquisição"                                              icon={BadgeDollarSign}  accentColor="rose"  invertTrend />
+                  <KpiCard
+                    title="Total Investido"  value={formatCurrency(totals.totalInvestment)}
+                    subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}
+                    icon={Wallet} accentColor="blue"
+                    goalValue={goals.investment} goalLabel={goals.investment != null ? formatCurrency(goals.investment) : undefined}
+                    goalPct={goals.investment != null ? (totals.totalInvestment / goals.investment) * 100 : null}
+                  />
+                  <KpiCard
+                    title="Receita Total" value={formatCurrency(totals.totalRevenue)}
+                    subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}
+                    icon={CircleDollarSign} accentColor="emerald"
+                    goalValue={goals.roas} goalLabel={goals.roas != null ? `ROAS ${goals.roas.toFixed(1)}x` : undefined}
+                    goalPct={goals.roas != null ? (totals.roas / goals.roas) * 100 : null}
+                  />
+                  <KpiCard
+                    title="Conversões" value={formatNumber(totals.totalConversions)}
+                    subtitle={`Tx.: ${formatPercent(totals.averageConversionRate)}`}
+                    icon={Target} accentColor="violet"
+                    goalValue={goals.conversions} goalLabel={goals.conversions != null ? formatNumber(goals.conversions) : undefined}
+                    goalPct={goals.conversions != null ? (totals.totalConversions / goals.conversions) * 100 : null}
+                  />
+                  <KpiCard
+                    title="ROI" value={formatPercent(totals.roi)}
+                    subtitle="Retorno sobre investimento"
+                    icon={TrendingUp} accentColor="amber"
+                    goalValue={goals.roi} goalLabel={goals.roi != null ? `${goals.roi.toFixed(0)}%` : undefined}
+                    goalPct={goals.roi != null ? (totals.roi / goals.roi) * 100 : null}
+                  />
+                  <KpiCard
+                    title="CPA Médio" value={formatCurrency(totals.averageCpa)}
+                    subtitle="Custo por aquisição"
+                    icon={BadgeDollarSign} accentColor="rose" invertTrend
+                    goalValue={goals.cpa} goalLabel={goals.cpa != null ? formatCurrency(goals.cpa) : undefined}
+                    goalPct={goals.cpa != null && totals.averageCpa > 0 ? (goals.cpa / totals.averageCpa) * 100 : null}
+                    goalInvert
+                  />
                 </div>
+
+                {/* Secondary KPIs */}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+                  <KpiCard
+                    title="CTR Médio" value={formatPercent(totals.averageCtr)}
+                    subtitle="Taxa de cliques"
+                    icon={MousePointerClick} accentColor="blue"
+                    goalValue={goals.ctr} goalLabel={goals.ctr != null ? `${goals.ctr.toFixed(1)}%` : undefined}
+                    goalPct={goals.ctr != null ? (totals.averageCtr / goals.ctr) * 100 : null}
+                  />
+                  <KpiCard
+                    title="CPC Médio" value={formatCurrency(totals.averageCpc)}
+                    subtitle="Custo por clique"
+                    icon={BadgeDollarSign} accentColor="amber" invertTrend
+                    goalValue={goals.cpc} goalLabel={goals.cpc != null ? formatCurrency(goals.cpc) : undefined}
+                    goalPct={goals.cpc != null && totals.averageCpc > 0 ? (goals.cpc / totals.averageCpc) * 100 : null}
+                    goalInvert
+                  />
+                  <KpiCard
+                    title="CPM Médio" value={formatCurrency(totals.averageCpm)}
+                    subtitle="Custo por mil impressões"
+                    icon={Zap} accentColor="violet" invertTrend
+                    goalValue={goals.cpm} goalLabel={goals.cpm != null ? formatCurrency(goals.cpm) : undefined}
+                    goalPct={goals.cpm != null && totals.averageCpm > 0 ? (goals.cpm / totals.averageCpm) * 100 : null}
+                    goalInvert
+                  />
+                  <KpiCard
+                    title="Cliques" value={formatNumber(totals.totalClicks)}
+                    subtitle={`${formatNumber(totals.totalImpressions)} impressões`}
+                    icon={MousePointerClick} accentColor="emerald"
+                  />
+                  <KpiCard
+                    title="Impressões" value={formatNumber(totals.totalImpressions)}
+                    subtitle="Total de visualizações"
+                    icon={Activity} accentColor="rose"
+                  />
+                </div>
+
+                {/* Funnel */}
+                <FunnelCard
+                  impressions={totals.totalImpressions}
+                  clicks={totals.totalClicks}
+                  conversions={totals.totalConversions}
+                />
+
                 <ChartsSection dailyTrend={dailyTrend} campaignComparison={campaignComparison} budgetDistribution={budgetDistribution} />
-                <CampaignTable campaigns={filteredCampaigns} />
+                <CampaignTable campaigns={sortedCampaigns} />
               </div>
             )
           )}
 
           {mainTab === "history"   && <HistoricalView />}
           {mainTab === "analysis"  && selectedCategory && <CampaignAnalysis campaigns={aggregated} />}
-          {mainTab === "creatives" && selectedCategory && <BestCreatives campaigns={aggregated} />}
+          {mainTab === "creatives" && selectedCategory && (
+            <BestCreatives
+              campaigns={aggregated}
+              adAccountId={selectedGroup !== "all" ? campaignConfigs[selectedGroup]?.adAccountId : undefined}
+            />
+          )}
           {mainTab === "products"  && <ProductBase />}
-          {mainTab === "profiles"  && (
+          {mainTab === "profiles" && (
             <ProfileAnalysis
-              selectedGroup={selectedGroup}
-              adAccountId={campaignConfigs[selectedGroup]?.adAccountId ?? ""}
-              groupLabel={CAMPAIGN_GROUPS.find((g) => g.id === selectedGroup)?.label ?? selectedGroup}
+              campaignGroupOptions={allGroups.map((g) => ({ id: g.id, label: g.label, section: g.section }))}
+              campaignConfigs={campaignConfigs}
             />
           )}
 

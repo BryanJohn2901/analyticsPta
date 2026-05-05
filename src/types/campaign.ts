@@ -39,6 +39,8 @@ export interface DashboardTotals {
   averageCpa: number;
   averageCtr: number;
   averageConversionRate: number;
+  averageCpc: number;
+  averageCpm: number;
 }
 
 export interface DailyTrendPoint {
