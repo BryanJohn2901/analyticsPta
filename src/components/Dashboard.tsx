@@ -2010,14 +2010,8 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
         {/* Main scrollable content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
 
-          {/* ── Category gate (shown when no category chosen on relevant tabs) ── */}
-          {needsCategory && !selectedCategory && (
-            <CategoryGate onSelect={setSelectedCategory} />
-          )}
-
-          {mainTab === "overview" && selectedCategory && (
-            campaigns.length === 0 ? (
-              /* ── Welcome screen ─────────────────────────────────────────────── */
+          {/* ── Welcome screen (shown before anything when no data loaded) ── */}
+          {mainTab === "overview" && campaigns.length === 0 ? (
               <div className="mx-auto max-w-2xl space-y-6 py-6">
                 {/* Hero */}
                 <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
@@ -2093,7 +2087,14 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                 </p>
               </div>
             ) : (
-              <div className="space-y-5">
+              <>
+                {/* Category gate — only when data is loaded and no category picked */}
+                {needsCategory && !selectedCategory && (
+                  <CategoryGate onSelect={setSelectedCategory} />
+                )}
+
+                {selectedCategory && (
+                <div className="space-y-5">
                 {filteredCampaigns.length === 0 && (
                   <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
                     <Filter size={15} className="flex-shrink-0" />
@@ -2190,8 +2191,10 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                 <ChartsSection dailyTrend={dailyTrend} campaignComparison={campaignComparison} budgetDistribution={budgetDistribution} />
                 <CampaignTable campaigns={sortedCampaigns} />
               </div>
+                )}
+              </>
             )
-          )}
+          }
 
           {mainTab === "history"   && <HistoricalView />}
           {mainTab === "analysis"  && selectedCategory && <CampaignAnalysis campaigns={aggregated} />}
