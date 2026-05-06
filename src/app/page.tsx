@@ -212,15 +212,16 @@ export default function Home() {
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabaseClient) return;
+    const client = supabaseClient;
     const initAuth = async () => {
-      const { data } = await supabaseClient.auth.getSession();
+      const { data } = await client.auth.getSession();
       setSession(data.session ?? null);
     };
     void initAuth();
 
     const {
       data: { subscription },
-    } = supabaseClient.auth.onAuthStateChange((_event, currentSession) => {
+    } = client.auth.onAuthStateChange((_event, currentSession) => {
       setSession(currentSession);
     });
 
