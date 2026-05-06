@@ -53,8 +53,7 @@ export default function Home() {
     setRealtimeActive(false);
   };
 
-  /** Clears all campaign data and source without page reload */
-  const handleDisconnect = async (): Promise<void> => {
+  const handleSignOut = async (): Promise<void> => {
     setError(null);
     if (!supabaseClient) return;
     const { error: signOutError } = await supabaseClient.auth.signOut();
@@ -66,6 +65,34 @@ export default function Home() {
     setCampaigns([]);
     setDataSource(null);
     setSession(null);
+  };
+
+  const handleClearData = async (): Promise<void> => {
+    setError(null);
+    if (!supabaseClient) return;
+
+    const { error: metricsError } = await supabaseClient
+      .from("campaign_metrics")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if (metricsError) {
+      setError(`Erro ao limpar campanhas: ${metricsError.message}`);
+      return;
+    }
+
+    const { error: sourceError } = await supabaseClient
+      .from("dashboard_data_source")
+      .delete()
+      .eq("id", true);
+
+    if (sourceError) {
+      setError(`Erro ao limpar fonte de dados: ${sourceError.message}`);
+      return;
+    }
+
+    setCampaigns([]);
+    setDataSource(null);
   };
 
   const handleGenerateDashboard = async (sheetUrl: string): Promise<void> => {
@@ -186,6 +213,20 @@ export default function Home() {
     }
   };
 
+  const handleUpdateProfile = async (name: string): Promise<void> => {
+    setError(null);
+    if (!supabaseClient) return;
+    const { error: updateError } = await supabaseClient.auth.updateUser({
+      data: { full_name: name },
+    });
+    if (updateError) {
+      setError(`Falha ao atualizar perfil: ${updateError.message}`);
+      return;
+    }
+    const { data } = await supabaseClient.auth.getSession();
+    setSession(data.session ?? null);
+  };
+
   const handleConnectRealtime = async (): Promise<void> => {
     if (!isSupabaseConfigured) return;
     try {
@@ -265,10 +306,16 @@ export default function Home() {
       campaigns={campaigns}
       error={error}
       dataSource={dataSource}
+      currentUser={{
+        email: session.user.email ?? "",
+        name: String(session.user.user_metadata?.full_name ?? "").trim(),
+      }}
       onImportCsv={handleCsvUpload}
       onImportUrl={handleGenerateDashboard}
       onImportMeta={handleMetaImport}
-      onDisconnect={handleDisconnect}
+      onClearData={handleClearData}
+      onSignOut={handleSignOut}
+      onUpdateProfile={handleUpdateProfile}
     />
   );
 }

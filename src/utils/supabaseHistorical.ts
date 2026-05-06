@@ -1,56 +1,87 @@
 import { supabaseClient } from "@/lib/supabase";
-import { HistoricalMeta, HistoricalRow } from "@/types/historical";
+import { HistoricalKind, HistoricalMeta, HistoricalRow } from "@/types/historical";
 
 // ─── Mapping helpers ──────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function toRow(r: any): HistoricalRow {
-  return {
-    id:               r.id,
-    product:          r.product,
-    month:            r.month,
-    year:             Number(r.year),
-    monthKey:         r.month_key,
-    monthLabel:       r.month_label,
-    investment:       Number(r.investment),
-    cpm:              Number(r.cpm),
-    reach:            Number(r.reach),
-    ctr:              Number(r.ctr),
-    clicks:           Number(r.clicks),
-    pageViewRate:     Number(r.page_view_rate),
-    pageViews:        Number(r.page_views),
-    preCheckoutRate:  Number(r.pre_checkout_rate),
-    preCheckouts:     Number(r.pre_checkouts),
-    salesRate:        Number(r.sales_rate),
-    sales:            Number(r.sales),
-    revenue:          Number(r.revenue),
-    cac:              Number(r.cac),
-    roas:             Number(r.roas),
+const TOP_LEVEL_KEYS = new Set([
+  "id", "kind", "product", "month", "year", "monthKey", "monthLabel", "investment", "revenue",
+]);
+
+function toNum(value: unknown): number {
+  return Number(value ?? 0);
+}
+
+function toSnakeCase(key: string): string {
+  return key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`);
+}
+
+function splitForSupabase(row: HistoricalRow): { top: Record<string, unknown>; extra: Record<string, unknown> } {
+  const top: Record<string, unknown> = {};
+  const extra: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (TOP_LEVEL_KEYS.has(k)) top[k] = v;
+    else extra[k] = v;
+  }
+  return { top, extra };
+}
+
+function reconstructFromSupabase(record: Record<string, unknown>): HistoricalRow {
+  const kind = (record.kind as HistoricalKind | undefined) ?? "lancamento";
+  const extra = (record.extra as Record<string, unknown> | null) ?? {};
+
+  const base = {
+    id: record.id as string,
+    kind,
+    product: String(record.product ?? ""),
+    month: String(record.month ?? ""),
+    year: Number(record.year ?? 0),
+    monthKey: String(record.month_key ?? ""),
+    monthLabel: String(record.month_label ?? ""),
+    investment: toNum(record.investment),
+    revenue: toNum(record.revenue),
   };
+
+  // Mantém compatibilidade com registros antigos (colunas legadas)
+  const legacy = {
+    campaignEndDate: record.campaign_end_date as string | undefined,
+    cpm: toNum(record.cpm),
+    reach: toNum(record.reach),
+    ctr: toNum(record.ctr),
+    clicks: toNum(record.clicks),
+    pageViews: toNum(record.page_views),
+    pageViewRate: toNum(record.page_view_rate),
+    preCheckouts: toNum(record.pre_checkouts),
+    preCheckoutRate: toNum(record.pre_checkout_rate),
+    sales: toNum(record.sales),
+    salesRate: toNum(record.sales_rate),
+    cac: toNum(record.cac),
+    roas: toNum(record.roas),
+  };
+
+  return { ...base, ...legacy, ...extra } as HistoricalRow;
 }
 
 function toDbRow(r: HistoricalRow): Record<string, unknown> {
-  return {
-    product:          r.product,
-    month:            r.month,
-    year:             r.year,
-    month_key:        r.monthKey,
-    month_label:      r.monthLabel,
-    investment:       r.investment,
-    cpm:              r.cpm,
-    reach:            r.reach,
-    ctr:              r.ctr,
-    clicks:           r.clicks,
-    page_view_rate:   r.pageViewRate,
-    page_views:       r.pageViews,
-    pre_checkout_rate: r.preCheckoutRate,
-    pre_checkouts:    r.preCheckouts,
-    sales_rate:       r.salesRate,
-    sales:            r.sales,
-    revenue:          r.revenue,
-    cac:              r.cac,
-    roas:             r.roas,
+  const { top, extra } = splitForSupabase(r);
+
+  const db: Record<string, unknown> = {
+    kind: top.kind,
+    product: top.product,
+    month: top.month,
+    year: top.year,
+    month_key: top.monthKey,
+    month_label: top.monthLabel,
+    investment: top.investment,
+    revenue: top.revenue,
+    extra,
   };
+
+  // Preencher colunas antigas para retrocompatibilidade dos relatórios já existentes
+  for (const [key, value] of Object.entries(extra)) {
+    const snake = toSnakeCase(key);
+    if (!(snake in db)) db[snake] = value;
+  }
+  return db;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -94,7 +125,7 @@ export async function fetchHistoricalRows(): Promise<HistoricalRow[]> {
     .select("*")
     .order("month_key", { ascending: true });
   if (error) throw new Error(`Erro ao buscar histórico: ${error.message}`);
-  return (data ?? []).map(toRow);
+  return (data ?? []).map((row) => reconstructFromSupabase(row as Record<string, unknown>));
 }
 
 export async function fetchHistoricalMetas(): Promise<HistoricalMeta[]> {
@@ -115,7 +146,7 @@ export async function insertHistoricalRow(row: HistoricalRow): Promise<Historica
     .select()
     .single();
   if (error) throw new Error(`Erro ao inserir registro: ${error.message}`);
-  return toRow(data);
+  return reconstructFromSupabase(data as Record<string, unknown>);
 }
 
 export async function updateHistoricalRow(id: string, row: HistoricalRow): Promise<HistoricalRow> {
@@ -126,7 +157,7 @@ export async function updateHistoricalRow(id: string, row: HistoricalRow): Promi
     .select()
     .single();
   if (error) throw new Error(`Erro ao atualizar registro: ${error.message}`);
-  return toRow(data);
+  return reconstructFromSupabase(data as Record<string, unknown>);
 }
 
 export async function deleteHistoricalRowById(id: string): Promise<void> {
@@ -156,7 +187,7 @@ export async function replaceHistoricalData(
       .insert(rows.map(toDbRow))
       .select();
     if (error) throw new Error(`Erro ao importar linhas: ${error.message}`);
-    newRows = (data ?? []).map(toRow);
+    newRows = (data ?? []).map((row) => reconstructFromSupabase(row as Record<string, unknown>));
   }
 
   let newMetas: HistoricalMeta[] = [];

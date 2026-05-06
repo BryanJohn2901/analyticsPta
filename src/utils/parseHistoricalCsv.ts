@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { HistoricalMeta, HistoricalRow } from "@/types/historical";
+import { HistoricalKind, HistoricalMeta, HistoricalRow } from "@/types/historical";
 
 const MONTH_NUM: Record<string, number> = {
   JANEIRO: 1, FEVEREIRO: 2, MARCO: 3, ABRIL: 4, MAIO: 5, JUNHO: 6,
@@ -22,6 +22,21 @@ const parseNum = (val: string | undefined): number => {
   const cleaned = v.replace(/[R$\s%]/g, "").replace(/\./g, "").replace(",", ".");
   return parseFloat(cleaned) || 0;
 };
+
+const KIND_ALIASES: Array<{ kind: HistoricalKind; aliases: string[] }> = [
+  { kind: "lancamento", aliases: ["lancamento", "lançamento", "lan"] },
+  { kind: "evento", aliases: ["evento", "event"] },
+  { kind: "perpetuo", aliases: ["perpetuo", "perpétuo", "evergreen"] },
+  { kind: "instagram", aliases: ["instagram", "ig", "perfil"] },
+];
+
+function detectKind(raw: string): HistoricalKind | null {
+  const normalized = raw.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  for (const item of KIND_ALIASES) {
+    if (item.aliases.includes(normalized)) return item.kind;
+  }
+  return null;
+}
 
 export interface ParsedHistorical {
   rows: HistoricalRow[];
@@ -102,6 +117,9 @@ function processRows(raw: string[][]): ParsedHistorical {
 
     if (!currentMonth) continue;
 
+    const explicitKind = row.map((cell) => detectKind(String(cell ?? ""))).find((v): v is HistoricalKind => Boolean(v));
+    const kind = explicitKind ?? "lancamento";
+
     const investment = parseNum(row[1]);
     const revenue = parseNum(row[12]);
     const sales = parseNum(row[11]);
@@ -111,26 +129,27 @@ function processRows(raw: string[][]): ParsedHistorical {
     const monthLabel = `${MONTH_SHORT[currentMonth] ?? currentMonth}/${String(currentYear).slice(2)}`;
 
     rows.push({
+      kind,
       product: col0,
       month: currentMonth,
       year: currentYear,
       monthKey,
       monthLabel,
       investment,
-      cpm: parseNum(row[2]),
+      cpm: kind === "lancamento" ? parseNum(row[2]) : 0,
       reach: parseNum(row[3]),
       ctr: parseNum(row[4]),
       clicks: parseNum(row[5]),
-      pageViewRate: parseNum(row[6]),
-      pageViews: parseNum(row[7]),
-      preCheckoutRate: parseNum(row[8]),
-      preCheckouts: parseNum(row[9]),
-      salesRate: parseNum(row[10]),
+      pageViewRate: kind === "lancamento" ? parseNum(row[6]) : 0,
+      pageViews: kind === "lancamento" ? parseNum(row[7]) : 0,
+      preCheckoutRate: kind === "lancamento" ? parseNum(row[8]) : 0,
+      preCheckouts: kind === "lancamento" ? parseNum(row[9]) : 0,
+      salesRate: kind === "lancamento" ? parseNum(row[10]) : 0,
       sales,
       revenue,
-      cac: cac > 0 ? cac : sales > 0 ? investment / sales : 0,
+      cac: cac > 0 ? cac : sales > 0 ? investment / Math.max(sales, 1) : 0,
       roas: investment > 0 ? revenue / investment : 0,
-    });
+    } as HistoricalRow);
 
     lastProduct = col0;
   }

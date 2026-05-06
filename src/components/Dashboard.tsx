@@ -4,9 +4,9 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import {
   Activity, BadgeDollarSign, BarChart2, BookMarked, BookOpen, CalendarDays,
   CheckCircle2, ChevronDown, ChevronUp, CircleDollarSign, Dumbbell, FileText,
-  FileUp, Filter, Flag, GraduationCap, Home, ImageIcon, Link2, Loader2, Menu, Moon,
-  MousePointerClick, Package, Plus, Repeat, RotateCcw, SlidersHorizontal, Sun,
-  Target, Trash2, TrendingUp, Trophy, Upload, Users, Wallet, X, XCircle, Zap,
+  FileUp, Filter, Flag, GraduationCap, Home, ImageIcon, Link2, Loader2, LogOut, Menu, Moon,
+  MousePointerClick, Package, Pencil, Plus, Repeat, RotateCcw, SlidersHorizontal, Sun,
+  Target, Trash2, TrendingUp, Trophy, Upload, UserRound, Users, Wallet, X, XCircle, Zap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { CampaignData, ProductCategory } from "@/types/campaign";
@@ -44,10 +44,13 @@ interface DashboardProps {
   campaigns: CampaignData[];
   error?: string | null;
   dataSource?: DataSource | null;
+  currentUser: { name: string; email: string };
   onImportCsv: (file: File) => Promise<void>;
   onImportUrl: (url: string) => Promise<void>;
   onImportMeta?: (accounts: Record<string, string>, dateFrom: string, dateTo: string, campaignFilter?: Record<string, string[]>) => Promise<void>;
-  onDisconnect?: () => Promise<void>;
+  onClearData?: () => Promise<void>;
+  onSignOut: () => Promise<void>;
+  onUpdateProfile: (name: string) => Promise<void>;
 }
 
 type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles" | "products";
@@ -248,6 +251,68 @@ function ThemeToggle() {
       <Sun size={15} className="hidden dark:block" />
       <Moon size={15} className="block dark:hidden" />
     </button>
+  );
+}
+
+function UserMenu({
+  name,
+  email,
+  onEditProfile,
+  onSignOut,
+}: {
+  name: string;
+  email: string;
+  onEditProfile: () => void;
+  onSignOut: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const displayName = name.trim() || email.split("@")[0] || "Usuario";
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+      >
+        <UserRound size={13} />
+        <span className="hidden max-w-[120px] truncate sm:inline">{displayName}</span>
+        <ChevronDown size={12} className={`transition ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <>
+          <button type="button" className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-label="Fechar menu de usuario" />
+          <div className="absolute right-0 top-full z-50 mt-2 w-[220px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
+            <div className="mb-1 border-b border-slate-100 px-2 py-1.5 dark:border-slate-700">
+              <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{displayName}</p>
+              <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{email}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                onEditProfile();
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              <Pencil size={12} />
+              Editar perfil
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                void onSignOut();
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+            >
+              <LogOut size={12} />
+              Sair
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -1535,7 +1600,18 @@ function CampaignPanel({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportUrl, onImportMeta, onDisconnect }: DashboardProps) {
+export function Dashboard({
+  campaigns,
+  error,
+  dataSource,
+  currentUser,
+  onImportCsv,
+  onImportUrl,
+  onImportMeta,
+  onClearData,
+  onSignOut,
+  onUpdateProfile,
+}: DashboardProps) {
   const [mainTab, setMainTab]               = useState<MainTab>("overview");
   const [dateFrom, setDateFrom]             = useState("");
   const [dateTo, setDateTo]                 = useState("");
@@ -1553,8 +1629,14 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
   const [sortBy, setSortBy] = useState<SortBy>("date-desc");
   const [checkedCampaignIds, setCheckedCampaignIds] = useState<string[]>([]);
   const [showGoals, setShowGoals] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileName, setProfileName] = useState(currentUser.name || "");
 
   const { getGoals, setGoal, resetGoals } = useGoalsStore();
+
+  useEffect(() => {
+    setProfileName(currentUser.name || "");
+  }, [currentUser.name]);
 
   const {
     selectedGroup, selectedTurma, activeCampaigns, campaignConfigs,
@@ -1810,6 +1892,52 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--dm-bg-page)]">
+      {showProfileModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Editar perfil</h3>
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(false)}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <label className="mb-2 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Nome
+            </label>
+            <input
+              type="text"
+              value={profileName}
+              onChange={(event) => setProfileName(event.target.value)}
+              placeholder="Seu nome"
+              className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+            />
+            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{currentUser.email}</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowProfileModal(false)}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await onUpdateProfile(profileName.trim() || currentUser.name || "Usuario");
+                  setShowProfileModal(false);
+                }}
+                className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-hover"
+              >
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Mobile nav overlay ── */}
       {showMobileNav && (
@@ -1916,6 +2044,12 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <UserMenu
+              name={currentUser.name}
+              email={currentUser.email}
+              onEditProfile={() => setShowProfileModal(true)}
+              onSignOut={onSignOut}
+            />
 
             {/* Mobile campaign panel button */}
             {showRightPanel && (
@@ -1954,7 +2088,7 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                 </span>
                 <button
                   type="button"
-                  onClick={() => onDisconnect?.()}
+                  onClick={() => onClearData?.()}
                   title="Desconectar fonte de dados"
                   className="ml-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
                 >
@@ -1988,9 +2122,9 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
             </div>
 
             {/* Limpar dados — only shown when a source is active */}
-            {dataSource && onDisconnect && (
+            {dataSource && onClearData && (
               <button
-                onClick={() => void onDisconnect()}
+                onClick={() => void onClearData()}
                 className="flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-500 transition hover:border-red-400 hover:bg-red-50 dark:border-red-800 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-900/20"
                 title="Zerar os dados importados"
               >

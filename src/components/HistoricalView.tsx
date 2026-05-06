@@ -9,9 +9,9 @@ import {
 import {
   Upload, TrendingUp, ShoppingCart, DollarSign, Target,
   ArrowRight, CheckCircle2, XCircle, Plus, Pencil, Trash2, X,
-  BarChart2, Package, Cloud, CloudOff, Loader2,
+  BarChart2, Package, Cloud, CloudOff, Loader2, CalendarDays, Camera, Repeat, Wallet,
 } from "lucide-react";
-import { HistoricalMeta, HistoricalRow } from "@/types/historical";
+import { HISTORICAL_KIND_LABELS, HistoricalKind, HistoricalMeta, HistoricalRow } from "@/types/historical";
 import { parseHistoricalCsvFile } from "@/utils/parseHistoricalCsv";
 import { formatCurrency, formatNumber, formatPercent } from "@/utils/metrics";
 import { isSupabaseConfigured } from "@/lib/supabase";
@@ -25,18 +25,32 @@ type SyncStatus = "idle" | "loading" | "synced" | "local" | "error";
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 
-const ROWS_KEY  = "pta_hist_rows_v1";
+const ROWS_KEY_V1 = "pta_hist_rows_v1";
+const ROWS_KEY_V2 = "pta_hist_rows_v2";
 const METAS_KEY = "pta_hist_metas_v1";
 
 function loadRows(): HistoricalRow[] {
   if (typeof window === "undefined") return [];
-  try { return JSON.parse(localStorage.getItem(ROWS_KEY) ?? "[]"); } catch { return []; }
+  const rawV2 = localStorage.getItem(ROWS_KEY_V2);
+  if (rawV2) {
+    try { return JSON.parse(rawV2); } catch { return []; }
+  }
+  const rawV1 = localStorage.getItem(ROWS_KEY_V1);
+  if (rawV1) {
+    try {
+      const parsed = JSON.parse(rawV1) as Array<Partial<HistoricalRow>>;
+      const migrated = parsed.map((r) => ({ ...r, kind: r.kind ?? "lancamento" })) as HistoricalRow[];
+      localStorage.setItem(ROWS_KEY_V2, JSON.stringify(migrated));
+      return migrated;
+    } catch { return []; }
+  }
+  return [];
 }
 function loadMetas(): HistoricalMeta[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(localStorage.getItem(METAS_KEY) ?? "[]"); } catch { return []; }
 }
-function saveRows(r: HistoricalRow[])  { try { localStorage.setItem(ROWS_KEY,  JSON.stringify(r)); } catch {} }
+function saveRows(r: HistoricalRow[])  { try { localStorage.setItem(ROWS_KEY_V2,  JSON.stringify(r)); } catch {} }
 function saveMetas(m: HistoricalMeta[]) { try { localStorage.setItem(METAS_KEY, JSON.stringify(m)); } catch {} }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -65,6 +79,13 @@ interface FormState {
   pageViews: string; preCheckouts: string; sales: string; revenue: string;
 }
 
+const HISTORY_TABS: Array<{ id: HistoricalKind; icon: React.ElementType }> = [
+  { id: "lancamento", icon: Wallet },
+  { id: "evento", icon: CalendarDays },
+  { id: "perpetuo", icon: Repeat },
+  { id: "instagram", icon: Camera },
+];
+
 const EMPTY_FORM: FormState = {
   product: "", month: "JANEIRO", year: String(new Date().getFullYear()), campaignEndDate: "",
   investment: "", cpm: "", reach: "", clicks: "",
@@ -79,7 +100,7 @@ const p = (s: string): number => {
   return parseFloat(cleaned) || 0;
 };
 
-const buildRow = (form: FormState): HistoricalRow => {
+const buildRow = (form: FormState, kind: HistoricalKind): HistoricalRow => {
   const investment = p(form.investment), revenue = p(form.revenue);
   const reach = p(form.reach), clicks = p(form.clicks);
   const pageViews = p(form.pageViews), preCheckouts = p(form.preCheckouts);
@@ -89,6 +110,7 @@ const buildRow = (form: FormState): HistoricalRow => {
   const monthKey = `${year}-${String(monthNum).padStart(2, "0")}`;
   const abbr = MONTH_ABBR[form.month] ?? form.month.slice(0, 3);
   return {
+    kind,
     product: form.product.trim(), month: form.month, year, monthKey,
     monthLabel: `${abbr}/${String(year).slice(2)}`,
     campaignEndDate: form.campaignEndDate || undefined,
@@ -99,7 +121,7 @@ const buildRow = (form: FormState): HistoricalRow => {
     salesRate: preCheckouts > 0 ? (sales / preCheckouts) * 100 : 0, sales, revenue,
     cac: sales > 0 ? investment / sales : 0,
     roas: investment > 0 && revenue > 0 ? revenue / investment : 0,
-  };
+  } as HistoricalRow;
 };
 
 const rowToForm = (r: HistoricalRow): FormState => ({
@@ -262,6 +284,7 @@ function StatCard({ label, value, sub, icon: Icon, accent, iconColor }: StatCard
 export function HistoricalView() {
   const [rows,  setRowsState]  = useState<HistoricalRow[]>(loadRows);
   const [metas, setMetasState] = useState<HistoricalMeta[]>(loadMetas);
+  const [selectedKind, setSelectedKind] = useState<HistoricalKind>("lancamento");
   const [selectedProduct, setSelectedProduct] = useState("all");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -313,8 +336,10 @@ export function HistoricalView() {
   const products = useMemo(() => Array.from(new Set(rows.map((r) => r.product))).sort(), [rows]);
 
   const filtered = useMemo(
-    () => (selectedProduct === "all" ? rows : rows.filter((r) => r.product === selectedProduct)),
-    [rows, selectedProduct],
+    () => (selectedProduct === "all"
+      ? rows.filter((r) => r.kind === selectedKind)
+      : rows.filter((r) => r.kind === selectedKind && r.product === selectedProduct)),
+    [rows, selectedKind, selectedProduct],
   );
 
   const activeMeta = useMemo(
@@ -363,7 +388,7 @@ export function HistoricalView() {
 
   const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    const newRow = buildRow(form);
+    const newRow = buildRow(form, selectedKind);
     if (isSupabaseConfigured) {
       setSyncStatus("loading");
       try {
@@ -387,7 +412,7 @@ export function HistoricalView() {
     }
     setShowForm(false); setEditingIdx(null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, editingIdx, rows, setRows]);
+  }, [form, editingIdx, rows, selectedKind, setRows]);
 
   const handleDelete = useCallback(async (idx: number) => {
     if (!confirm("Remover este registro?")) return;
@@ -478,13 +503,32 @@ export function HistoricalView() {
       )}
 
       <div className="space-y-5">
+        {/* ── Kind tabs ── */}
+        <div className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          {HISTORY_TABS.map(({ id, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setSelectedKind(id)}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                selectedKind === id
+                  ? "bg-brand text-white shadow-sm"
+                  : "text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-700"
+              }`}
+            >
+              <Icon size={14} />
+              <span>{HISTORICAL_KIND_LABELS[id]}</span>
+            </button>
+          ))}
+        </div>
+
         {/* ── Dashboard header ── */}
         <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-4 sm:px-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Histórico de Lançamentos</h2>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               {hasData
-                ? `${rows.length} registro${rows.length !== 1 ? "s" : ""} · ${products.length} produto${products.length !== 1 ? "s" : ""}`
+                ? `${filtered.length} registro${filtered.length !== 1 ? "s" : ""} em ${HISTORICAL_KIND_LABELS[selectedKind]} · ${products.length} produto${products.length !== 1 ? "s" : ""}`
                 : "Nenhum dado ainda. Importe um CSV ou adicione manualmente."}
             </p>
           </div>
@@ -524,6 +568,9 @@ export function HistoricalView() {
               <Upload size={13} /> {loading ? "Importando…" : "Importar CSV"}
             </button>
             <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
+            <p className="w-full text-[10px] text-slate-400 dark:text-slate-500 sm:w-auto">
+              CSV aceita coluna Tipo (Lançamento/Evento/Perpétuo/Instagram). Sem coluna, entra como Lançamento.
+            </p>
           </div>
         </div>
 
