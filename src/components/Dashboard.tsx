@@ -378,6 +378,7 @@ interface ImportPopoverProps {
   savedCampaignsByGroup: Record<string, CampaignSummary[]>;
   savedSelectedCampaigns: Record<string, string[]>;
   onSaveCampaignSelection: (groupId: string, ids: string[]) => void;
+  onClearCampaignSelection?: (groupId: string) => void;
   customGroups: CustomGroup[];
   onAddCustomGroup: (group: CustomGroup) => void;
 }
@@ -388,6 +389,7 @@ interface AccountRow { rowId: string; groupId: string; accountId: string }
 function ImportPopover({
   onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
   onCampaignsVerified, savedCampaignsByGroup, savedSelectedCampaigns, onSaveCampaignSelection,
+  onClearCampaignSelection,
   customGroups, onAddCustomGroup, initialTab,
 }: ImportPopoverProps & { initialTab?: ImportTab }) {
   const [tab, setTab]                     = useState<ImportTab>(initialTab ?? "sheets");
@@ -529,6 +531,13 @@ function ImportPopover({
           dateRange.to,
           Object.keys(campaignFilter).length > 0 ? campaignFilter : undefined,
         );
+        // Reset the dashboard view filter for all imported groups so the user
+        // sees all fresh data by default (not a stale import-filter selection).
+        if (onClearCampaignSelection) {
+          accountRows.forEach((r) => {
+            if (r.accountId.trim()) onClearCampaignSelection(r.groupId);
+          });
+        }
         onClose(); // close popover on success
       } catch (err) {
         setMetaImportError(err instanceof Error ? err.message : "Falha ao buscar dados da Meta.");
@@ -660,14 +669,12 @@ function ImportPopover({
       ? current.filter((id) => id !== campaignId)
       : [...current, campaignId];
     setSelectedCampaigns((p) => ({ ...p, [groupId]: next }));
-    onSaveCampaignSelection(groupId, next);
   };
 
   /** Select or deselect all campaigns for a group. */
   const handleSelectAllCampaigns = (groupId: string, allForAccount: Array<{ id: string }>, selectAll: boolean) => {
     const next = selectAll ? allForAccount.map((c) => c.id) : [];
     setSelectedCampaigns((p) => ({ ...p, [groupId]: next }));
-    onSaveCampaignSelection(groupId, next);
   };
 
   const tabCls = (t: ImportTab) =>
@@ -1634,10 +1641,6 @@ export function Dashboard({
 
   const { getGoals, setGoal, resetGoals } = useGoalsStore();
 
-  useEffect(() => {
-    setProfileName(currentUser.name || "");
-  }, [currentUser.name]);
-
   const {
     selectedGroup, selectedTurma, activeCampaigns, campaignConfigs,
     selectedCategory, campaignsByGroup, selectedCampaign, selectedCampaignsByGroup, enabledSections,
@@ -1651,8 +1654,8 @@ export function Dashboard({
   const goalsGroupKey = selectedGroup === "all" ? "global" : selectedGroup;
   const goals = getGoals(goalsGroupKey);
 
-  // Sync sidebar checkboxes from persisted selections whenever the selected group changes.
-  // This makes import selections propagate automatically to the analysis filter.
+  // Sync sidebar checkboxes from persisted selections when the selected group or
+  // store data changes (including the initial localStorage hydration).
   useEffect(() => {
     if (selectedGroup === "all") {
       setCheckedCampaignIds([]);
@@ -1660,8 +1663,7 @@ export function Dashboard({
       const saved = selectedCampaignsByGroup[selectedGroup];
       setCheckedCampaignIds(saved?.length ? saved : []);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedGroup]);
+  }, [selectedGroup, selectedCampaignsByGroup]);
 
   // Persist sidebar checkbox changes back to the store so they survive remounts.
   const handleCheckedCampaignIds = useCallback((ids: string[]) => {
@@ -2047,7 +2049,10 @@ export function Dashboard({
             <UserMenu
               name={currentUser.name}
               email={currentUser.email}
-              onEditProfile={() => setShowProfileModal(true)}
+              onEditProfile={() => {
+                setProfileName(currentUser.name || "");
+                setShowProfileModal(true);
+              }}
               onSignOut={onSignOut}
             />
 
@@ -2161,6 +2166,7 @@ export function Dashboard({
                   savedCampaignsByGroup={campaignsByGroup}
                   savedSelectedCampaigns={selectedCampaignsByGroup}
                   onSaveCampaignSelection={setCampaignSelectionForGroup}
+                  onClearCampaignSelection={clearCampaignSelectionForGroup}
                   customGroups={customGroups}
                   onAddCustomGroup={addCustomGroup}
                   initialTab={importInitialTab}
