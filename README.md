@@ -1,6 +1,6 @@
 # Analytics PTA
 
-Dashboard de campanhas com entrada por Google Sheets ou CSV.
+Dashboard de campanhas com autenticacao via Supabase, importacao por Google Sheets/CSV/Meta e dados compartilhados entre usuarios.
 
 ## Rodar localmente
 
@@ -11,20 +11,45 @@ npm run dev
 
 Acesse [http://localhost:3000](http://localhost:3000).
 
-## Deploy na Vercel Free
+## Configurar Supabase (obrigatorio)
 
-Este projeto está pronto para subir no plano Free sem configuração extra.
+1. Crie um projeto no Supabase.
+2. No `SQL Editor`, execute o arquivo:
+   - `supabase/migrations/002_auth_shared_dashboard.sql`
+3. Em `Project Settings > API`, copie:
+   - `Project URL`
+   - `anon public key`
+4. Crie um `.env.local`:
 
-1. Envie o projeto para um repositório no GitHub.
-2. Na Vercel, clique em **Add New > Project**.
-3. Importe o repositório.
-4. Mantenha as configurações padrão:
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://SEU-PROJETO.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=SUA_ANON_PUBLIC_KEY
+```
+
+5. Reinicie o `npm run dev`.
+
+## Login inicial
+
+- Usuario no app: `admin`
+- Senha no app: `admin`
+
+O app converte internamente para o usuario seed no Supabase.
+
+## Deploy na Vercel (simples)
+
+1. Na Vercel, clique em **Add New > Project**.
+2. Importe este repositório.
+3. Mantenha as configurações padrão:
    - Framework Preset: `Next.js`
    - Build Command: `npm run build`
    - Output: padrão do Next.js
+4. Em **Environment Variables**, adicione:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 5. Clique em **Deploy**.
+6. Sempre que mudar env, use **Redeploy**.
 
 ## Observações
 
-- O login está temporariamente desativado para focar no dashboard.
-- O modo Realtime/Supabase está oculto na interface nesta fase.
+- Somente chaves publicas (`NEXT_PUBLIC_*`) no frontend.
+- Nunca use `SUPABASE_SERVICE_ROLE_KEY` no cliente.

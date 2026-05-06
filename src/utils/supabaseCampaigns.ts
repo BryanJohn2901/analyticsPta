@@ -12,6 +12,12 @@ interface SupabaseCampaignRow {
   impressions: number;
   conversions: number;
   revenue: number;
+  source: "csv" | "google_sheets" | "meta";
+}
+
+export interface SharedDataSource {
+  type: "csv" | "google_sheets" | "meta";
+  label: string;
 }
 
 const mapSupabaseRow = (row: SupabaseCampaignRow, index: number): CampaignData => {
@@ -37,7 +43,7 @@ export const fetchSupabaseCampaigns = async (): Promise<CampaignData[]> => {
   const { data, error } = await supabaseClient
     .from("campaign_metrics")
     .select(
-      "id, date, campaign_name, investment, clicks, impressions, conversions, revenue",
+      "id, date, campaign_name, investment, clicks, impressions, conversions, revenue, source",
     )
     .order("date", { ascending: true });
 
@@ -49,7 +55,6 @@ export const fetchSupabaseCampaigns = async (): Promise<CampaignData[]> => {
 };
 
 export const subscribeSupabaseCampaigns = (
-  userId: string,
   onChange: () => Promise<void>,
 ): RealtimeChannel => {
   if (!supabaseClient) {
@@ -64,7 +69,6 @@ export const subscribeSupabaseCampaigns = (
         event: "*",
         schema: "public",
         table: "campaign_metrics",
-        filter: `user_id=eq.${userId}`,
       },
       () => {
         void onChange();
@@ -74,9 +78,8 @@ export const subscribeSupabaseCampaigns = (
 };
 
 export const replaceSupabaseCampaigns = async (
-  userId: string,
   campaigns: CampaignData[],
-  source: "csv" | "google_sheets",
+  source: "csv" | "google_sheets" | "meta",
 ): Promise<void> => {
   if (!supabaseClient) {
     throw new Error("Supabase não configurado.");
@@ -85,7 +88,7 @@ export const replaceSupabaseCampaigns = async (
   const { error: deleteError } = await supabaseClient
     .from("campaign_metrics")
     .delete()
-    .eq("user_id", userId);
+    .neq("id", "00000000-0000-0000-0000-000000000000");
 
   if (deleteError) {
     throw new Error(`Erro ao limpar dados antigos: ${deleteError.message}`);
@@ -96,7 +99,6 @@ export const replaceSupabaseCampaigns = async (
   }
 
   const payload = campaigns.map((item) => ({
-    user_id: userId,
     date: item.date,
     campaign_name: item.campaignName,
     investment: item.investment,
@@ -114,4 +116,69 @@ export const replaceSupabaseCampaigns = async (
   if (insertError) {
     throw new Error(`Erro ao salvar campanhas no Supabase: ${insertError.message}`);
   }
+};
+
+export const saveSharedDataSource = async (source: SharedDataSource): Promise<void> => {
+  if (!supabaseClient) {
+    throw new Error("Supabase não configurado.");
+  }
+
+  const { error } = await supabaseClient
+    .from("dashboard_data_source")
+    .upsert(
+      {
+        id: true,
+        source_type: source.type,
+        source_label: source.label,
+      },
+      { onConflict: "id" },
+    );
+
+  if (error) {
+    throw new Error(`Erro ao salvar fonte de dados compartilhada: ${error.message}`);
+  }
+};
+
+export const fetchSharedDataSource = async (): Promise<SharedDataSource | null> => {
+  if (!supabaseClient) {
+    throw new Error("Supabase não configurado.");
+  }
+
+  const { data, error } = await supabaseClient
+    .from("dashboard_data_source")
+    .select("source_type, source_label")
+    .eq("id", true)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Erro ao buscar fonte de dados compartilhada: ${error.message}`);
+  }
+
+  if (!data) return null;
+
+  return {
+    type: data.source_type,
+    label: data.source_label,
+  };
+};
+
+export const subscribeSharedDataSource = (onChange: () => Promise<void>): RealtimeChannel => {
+  if (!supabaseClient) {
+    throw new Error("Supabase não configurado.");
+  }
+
+  return supabaseClient
+    .channel("dashboard-source-realtime")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "dashboard_data_source",
+      },
+      () => {
+        void onChange();
+      },
+    )
+    .subscribe();
 };

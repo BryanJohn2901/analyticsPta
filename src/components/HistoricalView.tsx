@@ -150,7 +150,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 pt-8 sm:p-8">
       <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl dark:bg-slate-800">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4 dark:border-slate-700">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-slate-700">
           <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
             {isEditing ? "Editar Registro" : "Adicionar Registro"}
           </h2>
@@ -160,7 +160,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
         </div>
 
         <form onSubmit={onSubmit} className="divide-y divide-slate-100 dark:divide-slate-700">
-          <div className="px-6 py-5">
+          <div className="px-4 py-5 sm:px-6">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Identificação</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <label className={labelCls}>
@@ -185,7 +185,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
             </div>
           </div>
 
-          <div className="px-6 py-5">
+          <div className="px-4 py-5 sm:px-6">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Funil de tráfego</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} placeholder="8544.26" className={fieldCls} /></label>
@@ -199,7 +199,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
             </div>
           </div>
 
-          <div className="bg-slate-50 px-6 py-4 dark:bg-slate-700/40">
+          <div className="bg-slate-50 px-4 py-4 sm:px-6 dark:bg-slate-700/40">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Calculado automaticamente</p>
             <div className="flex flex-wrap gap-3">
               {[
@@ -218,7 +218,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 px-6 py-4">
+          <div className="flex flex-col-reverse justify-end gap-2 px-4 py-4 sm:flex-row sm:px-6">
             <button type="button" onClick={onClose} className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
               Cancelar
             </button>
@@ -479,7 +479,7 @@ export function HistoricalView() {
 
       <div className="space-y-5">
         {/* ── Dashboard header ── */}
-        <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-4 sm:px-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Histórico de Lançamentos</h2>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
@@ -488,7 +488,7 @@ export function HistoricalView() {
                 : "Nenhum dado ainda. Importe um CSV ou adicione manualmente."}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             {/* Sync status badge */}
             {syncStatus === "loading" && (
               <span className="flex items-center gap-1 text-xs text-slate-400">
@@ -553,7 +553,7 @@ export function HistoricalView() {
         )}
 
         {/* ── Stat cards ── */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
           <StatCard label="Total Investido"    value={formatCurrency(totals.inv)}   icon={DollarSign} accent="bg-blue-500"    iconColor="text-blue-500" />
           <StatCard label="Total Faturamento"  value={formatCurrency(totals.rev)}   icon={TrendingUp} accent="bg-emerald-500" iconColor="text-emerald-500" sub={totals.roas > 0 ? `ROAS ${totals.roas.toFixed(2)}x` : undefined} />
           <StatCard label="Total de Vendas"    value={formatNumber(totals.sales)}   icon={ShoppingCart} accent="bg-violet-500" iconColor="text-violet-500" />
@@ -666,7 +666,7 @@ export function HistoricalView() {
 
         {/* ── META comparison ── */}
         {hasData && activeMeta && (
-          <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+          <article className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <h3 className="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-200">Comparativo vs META</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
               {[
@@ -701,7 +701,7 @@ export function HistoricalView() {
         {/* ── Data table ── */}
         {hasData && (
           <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Dados Mensais Detalhados</h3>
               <p className="text-xs text-slate-400 dark:text-slate-500">{sortedFiltered.length} registros</p>
             </div>

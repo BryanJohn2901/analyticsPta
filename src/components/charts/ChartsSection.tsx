@@ -101,8 +101,8 @@ function ChartCard({
   action?: React.ReactNode;
 }) {
   return (
-    <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+    <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="mb-4 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-start">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h3>
           {subtitle && <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{subtitle}</p>}
@@ -118,7 +118,7 @@ function ChartCard({
 
 function DotLegend({ items }: { items: { color: string; label: string }[] }) {
   return (
-    <div className="mt-4 flex flex-wrap gap-4">
+    <div className="mt-4 flex flex-wrap gap-3 sm:gap-4">
       {items.map((i) => (
         <div key={i.label} className="flex items-center gap-1.5">
           <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: i.color }} />
@@ -220,7 +220,7 @@ export function ChartsSection({
 
   const budgetChart = budgetMode === "donut" ? (
     <div className="flex flex-col items-center">
-      <div className="h-52 w-full">
+      <div className="h-48 w-full sm:h-52">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -244,7 +244,7 @@ export function ChartsSection({
           </PieChart>
         </ResponsiveContainer>
       </div>
-      <div className="mt-1 w-full space-y-1.5 overflow-y-auto" style={{ maxHeight: 140 }}>
+      <div className="mt-1 max-h-[140px] w-full space-y-1.5 overflow-y-auto">
         {pieData.map((item, i) => (
           <div key={`leg-${i}`} className="flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2">
@@ -257,7 +257,7 @@ export function ChartsSection({
       </div>
     </div>
   ) : (
-    <div className="h-72">
+    <div className="h-64 sm:h-72">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={pieData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 0 }}>
           <CartesianGrid {...GRID_PROPS} horizontal={false} />
@@ -284,7 +284,7 @@ export function ChartsSection({
   // ── Comparison chart ─────────────────────────────────────────────────────────
 
   const comparisonChart = comparisonMode === "grouped" ? (
-    <div className="h-80">
+    <div className="h-64 sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={campaignComparison} barCategoryGap="25%" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
           <CartesianGrid {...GRID_PROPS} />
@@ -305,7 +305,7 @@ export function ChartsSection({
       </ResponsiveContainer>
     </div>
   ) : (
-    <div className="h-80">
+    <div className="h-64 sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={campaignComparison} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 0 }}>
           <CartesianGrid {...GRID_PROPS} horizontal={false} />
@@ -342,7 +342,7 @@ export function ChartsSection({
             />
           }
         >
-          <div className="h-72">{trendChart}</div>
+          <div className="h-64 sm:h-72">{trendChart}</div>
           <DotLegend items={[
             { color: "#2563eb", label: "Cliques" },
             { color: "#059669", label: "Conversões" },

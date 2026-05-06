@@ -59,7 +59,7 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
   return (
     <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4 dark:border-slate-700">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Performance por Campanha</h3>
           <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
@@ -90,7 +90,7 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
 
       {/* Table */}
       <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table className="min-w-[980px] text-sm">
           <thead>
             <tr className="bg-slate-50 text-left dark:bg-slate-700/50">
               {[
@@ -160,11 +160,11 @@ export function CampaignTable({ campaigns }: CampaignTableProps) {
 
       {/* Footer total row */}
       {campaigns.length > 0 && (
-        <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-5 py-3 dark:border-slate-700 dark:bg-slate-700/30">
+        <div className="flex flex-col items-start justify-between gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:flex-row sm:items-center sm:px-5 dark:border-slate-700 dark:bg-slate-700/30">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Total período ({campaigns.length} registros)
           </p>
-          <div className="flex gap-6 text-xs">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs sm:gap-6">
             <span className="text-slate-500 dark:text-slate-400">
               Invest.: <span className="font-bold text-slate-800 dark:text-slate-200">
                 {formatCurrency(campaigns.reduce((s, r) => s + r.investment, 0))}

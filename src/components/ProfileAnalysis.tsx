@@ -387,7 +387,7 @@ function ProfileForm({
   const labelCls = "block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1";
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <h3 className="mb-5 text-sm font-bold text-slate-900 dark:text-slate-100">
         {initial ? "Editar Perfil" : "Novo Perfil de Anunciante"}
       </h3>
@@ -461,7 +461,7 @@ function ProfileForm({
           </div>
         )}
 
-        <div className="flex gap-3 pt-1">
+        <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:gap-3">
           <button type="button" onClick={() => onSave(form)}
             disabled={!form.name.trim() || !form.adAccountId.trim()}
             className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand text-xs font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50">
@@ -655,7 +655,7 @@ function CampaignAnalysisPanel({
     <div className="space-y-4">
 
       {/* ── KPIs dirigidos pelo template ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {tpl.kpis.map((kpi) => {
           const val = kpiValues[kpi.id] ?? 0;
           const display = val > 0 ? kpi.format(val) : "—";
@@ -711,7 +711,7 @@ function CampaignAnalysisPanel({
         </article>
 
         {/* Tabela dirigida pelo template */}
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <article className="rounded-xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{tpl.table.title}</h3>
             {loading && <Loader2 size={13} className="animate-spin text-slate-400" />}
@@ -889,7 +889,7 @@ function ProfileDetailView({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="rounded-xl border border-slate-200 bg-white px-4 py-4 sm:px-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <button type="button" onClick={onBack}
@@ -910,7 +910,7 @@ function ProfileDetailView({
             </div>
           </div>
           {/* Template selector + Date range */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
             <TemplateSelector
               current={templateId}
               onChange={handleTemplateChange}
@@ -1177,7 +1177,7 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">Perfis de Anunciantes</h2>
           <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">

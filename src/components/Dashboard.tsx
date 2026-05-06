@@ -617,7 +617,7 @@ function ImportPopover({
       {/* Backdrop */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
 
-      <div className="absolute right-0 top-full z-50 mt-2 flex w-[380px] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 sm:w-[440px]" style={{ maxHeight: "calc(100vh - 80px)" }}>
+      <div className="absolute right-0 top-full z-50 mt-2 flex max-h-[calc(100vh-80px)] w-[92vw] max-w-[440px] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 sm:w-[440px]">
 
         {/* Fixed header */}
         <div className="flex-shrink-0 border-b border-slate-100 p-5 pb-4 dark:border-slate-700">
@@ -1827,10 +1827,9 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
 
       {/* ── Left sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[240px] flex-col border-r transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-[240px] flex-col border-r bg-[var(--dm-bg-sidebar)] border-[var(--dm-border-default)] transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto ${
           showMobileNav ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         } lg:flex lg:w-[220px] lg:flex-shrink-0`}
-        style={{ backgroundColor: "var(--dm-bg-sidebar)", borderColor: "var(--dm-border-default)" }}
       >
         {/* Brand */}
         <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5 dark:border-slate-700">
@@ -1870,7 +1869,7 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
       <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* Top header */}
-        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b px-4 md:px-6" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
+        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-[var(--dm-border-default)] bg-[var(--dm-bg-surface)] px-3 sm:px-4 md:px-6">
           <div className="flex items-center gap-3">
             {/* Hamburger (mobile) */}
             <button
@@ -2055,9 +2054,9 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
           {mainTab === "overview" && selectedCategory && (
             campaigns.length === 0 ? (
               /* ── Welcome screen ─────────────────────────────────────────────── */
-              <div className="mx-auto max-w-2xl space-y-6 py-6">
+              <div className="mx-auto max-w-2xl space-y-5 py-4 sm:space-y-6 sm:py-6">
                 {/* Hero */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm sm:p-8 dark:border-slate-700 dark:bg-slate-800">
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
                     <TrendingUp size={26} className="text-brand" />
                   </div>
@@ -2141,7 +2140,7 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                   </div>
                 )}
                 {/* Primary KPIs */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                   <KpiCard
                     title="Total Investido"  value={formatCurrency(totals.totalInvestment)}
                     subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}
@@ -2181,7 +2180,7 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
                 </div>
 
                 {/* Secondary KPIs */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
                   <KpiCard
                     title="CTR Médio" value={formatPercent(totals.averageCtr)}
                     subtitle="Taxa de cliques"
@@ -2251,14 +2250,14 @@ export function Dashboard({ campaigns, error, dataSource, onImportCsv, onImportU
 
       {/* ── Right sidebar — desktop ── */}
       {showRightPanel && (
-        <aside className="hidden w-[260px] flex-shrink-0 border-l lg:flex lg:flex-col" style={{ backgroundColor: "var(--dm-bg-sidebar)", borderColor: "var(--dm-border-default)" }}>
+        <aside className="hidden w-[260px] flex-shrink-0 border-l border-[var(--dm-border-default)] bg-[var(--dm-bg-sidebar)] lg:flex lg:flex-col">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}
 
       {/* ── Right panel — mobile drawer ── */}
       {showRightPanel && showMobilePanel && (
-        <aside className="fixed inset-y-0 right-0 z-50 flex w-[280px] flex-col border-l border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 lg:hidden">
+        <aside className="fixed inset-y-0 right-0 z-50 flex w-[86vw] max-w-[320px] flex-col border-l border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 lg:hidden">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}
