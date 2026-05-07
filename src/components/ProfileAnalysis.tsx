@@ -14,6 +14,7 @@ import {
 } from "@/utils/metaApi";
 import { formatBRL, formatCompact, formatInt, formatPercent, safeNumber } from "@/lib/format";
 import { getTemplate, TEMPLATE_LIST, DEFAULT_PERSONALIZADO_CONFIG } from "@/lib/templates";
+import { TabLanding } from "@/components/TabLanding";
 import type { TemplateId, Template, PersonalizadoConfig } from "@/lib/templates/types";
 import { TemplateSelector } from "@/components/profiles/TemplateSelector";
 import { PersonalizadoBuilder } from "@/components/profiles/PersonalizadoBuilder";
@@ -1192,21 +1193,22 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
 
       {/* Empty state */}
       {profiles.length === 0 && (
-        <div className="flex flex-col items-center gap-5 rounded-2xl border border-slate-200 bg-white py-16 text-center shadow-sm dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 dark:bg-slate-700">
-            <Users size={26} className="text-slate-300 dark:text-slate-500" />
-          </div>
-          <div className="space-y-1">
-            <p className="text-base font-bold text-slate-700 dark:text-slate-200">Nenhum perfil configurado</p>
-            <p className="text-sm text-slate-400 dark:text-slate-500">
-              Crie um perfil para cada anunciante e acompanhe a performance individualmente
-            </p>
-          </div>
-          <button type="button" onClick={() => { setEditingId(null); setView("form"); }}
-            className="flex items-center gap-2 rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover">
-            <Plus size={15} /> Criar primeiro perfil
-          </button>
-        </div>
+        <TabLanding
+          icon={Users}
+          title="Perfil de Anúncio"
+          subtitle="Crie templates com as configurações ideais para cada anunciante. Use-os como referência ao criar novos anúncios e compare resultados entre perfis."
+          features={[
+            { icon: Users,        label: "Templates de Público",    description: "Salve segmentações, objetivos e configurações de cada tipo de campanha." },
+            { icon: Zap,          label: "Benchmarks por Perfil",   description: "Compare performance entre anunciantes e identifique os padrões vencedores." },
+            { icon: CheckCircle2, label: "Reutilize o que Funciona", description: "Replique configurações validadas para novos lançamentos com agilidade." },
+          ]}
+          steps={[
+            { label: "Crie um perfil",         description: "Defina nome, tipo de produto e configurações do anunciante." },
+            { label: "Conecte ao Meta Ads",     description: "Vincule o Access Token para buscar dados reais da conta." },
+            { label: "Analise e compare",       description: "Veja métricas de cada perfil e compare lado a lado." },
+          ]}
+          cta={{ label: "Criar primeiro perfil", onClick: () => { setEditingId(null); setView("form"); } }}
+        />
       )}
 
       {/* Profiles grouped by section */}

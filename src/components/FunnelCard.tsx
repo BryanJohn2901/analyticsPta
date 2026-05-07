@@ -30,8 +30,11 @@ export function FunnelCard({ impressions, clicks, conversions }: FunnelCardProps
   const maxVal = Math.max(...steps.map((s) => s.value), 1);
 
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-      <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Funil de Conversão</h3>
+    <article
+      className="rounded-xl border bg-white p-5 shadow-sm dark:bg-[var(--dm-bg-surface)]"
+      style={{ borderColor: "var(--dm-border-default)" }}
+    >
+      <h3 className="mb-4 text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>Funil de Conversão</h3>
 
       <div className="space-y-2">
         {steps.map((step, i) => {
@@ -39,22 +42,22 @@ export function FunnelCard({ impressions, clicks, conversions }: FunnelCardProps
           return (
             <div key={step.label}>
               <div className="mb-1 flex items-center justify-between text-[11px]">
-                <span className="font-semibold text-slate-600 dark:text-slate-400">{step.label}</span>
-                <span className="font-bold text-slate-800 dark:text-slate-200">{formatNumber(step.value)}</span>
+                <span className="font-medium" style={{ color: "var(--dm-text-secondary)" }}>{step.label}</span>
+                <span className="font-semibold" style={{ color: "var(--dm-text-primary)" }}>{formatNumber(step.value)}</span>
               </div>
-              <div className="h-7 w-full overflow-hidden rounded-lg bg-slate-100 dark:bg-slate-700/50">
+              <div className="h-6 w-full overflow-hidden rounded-lg bg-[var(--dm-bg-elevated)]">
                 <div
                   className={`flex h-full items-center justify-end px-2 transition-all duration-700 ${step.color}`}
                   style={{ width: `${Math.max(widthPct, step.value > 0 ? 4 : 0)}%` }}
                 />
               </div>
               {i < rates.length && (
-                <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
-                  <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
-                  <span className="font-semibold">
+                <div className="mt-1 flex items-center gap-1 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+                  <span className="h-px flex-1 bg-[var(--dm-border-default)]" />
+                  <span className="font-medium">
                     {formatPercent(rates[i])} de conversão
                   </span>
-                  <span className="h-px flex-1 bg-slate-200 dark:bg-slate-700" />
+                  <span className="h-px flex-1 bg-[var(--dm-border-default)]" />
                 </div>
               )}
             </div>

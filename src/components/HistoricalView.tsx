@@ -11,6 +11,7 @@ import {
   ArrowRight, CheckCircle2, XCircle, Plus, Pencil, Trash2, X,
   BarChart2, Package, Cloud, CloudOff, Loader2, CalendarDays, Camera, Repeat, Wallet,
 } from "lucide-react";
+import { TabLanding } from "@/components/TabLanding";
 import { HISTORICAL_KIND_LABELS, HistoricalKind, HistoricalMeta, HistoricalRow } from "@/types/historical";
 import { parseHistoricalCsvFile } from "@/utils/parseHistoricalCsv";
 import { formatCurrency, formatNumber, formatPercent } from "@/utils/metrics";
@@ -74,6 +75,7 @@ const MONTH_LABELS: Record<string, string> = {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FormState {
+  kind: HistoricalKind;
   product: string; month: string; year: string; campaignEndDate: string;
   investment: string; cpm: string; reach: string; clicks: string;
   pageViews: string; preCheckouts: string; sales: string; revenue: string;
@@ -87,6 +89,7 @@ const HISTORY_TABS: Array<{ id: HistoricalKind; icon: React.ElementType }> = [
 ];
 
 const EMPTY_FORM: FormState = {
+  kind: "lancamento",
   product: "", month: "JANEIRO", year: String(new Date().getFullYear()), campaignEndDate: "",
   investment: "", cpm: "", reach: "", clicks: "",
   pageViews: "", preCheckouts: "", sales: "", revenue: "",
@@ -125,6 +128,7 @@ const buildRow = (form: FormState, kind: HistoricalKind): HistoricalRow => {
 };
 
 const rowToForm = (r: HistoricalRow): FormState => ({
+  kind: r.kind,
   product: r.product, month: r.month, year: String(r.year),
   campaignEndDate: r.campaignEndDate ?? "",
   investment: r.investment > 0 ? String(r.investment) : "",
@@ -182,6 +186,33 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
         </div>
 
         <form onSubmit={onSubmit} className="divide-y divide-slate-100 dark:divide-slate-700">
+          {/* Tipo de dado */}
+          <div className="px-4 py-4 sm:px-6">
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Tipo de dado</p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {HISTORY_TABS.map(({ id, icon: Icon }) => {
+                const active = form.kind === id;
+                const colors: Record<HistoricalKind, string> = {
+                  lancamento: active ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" : "border-slate-200 text-slate-600 hover:border-blue-300 dark:border-slate-600 dark:text-slate-400",
+                  evento:     active ? "border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300" : "border-slate-200 text-slate-600 hover:border-rose-300 dark:border-slate-600 dark:text-slate-400",
+                  perpetuo:   active ? "border-amber-500 bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300" : "border-slate-200 text-slate-600 hover:border-amber-300 dark:border-slate-600 dark:text-slate-400",
+                  instagram:  active ? "border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300" : "border-slate-200 text-slate-600 hover:border-violet-300 dark:border-slate-600 dark:text-slate-400",
+                };
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onChange({ ...form, kind: id })}
+                    className={`flex items-center justify-center gap-2 rounded-lg border-2 px-3 py-2.5 text-xs font-semibold transition ${colors[id]}`}
+                  >
+                    <Icon size={14} />
+                    {HISTORICAL_KIND_LABELS[id]}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="px-4 py-5 sm:px-6">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Identificação</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -261,18 +292,23 @@ interface StatCardProps {
   icon: React.ElementType; accent: string; iconColor: string;
 }
 
-function StatCard({ label, value, sub, icon: Icon, accent, iconColor }: StatCardProps) {
+function StatCard({ label, value, sub, icon: Icon }: StatCardProps) {
   return (
-    <article className={`relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800`}>
-      <div className={`absolute left-0 top-0 h-full w-1 rounded-l-xl ${accent}`} />
+    <article
+      className="rounded-xl border p-5 shadow-sm"
+      style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+    >
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</p>
-          <p className="mt-1 text-xl font-bold text-slate-900 dark:text-slate-100">{value}</p>
-          {sub && <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{sub}</p>}
+          <p className="text-xs font-medium" style={{ color: "var(--dm-text-secondary)" }}>{label}</p>
+          <p className="mt-1 text-xl font-bold" style={{ color: "var(--dm-text-primary)" }}>{value}</p>
+          {sub && <p className="mt-0.5 text-xs" style={{ color: "var(--dm-text-tertiary)" }}>{sub}</p>}
         </div>
-        <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-700 ${iconColor}`}>
-          <Icon size={18} />
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-lg"
+          style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}
+        >
+          <Icon size={17} />
         </div>
       </div>
     </article>
@@ -380,7 +416,7 @@ export function HistoricalView() {
   };
 
   // ── Manual entry ──
-  const openAdd = useCallback(() => { setForm(EMPTY_FORM); setEditingIdx(null); setShowForm(true); }, []);
+  const openAdd = useCallback(() => { setForm({ ...EMPTY_FORM, kind: selectedKind }); setEditingIdx(null); setShowForm(true); }, [selectedKind]);
 
   const openEdit = useCallback((idx: number) => {
     setForm(rowToForm(rows[idx])); setEditingIdx(idx); setShowForm(true);
@@ -388,7 +424,7 @@ export function HistoricalView() {
 
   const handleFormSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    const newRow = buildRow(form, selectedKind);
+    const newRow = buildRow(form, form.kind);
     if (isSupabaseConfigured) {
       setSyncStatus("loading");
       try {
@@ -567,10 +603,7 @@ export function HistoricalView() {
             >
               <Upload size={13} /> {loading ? "Importando…" : "Importar CSV"}
             </button>
-            <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
-            <p className="w-full text-[10px] text-slate-400 dark:text-slate-500 sm:w-auto">
-              CSV aceita coluna Tipo (Lançamento/Evento/Perpétuo/Instagram). Sem coluna, entra como Lançamento.
-            </p>
+            <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} title="CSV aceita coluna Tipo (Lançamento/Evento/Perpétuo/Instagram). Sem coluna, entra como Lançamento." />
           </div>
         </div>
 
@@ -608,37 +641,25 @@ export function HistoricalView() {
           <StatCard label="CAC Médio"          value={totals.avgCac > 0 ? formatCurrency(totals.avgCac) : "—"} icon={BarChart2} accent="bg-slate-400" iconColor="text-slate-500" />
         </div>
 
-        {/* ── Empty-state prompt (shown inline when no data) ── */}
+        {/* ── Empty-state onboarding ── */}
         {!hasData && (
-          <div className="grid gap-4 sm:grid-cols-2">
-            <article
-              className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 bg-white p-8 text-center transition hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-blue-600 dark:hover:bg-blue-900/10"
-              onClick={() => inputRef.current?.click()}
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                <Upload size={22} className="text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Importar via CSV</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Planilha histórica com funil mensal por produto</p>
-              </div>
-              <span className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white">Escolher arquivo</span>
-            </article>
-
-            <article
-              className="flex cursor-pointer flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 bg-white p-8 text-center transition hover:border-violet-400 hover:bg-violet-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-violet-600 dark:hover:bg-violet-900/10"
-              onClick={openAdd}
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30">
-                <Plus size={22} className="text-violet-600 dark:text-violet-400" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Adicionar Manualmente</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Preencha os dados mês a mês diretamente no dashboard</p>
-              </div>
-              <span className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white">Adicionar registro</span>
-            </article>
-          </div>
+          <TabLanding
+            icon={CalendarDays}
+            title="Histórico de Performance"
+            subtitle="Registre os resultados de cada lançamento mês a mês e acompanhe a evolução de investimento, receita e conversões ao longo do tempo."
+            features={[
+              { icon: TrendingUp, label: "Linha do Tempo Visual",    description: "Gráficos de evolução mensal de investimento e receita por produto." },
+              { icon: BarChart2,  label: "Comparação Entre Períodos", description: "Compare diferentes lançamentos e identifique sazonalidades." },
+              { icon: Target,     label: "Funil Completo",           description: "Do alcance às vendas: veja onde cada lançamento ganhava ou perdia." },
+            ]}
+            steps={[
+              { label: "Importe o CSV histórico", description: "Planilha com funil mensal por produto e por lançamento." },
+              { label: "Ou adicione manualmente", description: "Preencha os dados mês a mês diretamente no dashboard." },
+              { label: "Acompanhe a evolução",    description: "Veja gráficos e compare lançamentos em tempo real." },
+            ]}
+            cta={{ label: "Importar CSV histórico", onClick: () => inputRef.current?.click() }}
+            ctaSecondary={{ label: "Adicionar manualmente", onClick: openAdd }}
+          />
         )}
 
         {/* ── Charts (only when data loaded) ── */}

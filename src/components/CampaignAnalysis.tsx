@@ -152,23 +152,30 @@ function SubTabBar({
   tabs: { id: SubTab; label: string; count?: number; icon: React.ElementType }[];
 }) {
   return (
-    <div className="flex gap-1 border-b border-slate-100 dark:border-slate-700">
+    <div className="flex gap-1 border-b" style={{ borderColor: "var(--dm-border-default)" }}>
       {tabs.map(({ id, label, count, icon: Icon }) => (
         <button
           key={id}
           onClick={() => onChange(id)}
           className={`flex items-center gap-1.5 border-b-2 px-3 py-2.5 text-xs font-semibold transition ${
             active === id
-              ? "border-blue-600 text-blue-700 dark:text-blue-400"
-              : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+              ? "border-blue-500"
+              : "border-transparent"
           }`}
+          style={{
+            color: active === id ? "var(--dm-brand-500)" : "var(--dm-text-secondary)",
+          }}
         >
           <Icon size={13} />
           {label}
           {count !== undefined && count > 0 && (
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-              active === id ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"
-            }`}>
+            <span
+              className="rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+              style={{
+                backgroundColor: active === id ? "var(--dm-brand-50)" : "var(--dm-bg-elevated)",
+                color: active === id ? "var(--dm-brand-500)" : "var(--dm-text-tertiary)",
+              }}
+            >
               {count}
             </span>
           )}
@@ -186,15 +193,16 @@ function Paginator({
   const totalPages = Math.max(1, Math.ceil(total / perPage));
   if (totalPages <= 1) return null;
   return (
-    <div className="flex items-center justify-between border-t border-slate-100 pt-3 dark:border-slate-700">
-      <p className="text-xs text-slate-400 dark:text-slate-500">
+    <div className="flex items-center justify-between border-t pt-3" style={{ borderColor: "var(--dm-border-default)" }}>
+      <p className="text-xs" style={{ color: "var(--dm-text-tertiary)" }}>
         {(page - 1) * perPage + 1}–{Math.min(page * perPage, total)} de {total}
       </p>
       <div className="flex gap-1">
         <button
           onClick={() => onChange(Math.max(1, page - 1))}
           disabled={page === 1}
-          className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+          className="flex h-7 w-7 items-center justify-center rounded-lg border disabled:opacity-30"
+          style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}
         >
           <ChevronLeft size={13} />
         </button>
@@ -204,9 +212,12 @@ function Paginator({
             <button
               key={p}
               onClick={() => onChange(p)}
-              className={`flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold transition ${
-                p === page ? "bg-brand text-white" : "border border-slate-200 text-slate-500 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
-              }`}
+              className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold transition"
+              style={
+                p === page
+                  ? { backgroundColor: "var(--dm-brand-500)", color: "#fff" }
+                  : { border: "1px solid var(--dm-border-default)", color: "var(--dm-text-secondary)" }
+              }
             >
               {p}
             </button>
@@ -215,7 +226,8 @@ function Paginator({
         <button
           onClick={() => onChange(Math.min(totalPages, page + 1))}
           disabled={page === totalPages}
-          className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-30 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+          className="flex h-7 w-7 items-center justify-center rounded-lg border disabled:opacity-30"
+          style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}
         >
           <ChevronRight size={13} />
         </button>
@@ -235,25 +247,29 @@ function TabOverview({ campaigns }: { campaigns: AggregatedCampaign[] }) {
 
   return (
     <div className="space-y-4 pt-4">
-      <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Top 10 por Investimento</p>
-      <div className="space-y-2.5">
+      <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>Top 10 por Investimento</p>
+      <div className="space-y-2">
         {top10.map((c) => {
-          const roasColor = c.roas >= 3 ? "text-emerald-600" : c.roas >= 1.5 ? "text-blue-600" : c.roas >= 1 ? "text-amber-600" : "text-red-500";
-          const barColor  = c.roas >= 3 ? "bg-emerald-500" : c.roas >= 1.5 ? "bg-blue-500"    : c.roas >= 1 ? "bg-amber-400"   : "bg-red-400";
+          const roasColor = c.roas >= 3 ? "#059669" : c.roas >= 1.5 ? "var(--dm-brand-500)" : c.roas >= 1 ? "#d97706" : "#dc2626";
+          const barColor  = c.roas >= 3 ? "#059669" : c.roas >= 1.5 ? "var(--dm-brand-500)" : c.roas >= 1 ? "#f59e0b" : "#ef4444";
           const pct       = (c.investment / maxInv) * 100;
           return (
-            <div key={c.campaignName} className="group rounded-xl border border-slate-100 bg-slate-50 p-3 transition hover:border-slate-200 hover:bg-white hover:shadow-sm dark:border-slate-700 dark:bg-slate-700/50 dark:hover:border-slate-600 dark:hover:bg-slate-700">
+            <div
+              key={c.campaignName}
+              className="rounded-xl border p-3 transition"
+              style={{ backgroundColor: "var(--dm-bg-elevated)", borderColor: "var(--dm-border-subtle)" }}
+            >
               <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-xs font-semibold text-slate-800 dark:text-slate-200" title={c.campaignName}>
+                <p className="min-w-0 truncate text-xs font-semibold" style={{ color: "var(--dm-text-primary)" }} title={c.campaignName}>
                   {c.campaignName}
                 </p>
                 <div className="flex flex-shrink-0 items-center gap-3 text-xs">
-                  <span className="text-slate-500 dark:text-slate-400">{formatCurrency(c.investment)}</span>
-                  <span className={`font-bold ${roasColor}`}>{c.roas.toFixed(2)}x</span>
+                  <span style={{ color: "var(--dm-text-secondary)" }}>{formatCurrency(c.investment)}</span>
+                  <span className="font-bold" style={{ color: roasColor }}>{c.roas.toFixed(2)}x</span>
                 </div>
               </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-600">
-                <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+              <div className="h-1.5 w-full overflow-hidden rounded-full" style={{ backgroundColor: "var(--dm-border-default)" }}>
+                <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
               </div>
             </div>
           );
@@ -356,26 +372,37 @@ function TopList({ title, subtitle, icon: Icon, items, metricLabel, metricValue,
 }) {
   if (items.length === 0) return null;
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <article
+      className="rounded-xl border p-4 shadow-sm"
+      style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+    >
       <div className="mb-3 flex items-center gap-2">
-        <span className={`flex h-7 w-7 items-center justify-center rounded-xl ${bg} dark:opacity-80`}>
-          <Icon size={14} className={color} />
+        <span className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}>
+          <Icon size={14} />
         </span>
         <div>
-          <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{title}</p>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500">{subtitle}</p>
+          <p className="text-xs font-semibold" style={{ color: "var(--dm-text-primary)" }}>{title}</p>
+          <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>{subtitle}</p>
         </div>
       </div>
       <ol className="space-y-2">
         {items.map((c, i) => (
           <li key={c.campaignName} className="flex items-center gap-2.5">
-            <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-              i === 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"
-            }`}>{i + 1}</span>
-            <p className="min-w-0 flex-1 truncate text-xs text-slate-700 dark:text-slate-300" title={c.campaignName}>
+            <span
+              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
+              style={
+                i === 0
+                  ? { backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }
+                  : { backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-tertiary)" }
+              }
+            >{i + 1}</span>
+            <p className="min-w-0 flex-1 truncate text-xs" style={{ color: "var(--dm-text-secondary)" }} title={c.campaignName}>
               {c.campaignName}
             </p>
-            <span className={`flex-shrink-0 rounded-lg px-2 py-0.5 text-xs font-bold ${bg} ${color} dark:opacity-80`}>
+            <span
+              className="flex-shrink-0 rounded-md px-2 py-0.5 text-xs font-bold"
+              style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}
+            >
               {metricLabel}: {metricValue(c)}
             </span>
           </li>
@@ -447,14 +474,17 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         {/* Priority filter */}
-        <div className="flex gap-1 rounded-xl bg-slate-100 p-0.5">
+        <div className="flex gap-1 rounded-lg p-0.5" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
           {(["all", "alta", "média", "baixa"] as const).map((p) => (
             <button
               key={p}
               onClick={() => handleFilterPri(p)}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
-                filterPri === p ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
+              className="flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-semibold transition"
+              style={
+                filterPri === p
+                  ? { backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-primary)", boxShadow: "0 1px 2px rgba(0,0,0,0.08)" }
+                  : { color: "var(--dm-text-secondary)" }
+              }
             >
               {p !== "all" && <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_DOT[p]}`} />}
               {p === "all" ? "Todas" : p.charAt(0).toUpperCase() + p.slice(1)}
@@ -466,9 +496,12 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
         <div className="flex flex-wrap gap-1">
           <button
             onClick={() => handleFilterCat("all")}
-            className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
-              filterCat === "all" ? "bg-slate-800 text-white" : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-            }`}
+            className="rounded-lg px-2.5 py-1 text-[11px] font-semibold transition"
+            style={
+              filterCat === "all"
+                ? { backgroundColor: "var(--dm-brand-500)", color: "#fff" }
+                : { backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }
+            }
           >
             Todas
           </button>
@@ -478,9 +511,12 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
               <button
                 key={cat}
                 onClick={() => handleFilterCat(cat)}
-                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition ${
-                  filterCat === cat ? `${m.bg} ${m.color}` : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                }`}
+                className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold transition"
+                style={
+                  filterCat === cat
+                    ? { backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }
+                    : { backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }
+                }
               >
                 <m.icon size={10} />
                 {m.label}
@@ -491,13 +527,13 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
       </div>
 
       {/* Summary bar */}
-      <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/50">
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          <span className="font-bold text-slate-800 dark:text-slate-200">{filtered.length}</span> tarefas pendentes
-          {done.length > 0 && <> · <span className="font-bold text-emerald-600 dark:text-emerald-400">{done.length}</span> concluídas</>}
+      <div className="flex items-center justify-between rounded-lg px-3 py-2" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+        <p className="text-xs" style={{ color: "var(--dm-text-secondary)" }}>
+          <span className="font-bold" style={{ color: "var(--dm-text-primary)" }}>{filtered.length}</span> tarefas pendentes
+          {done.length > 0 && <> · <span className="font-bold" style={{ color: "#10b981" }}>{done.length}</span> concluídas</>}
         </p>
         {done.length > 0 && (
-          <button onClick={() => setChecked(new Set())} className="text-[11px] font-semibold text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
+          <button onClick={() => setChecked(new Set())} className="text-[11px] font-semibold" style={{ color: "var(--dm-text-tertiary)" }}>
             Limpar concluídas
           </button>
         )}
@@ -524,7 +560,8 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
               >
                 <button
                   onClick={() => toggle(task.id)}
-                  className="mt-0.5 flex-shrink-0 text-slate-300 transition hover:text-blue-500"
+                  className="mt-0.5 flex-shrink-0 transition"
+                  style={{ color: "var(--dm-border-strong)" }}
                   title="Marcar como concluída"
                 >
                   <Square size={16} />
@@ -540,8 +577,8 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
                       {cat.label}
                     </span>
                   </div>
-                  <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{task.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{task.detail}</p>
+                  <p className="text-xs font-semibold" style={{ color: "var(--dm-text-primary)" }}>{task.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>{task.detail}</p>
                 </div>
               </div>
             );
@@ -553,14 +590,14 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
 
       {/* Done section */}
       {done.length > 0 && (
-        <div className="space-y-1.5 border-t border-slate-100 pt-3 dark:border-slate-700">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Concluídas</p>
+        <div className="space-y-1.5 border-t pt-3" style={{ borderColor: "var(--dm-border-default)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>Concluídas</p>
           {done.map((t) => (
-            <div key={t.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 p-3 opacity-60 dark:border-slate-700 dark:bg-slate-700/50">
-              <button onClick={() => toggle(t.id)} className="flex-shrink-0 text-emerald-500 hover:text-slate-400">
+            <div key={t.id} className="flex items-center gap-3 rounded-xl border p-3 opacity-60" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)" }}>
+              <button onClick={() => toggle(t.id)} className="flex-shrink-0" style={{ color: "#10b981" }}>
                 <CheckSquare size={15} />
               </button>
-              <p className="text-xs text-slate-500 line-through dark:text-slate-400">{t.title}</p>
+              <p className="text-xs line-through" style={{ color: "var(--dm-text-secondary)" }}>{t.title}</p>
             </div>
           ))}
         </div>
@@ -599,57 +636,57 @@ export function CampaignAnalysis({ campaigns }: CampaignAnalysisProps) {
     <div className="space-y-4">
 
       {/* ── Health score header ── */}
-      <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="flex flex-wrap items-center gap-4 rounded-xl border p-5 shadow-sm" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
         {/* Ring */}
         <div className="relative flex-shrink-0">
           <HealthRing score={score} />
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <p className={`text-lg font-black leading-none ${scoreColor}`}>{score}</p>
-            <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">score</p>
+            <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>score</p>
           </div>
         </div>
 
         {/* Label + divider */}
-        <div className="flex-shrink-0 border-r border-slate-100 pr-4 dark:border-slate-700">
+        <div className="flex-shrink-0 border-r pr-4" style={{ borderColor: "var(--dm-border-default)" }}>
           <p className={`text-base font-black ${scoreColor}`}>{scoreLabel}</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500">{campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""} analisadas</p>
+          <p className="text-xs" style={{ color: "var(--dm-text-tertiary)" }}>{campaigns.length} campanha{campaigns.length !== 1 ? "s" : ""} analisadas</p>
         </div>
 
         {/* Counters */}
         <div className="flex flex-wrap gap-3">
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${critical.length > 0 ? "bg-red-50 dark:bg-red-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
-            <XCircle size={15} className={critical.length > 0 ? "text-red-500" : "text-slate-300 dark:text-slate-600"} />
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: critical.length > 0 ? "rgba(239,68,68,0.08)" : "var(--dm-bg-elevated)" }}>
+            <XCircle size={15} style={{ color: critical.length > 0 ? "#ef4444" : "var(--dm-text-tertiary)" }} />
             <div>
-              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{critical.length}</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">Crítica{critical.length !== 1 ? "s" : ""}</p>
+              <p className="text-sm font-black" style={{ color: "var(--dm-text-primary)" }}>{critical.length}</p>
+              <p className="text-[10px]" style={{ color: "var(--dm-text-secondary)" }}>Crítica{critical.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${warnings.length > 0 ? "bg-amber-50 dark:bg-amber-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
-            <AlertTriangle size={15} className={warnings.length > 0 ? "text-amber-500" : "text-slate-300 dark:text-slate-600"} />
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: warnings.length > 0 ? "rgba(245,158,11,0.08)" : "var(--dm-bg-elevated)" }}>
+            <AlertTriangle size={15} style={{ color: warnings.length > 0 ? "#f59e0b" : "var(--dm-text-tertiary)" }} />
             <div>
-              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{warnings.length}</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">Alerta{warnings.length !== 1 ? "s" : ""}</p>
+              <p className="text-sm font-black" style={{ color: "var(--dm-text-primary)" }}>{warnings.length}</p>
+              <p className="text-[10px]" style={{ color: "var(--dm-text-secondary)" }}>Alerta{warnings.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 ${positive.length > 0 ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
-            <CheckCircle2 size={15} className={positive.length > 0 ? "text-emerald-500" : "text-slate-300 dark:text-slate-600"} />
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: positive.length > 0 ? "rgba(16,185,129,0.08)" : "var(--dm-bg-elevated)" }}>
+            <CheckCircle2 size={15} style={{ color: positive.length > 0 ? "#10b981" : "var(--dm-text-tertiary)" }} />
             <div>
-              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{positive.length}</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">Saudável{positive.length !== 1 ? "is" : ""}</p>
+              <p className="text-sm font-black" style={{ color: "var(--dm-text-primary)" }}>{positive.length}</p>
+              <p className="text-[10px]" style={{ color: "var(--dm-text-secondary)" }}>Saudável{positive.length !== 1 ? "is" : ""}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 dark:bg-slate-700/50">
-            <CheckSquare size={15} className={tasksPending > 0 ? "text-blue-500" : "text-slate-300 dark:text-slate-600"} />
+          <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+            <CheckSquare size={15} style={{ color: tasksPending > 0 ? "var(--dm-brand-500)" : "var(--dm-text-tertiary)" }} />
             <div>
-              <p className="text-sm font-black text-slate-900 dark:text-slate-100">{tasksPending}</p>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400">Ação{tasksPending !== 1 ? "ões" : ""}</p>
+              <p className="text-sm font-black" style={{ color: "var(--dm-text-primary)" }}>{tasksPending}</p>
+              <p className="text-[10px]" style={{ color: "var(--dm-text-secondary)" }}>Ação{tasksPending !== 1 ? "ões" : ""}</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* ── Sub-tab card ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+      <div className="rounded-xl border shadow-sm" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
         <div className="px-5 pt-4">
           <SubTabBar active={subTab} onChange={setSubTab} tabs={TABS} />
         </div>

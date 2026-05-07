@@ -166,56 +166,61 @@ export function CategoryGate({ onSelect }: CategoryGateProps) {
         </div>
 
         {/* 5 cards — responsive grid */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {CATEGORY_CONFIGS.map((cat) => {
-            const v = cat.vars;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                onClick={() => onSelect(cat.id)}
-                className="dm-cat-card group relative flex flex-col rounded-2xl border-2 p-5 text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-xl"
-                style={{
-                  backgroundColor: v.bg,
-                  borderColor: v.border,
-                  "--dm-cat-card-hover-border": v.hoverBorder,
-                } as React.CSSProperties}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {CATEGORY_CONFIGS.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => onSelect(cat.id)}
+              className="dm-cat-card group relative flex flex-col rounded-xl border p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              style={{
+                backgroundColor: "var(--dm-bg-surface)",
+                borderColor: "var(--dm-border-default)",
+                "--dm-cat-card-hover-border": "var(--dm-brand-500)",
+              } as React.CSSProperties}
+            >
+              {/* Icon */}
+              <div
+                className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg"
+                style={{ backgroundColor: "var(--dm-bg-elevated)" }}
               >
-                {/* Icon */}
-                <div
-                  className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl"
-                  style={{ backgroundColor: v.iconBg }}
-                >
-                  <cat.icon size={20} style={{ color: v.icon }} />
-                </div>
+                <cat.icon size={18} style={{ color: cat.vars.base }} />
+              </div>
 
-                {/* Title + description */}
-                <p className="text-sm font-bold" style={{ color: v.title }}>{cat.label}</p>
-                <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
-                  {cat.description}
-                </p>
+              {/* Title + description */}
+              <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>{cat.label}</p>
+              <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
+                {cat.description}
+              </p>
 
-                {/* Example tags */}
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {cat.tags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="rounded-full px-2 py-0.5 text-[10px] font-semibold"
-                      style={{ backgroundColor: v.tagBg, color: v.tagText }}
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+              {/* Tags — neutral */}
+              <div className="mt-3 flex flex-wrap gap-1">
+                {cat.tags.slice(0, 3).map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-md px-2 py-0.5 text-[10px] font-medium"
+                    style={{ backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-tertiary)" }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+                {cat.tags.length > 3 && (
+                  <span
+                    className="rounded-md px-2 py-0.5 text-[10px] font-medium"
+                    style={{ backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-tertiary)" }}
+                  >
+                    +{cat.tags.length - 3}
+                  </span>
+                )}
+              </div>
 
-                {/* Hover dot indicator */}
-                <span
-                  className="absolute right-4 top-4 h-2.5 w-2.5 rounded-full opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                  style={{ backgroundColor: v.base }}
-                />
-              </button>
-            );
-          })}
+              {/* Blue hover indicator */}
+              <span
+                className="absolute right-4 top-4 h-2 w-2 rounded-full opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+                style={{ backgroundColor: "var(--dm-brand-500)" }}
+              />
+            </button>
+          ))}
         </div>
 
         <p className="mt-8 text-center text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>

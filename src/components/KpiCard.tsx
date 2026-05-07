@@ -9,19 +9,18 @@ interface KpiCardProps {
   trendLabel?: string;
   accentColor?: "blue" | "emerald" | "violet" | "amber" | "rose";
   invertTrend?: boolean;
-  // Goals
   goalValue?: number | null;
   goalLabel?: string;
-  goalPct?: number | null;      // 0–100+, pre-computed
-  goalInvert?: boolean;         // lower = better (CPA, CPC, CPM)
+  goalPct?: number | null;
+  goalInvert?: boolean;
 }
 
 const ACCENT = {
-  blue:    { bg: "bg-blue-50",    icon: "text-blue-600",    bar: "bg-blue-500",    ring: "ring-blue-100",    dark: "dark:bg-blue-900/20" },
-  emerald: { bg: "bg-emerald-50", icon: "text-emerald-600", bar: "bg-emerald-500", ring: "ring-emerald-100", dark: "dark:bg-emerald-900/20" },
-  violet:  { bg: "bg-violet-50",  icon: "text-violet-600",  bar: "bg-violet-500",  ring: "ring-violet-100",  dark: "dark:bg-violet-900/20" },
-  amber:   { bg: "bg-amber-50",   icon: "text-amber-600",   bar: "bg-amber-500",   ring: "ring-amber-100",   dark: "dark:bg-amber-900/20" },
-  rose:    { bg: "bg-rose-50",    icon: "text-rose-600",    bar: "bg-rose-500",    ring: "ring-rose-100",    dark: "dark:bg-rose-900/20" },
+  blue:    { bg: "bg-blue-50",    icon: "text-blue-500",    bar: "bg-blue-500",    dark: "dark:bg-blue-900/20" },
+  emerald: { bg: "bg-emerald-50", icon: "text-emerald-500", bar: "bg-emerald-500", dark: "dark:bg-emerald-900/20" },
+  violet:  { bg: "bg-violet-50",  icon: "text-violet-500",  bar: "bg-violet-500",  dark: "dark:bg-violet-900/20" },
+  amber:   { bg: "bg-amber-50",   icon: "text-amber-500",   bar: "bg-amber-500",   dark: "dark:bg-amber-900/20" },
+  rose:    { bg: "bg-rose-50",    icon: "text-rose-500",    bar: "bg-rose-500",    dark: "dark:bg-rose-900/20" },
 };
 
 function goalColor(pct: number, invert: boolean): { bar: string; text: string; bg: string } {
@@ -50,26 +49,26 @@ export function KpiCard({
   const barWidth = hasGoal ? Math.min(goalPct!, 100) : 0;
 
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md dark:border-slate-700 dark:bg-slate-800">
-      {/* Accent bar top */}
-      <div className={`absolute inset-x-0 top-0 h-0.5 ${a.bar}`} />
-
+    <article
+      className="group relative overflow-hidden rounded-xl border bg-white shadow-sm transition hover:shadow-md dark:bg-[var(--dm-bg-surface)]"
+      style={{ borderColor: "var(--dm-border-default)" }}
+    >
       <div className="p-5">
-        {/* Header row */}
+        {/* Header */}
         <div className="mb-3 flex items-start justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{title}</p>
-          <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${a.bg} ring-1 ${a.ring} ${a.dark}`}>
-            <Icon size={17} className={a.icon} />
+          <p className="text-xs font-medium" style={{ color: "var(--dm-text-secondary)" }}>{title}</p>
+          <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${a.bg} ${a.dark}`}>
+            <Icon size={16} className={a.icon} />
           </span>
         </div>
 
         {/* Value */}
-        <p className="text-2xl font-bold tracking-tight text-slate-900 dark:text-slate-100">{value}</p>
+        <p className="text-2xl font-bold tracking-tight" style={{ color: "var(--dm-text-primary)" }}>{value}</p>
 
         {/* Trend + subtitle */}
         <div className="mt-2 flex items-center gap-2">
           {trend !== undefined && (
-            <span className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[11px] font-bold ${
+            <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
               isPositiveTrend
                 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                 : "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
@@ -79,32 +78,31 @@ export function KpiCard({
             </span>
           )}
           {subtitle && (
-            <p className="text-xs text-slate-400 dark:text-slate-500">
+            <p className="text-xs" style={{ color: "var(--dm-text-tertiary)" }}>
               {trend !== undefined ? trendLabel : subtitle}
             </p>
           )}
         </div>
         {trend !== undefined && subtitle && (
-          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{subtitle}</p>
+          <p className="mt-1 text-xs" style={{ color: "var(--dm-text-tertiary)" }}>{subtitle}</p>
         )}
       </div>
 
       {/* Goal section */}
       {hasGoal && gc && (
-        <div className="border-t border-slate-100 px-5 pb-4 pt-3 dark:border-slate-700/60">
+        <div className="border-t px-5 pb-4 pt-3" style={{ borderColor: "var(--dm-border-subtle)" }}>
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500">
-              Meta: <span className="text-slate-600 dark:text-slate-300">{goalLabel}</span>
+            <span className="text-[10px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>
+              Meta: <span style={{ color: "var(--dm-text-secondary)" }}>{goalLabel}</span>
             </span>
-            <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${gc.bg} ${gc.text}`}>
+            <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold ${gc.bg} ${gc.text}`}>
               {goalInvert
                 ? goalPct! <= 100 ? `✓ ${goalPct!.toFixed(0)}%` : `+${(goalPct! - 100).toFixed(0)}% acima`
                 : goalPct! >= 100 ? `✓ ${goalPct!.toFixed(0)}%` : `${goalPct!.toFixed(0)}%`
               }
             </span>
           </div>
-          {/* Progress bar */}
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
+          <div className="h-1 w-full overflow-hidden rounded-full bg-[var(--dm-bg-elevated)]">
             <div
               className={`h-full rounded-full transition-all duration-500 ${gc.bar}`}
               style={{ width: `${barWidth}%` }}

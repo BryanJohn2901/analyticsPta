@@ -290,7 +290,9 @@ export default function Home() {
     })();
   }, [session?.user.id]);
 
-  if (!session) {
+  const devBypass = process.env.NODE_ENV === "development" && !isSupabaseConfigured;
+
+  if (!session && !devBypass) {
     return (
       <AuthScreen
         onSignIn={handleSignIn}
@@ -307,8 +309,8 @@ export default function Home() {
       error={error}
       dataSource={dataSource}
       currentUser={{
-        email: session.user.email ?? "",
-        name: String(session.user.user_metadata?.full_name ?? "").trim(),
+        email: devBypass ? "dev@preview.local" : (session?.user.email ?? ""),
+        name: devBypass ? "Dev Preview" : String(session?.user.user_metadata?.full_name ?? "").trim(),
       }}
       onImportCsv={handleCsvUpload}
       onImportUrl={handleGenerateDashboard}

@@ -32,6 +32,7 @@ import { BestCreatives } from "@/components/BestCreatives";
 import { ProfileAnalysis } from "@/components/ProfileAnalysis";
 import { ProductBase } from "@/components/products/ProductBase";
 import { DashMonsterLogo } from "@/components/DashMonsterLogo";
+import { TabLanding } from "@/components/TabLanding";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,36 +88,42 @@ interface GroupConfig {
   selectedBg: string; selectedText: string; selectedBorder: string;
 }
 
+const G_BLUE = {
+  iconBg: "bg-blue-50 dark:bg-blue-900/20", iconColor: "text-blue-500 dark:text-blue-400",
+  activeDot: "bg-blue-500", activePulse: "bg-blue-400",
+  selectedBg: "bg-blue-50 dark:bg-blue-900/10", selectedText: "text-blue-600 dark:text-blue-400", selectedBorder: "border-blue-200 dark:border-blue-800",
+};
+
 const CAMPAIGN_GROUPS: GroupConfig[] = [
   // ── Pós Graduação ──────────────────────────────────────────────────────────
-  { section: "pos", id: "biomecanica",  label: "Biomecânica (BM)",           icon: BookOpen,    iconBg: "bg-blue-100",    iconColor: "text-blue-600",    activeDot: "bg-blue-500",    activePulse: "bg-blue-400",    selectedBg: "bg-blue-50",    selectedText: "text-blue-700",    selectedBorder: "border-blue-200" },
-  { section: "pos", id: "musculacao",   label: "Musculação (MPA)",            icon: Dumbbell,    iconBg: "bg-purple-100",  iconColor: "text-purple-600",  activeDot: "bg-purple-500",  activePulse: "bg-purple-400",  selectedBg: "bg-purple-50",  selectedText: "text-purple-700",  selectedBorder: "border-purple-200" },
-  { section: "pos", id: "fisiologia",   label: "Fisiologia (FE)",             icon: Activity,    iconBg: "bg-emerald-100", iconColor: "text-emerald-600", activeDot: "bg-emerald-500", activePulse: "bg-emerald-400", selectedBg: "bg-emerald-50", selectedText: "text-emerald-700", selectedBorder: "border-emerald-200" },
-  { section: "pos", id: "bodybuilding", label: "Bodybuilding (BB)",           icon: Trophy,      iconBg: "bg-orange-100",  iconColor: "text-orange-600",  activeDot: "bg-orange-500",  activePulse: "bg-orange-400",  selectedBg: "bg-orange-50",  selectedText: "text-orange-700",  selectedBorder: "border-orange-200" },
-  { section: "pos", id: "feminino",     label: "Trein. Feminino (SM)",        icon: Users,       iconBg: "bg-pink-100",    iconColor: "text-pink-600",    activeDot: "bg-pink-500",    activePulse: "bg-pink-400",    selectedBg: "bg-pink-50",    selectedText: "text-pink-700",    selectedBorder: "border-pink-200" },
-  { section: "pos", id: "funcional",    label: "Trein. Funcional (TF)",       icon: Zap,         iconBg: "bg-teal-100",    iconColor: "text-teal-600",    activeDot: "bg-teal-500",    activePulse: "bg-teal-400",    selectedBg: "bg-teal-50",    selectedText: "text-teal-700",    selectedBorder: "border-teal-200" },
+  { section: "pos", id: "biomecanica",  label: "Biomecânica (BM)",           icon: BookOpen,    ...G_BLUE },
+  { section: "pos", id: "musculacao",   label: "Musculação (MPA)",            icon: Dumbbell,    ...G_BLUE },
+  { section: "pos", id: "fisiologia",   label: "Fisiologia (FE)",             icon: Activity,    ...G_BLUE },
+  { section: "pos", id: "bodybuilding", label: "Bodybuilding (BB)",           icon: Trophy,      ...G_BLUE },
+  { section: "pos", id: "feminino",     label: "Trein. Feminino (SM)",        icon: Users,       ...G_BLUE },
+  { section: "pos", id: "funcional",    label: "Trein. Funcional (TF)",       icon: Zap,         ...G_BLUE },
   // ── Livros ─────────────────────────────────────────────────────────────────
-  { section: "livros",   id: "livros",       label: "Livro de Biomecânica",   icon: BookMarked,  iconBg: "bg-green-100",   iconColor: "text-green-600",   activeDot: "bg-green-500",   activePulse: "bg-green-400",   selectedBg: "bg-green-50",   selectedText: "text-green-700",   selectedBorder: "border-green-200" },
-  { section: "livros",   id: "livroMarketing", label: "Livro de Marketing",   icon: BookMarked,  iconBg: "bg-green-100",   iconColor: "text-green-600",   activeDot: "bg-green-500",   activePulse: "bg-green-400",   selectedBg: "bg-green-50",   selectedText: "text-green-700",   selectedBorder: "border-green-200" },
+  { section: "livros",   id: "livros",         label: "Livro de Biomecânica", icon: BookMarked,  ...G_BLUE },
+  { section: "livros",   id: "livroMarketing", label: "Livro de Marketing",   icon: BookMarked,  ...G_BLUE },
   // ── Ebooks ─────────────────────────────────────────────────────────────────
-  { section: "ebooks",   id: "ebookJoelho",  label: "Ebook Bio Joelho",       icon: FileText,    iconBg: "bg-violet-100",  iconColor: "text-violet-600",  activeDot: "bg-violet-500",  activePulse: "bg-violet-400",  selectedBg: "bg-violet-50",  selectedText: "text-violet-700",  selectedBorder: "border-violet-200" },
-  { section: "ebooks",   id: "ebookColuna",  label: "Ebook Bio Coluna",       icon: FileText,    iconBg: "bg-violet-100",  iconColor: "text-violet-600",  activeDot: "bg-violet-500",  activePulse: "bg-violet-400",  selectedBg: "bg-violet-50",  selectedText: "text-violet-700",  selectedBorder: "border-violet-200" },
+  { section: "ebooks",   id: "ebookJoelho",    label: "Ebook Bio Joelho",     icon: FileText,    ...G_BLUE },
+  { section: "ebooks",   id: "ebookColuna",    label: "Ebook Bio Coluna",     icon: FileText,    ...G_BLUE },
   // ── Perpétuo ───────────────────────────────────────────────────────────────
-  { section: "perpetuo", id: "perpetuo",     label: "Notável Play",           icon: Repeat,      iconBg: "bg-amber-100",   iconColor: "text-amber-600",   activeDot: "bg-amber-500",   activePulse: "bg-amber-400",   selectedBg: "bg-amber-50",   selectedText: "text-amber-700",   selectedBorder: "border-amber-200" },
+  { section: "perpetuo", id: "perpetuo",       label: "Notável Play",         icon: Repeat,      ...G_BLUE },
   // ── Eventos ────────────────────────────────────────────────────────────────
-  { section: "eventos",  id: "bs",           label: "Biomechanic Specialist", icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
-  { section: "eventos",  id: "mentoria",     label: "Mentoria Scala",         icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
-  { section: "eventos",  id: "next",         label: "Next",                   icon: CalendarDays,iconBg: "bg-rose-100",    iconColor: "text-rose-600",    activeDot: "bg-rose-500",    activePulse: "bg-rose-400",    selectedBg: "bg-rose-50",    selectedText: "text-rose-700",    selectedBorder: "border-rose-200" },
-  { section: "eventos",  id: "powertrainer", label: "Power Trainer",          icon: CalendarDays,iconBg: "bg-red-100",     iconColor: "text-red-600",     activeDot: "bg-red-500",     activePulse: "bg-red-400",     selectedBg: "bg-red-50",     selectedText: "text-red-700",     selectedBorder: "border-red-200" },
+  { section: "eventos",  id: "bs",           label: "Biomechanic Specialist", icon: CalendarDays, ...G_BLUE },
+  { section: "eventos",  id: "mentoria",     label: "Mentoria Scala",         icon: CalendarDays, ...G_BLUE },
+  { section: "eventos",  id: "next",         label: "Next",                   icon: CalendarDays, ...G_BLUE },
+  { section: "eventos",  id: "powertrainer", label: "Power Trainer",          icon: CalendarDays, ...G_BLUE },
 ];
 
 // Default styles for custom-created groups (keyed by section)
 const SECTION_DEFAULTS: Record<GroupSection, Omit<GroupConfig, "id" | "label" | "section">> = {
-  pos:      { icon: GraduationCap, iconBg: "bg-blue-100",   iconColor: "text-blue-600",   activeDot: "bg-blue-500",   activePulse: "bg-blue-400",   selectedBg: "bg-blue-50",   selectedText: "text-blue-700",   selectedBorder: "border-blue-200" },
-  livros:   { icon: BookMarked,    iconBg: "bg-green-100",  iconColor: "text-green-600",  activeDot: "bg-green-500",  activePulse: "bg-green-400",  selectedBg: "bg-green-50",  selectedText: "text-green-700",  selectedBorder: "border-green-200" },
-  ebooks:   { icon: FileText,      iconBg: "bg-violet-100", iconColor: "text-violet-600", activeDot: "bg-violet-500", activePulse: "bg-violet-400", selectedBg: "bg-violet-50", selectedText: "text-violet-700", selectedBorder: "border-violet-200" },
-  perpetuo: { icon: Repeat,        iconBg: "bg-amber-100",  iconColor: "text-amber-600",  activeDot: "bg-amber-500",  activePulse: "bg-amber-400",  selectedBg: "bg-amber-50",  selectedText: "text-amber-700",  selectedBorder: "border-amber-200" },
-  eventos:  { icon: CalendarDays,  iconBg: "bg-rose-100",   iconColor: "text-rose-600",   activeDot: "bg-rose-500",   activePulse: "bg-rose-400",   selectedBg: "bg-rose-50",   selectedText: "text-rose-700",   selectedBorder: "border-rose-200" },
+  pos:      { icon: GraduationCap, ...G_BLUE },
+  livros:   { icon: BookMarked,    ...G_BLUE },
+  ebooks:   { icon: FileText,      ...G_BLUE },
+  perpetuo: { icon: Repeat,        ...G_BLUE },
+  eventos:  { icon: CalendarDays,  ...G_BLUE },
 };
 
 const SECTION_LABELS: Record<GroupSection, string> = {
@@ -172,34 +179,35 @@ function GoalsPanel({
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-full z-50 mt-2 w-[320px] rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+      <div className="absolute right-0 top-full z-50 mt-2 w-[320px] rounded-xl border shadow-2xl" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
+        <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--dm-border-default)" }}>
           <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-2">
               <Flag size={14} className="text-brand" />
-              <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Metas de Performance</p>
+              <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>Metas de Performance</p>
             </div>
-            <p className="pl-[22px] text-[10px] text-slate-400 dark:text-slate-500">
+            <p className="pl-[22px] text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
               {groupLabel}
             </p>
           </div>
           <button onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700">
+            className="flex h-7 w-7 items-center justify-center rounded-full transition"
+            style={{ color: "var(--dm-text-tertiary)" }}>
             <X size={14} />
           </button>
         </div>
 
         <div className="p-5">
-          <p className="mb-4 text-[11px] text-slate-400 dark:text-slate-500">
+          <p className="mb-4 text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
             Defina metas para cada métrica. Os KPIs mostrarão progresso em tempo real.
           </p>
           <div className="space-y-3">
             {GOAL_FIELDS.map(({ key, label, placeholder, prefix, suffix }) => (
               <div key={key} className="flex items-center gap-3">
-                <span className="w-24 flex-shrink-0 text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span>
+                <span className="w-24 flex-shrink-0 text-xs font-medium" style={{ color: "var(--dm-text-secondary)" }}>{label}</span>
                 <div className="relative flex-1">
                   {prefix && (
-                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">{prefix}</span>
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>{prefix}</span>
                   )}
                   <input
                     type="number"
@@ -211,15 +219,17 @@ function GoalsPanel({
                       onSetGoal(key, v as Goals[typeof key]);
                     }}
                     placeholder={placeholder}
-                    className={`h-8 w-full rounded-lg border border-slate-200 bg-slate-50 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-400 ${prefix ? "pl-7 pr-3" : suffix ? "pl-3 pr-7" : "px-3"}`}
+                    className={`h-8 w-full rounded-lg border text-xs outline-none transition ${prefix ? "pl-7 pr-3" : suffix ? "pl-3 pr-7" : "px-3"}`}
+                    style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
                   />
                   {suffix && (
-                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] text-slate-400">{suffix}</span>
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>{suffix}</span>
                   )}
                 </div>
                 {goals[key] != null && (
                   <button type="button" onClick={() => onSetGoal(key, null as Goals[typeof key])}
-                    className="flex-shrink-0 text-slate-300 transition hover:text-red-400 dark:text-slate-600">
+                    className="flex-shrink-0 transition hover:text-red-400"
+                    style={{ color: "var(--dm-text-tertiary)" }}>
                     <X size={12} />
                   </button>
                 )}
@@ -228,7 +238,8 @@ function GoalsPanel({
           </div>
 
           <button type="button" onClick={onReset}
-            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 py-2 text-[11px] font-semibold text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-500 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-red-900/20 dark:hover:text-red-400">
+            className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-lg border py-2 text-[11px] font-semibold transition hover:border-red-200 hover:bg-red-50 hover:text-red-500"
+            style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}>
             <RotateCcw size={11} /> Limpar todas as metas
           </button>
         </div>
@@ -245,7 +256,8 @@ function ThemeToggle() {
     <button
       type="button"
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700"
+      className="flex h-8 w-8 items-center justify-center rounded-lg border transition"
+      style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-secondary)" }}
       title="Alternar tema"
     >
       <Sun size={15} className="hidden dark:block" />
@@ -273,7 +285,8 @@ function UserMenu({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+        className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition"
+        style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-secondary)" }}
       >
         <UserRound size={13} />
         <span className="hidden max-w-[120px] truncate sm:inline">{displayName}</span>
@@ -282,10 +295,10 @@ function UserMenu({
       {open && (
         <>
           <button type="button" className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-label="Fechar menu de usuario" />
-          <div className="absolute right-0 top-full z-50 mt-2 w-[220px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl dark:border-slate-700 dark:bg-slate-800">
-            <div className="mb-1 border-b border-slate-100 px-2 py-1.5 dark:border-slate-700">
-              <p className="truncate text-xs font-semibold text-slate-800 dark:text-slate-100">{displayName}</p>
-              <p className="truncate text-[11px] text-slate-500 dark:text-slate-400">{email}</p>
+          <div className="absolute right-0 top-full z-50 mt-2 w-[220px] rounded-xl border p-1.5 shadow-xl" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
+            <div className="mb-1 border-b px-2 py-1.5" style={{ borderColor: "var(--dm-border-subtle)" }}>
+              <p className="truncate text-xs font-semibold" style={{ color: "var(--dm-text-primary)" }}>{displayName}</p>
+              <p className="truncate text-[11px]" style={{ color: "var(--dm-text-secondary)" }}>{email}</p>
             </div>
             <button
               type="button"
@@ -293,7 +306,8 @@ function UserMenu({
                 setOpen(false);
                 onEditProfile();
               }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-xs font-medium transition"
+              style={{ color: "var(--dm-text-secondary)" }}
             >
               <Pencil size={12} />
               Editar perfil
@@ -327,9 +341,8 @@ function ToggleSwitch({
       role="switch"
       aria-checked={checked}
       onClick={(e) => { e.stopPropagation(); onChange(!checked); }}
-      className={`relative h-4 w-7 flex-shrink-0 rounded-full transition-colors duration-200 focus:outline-none ${
-        checked ? activeBg : "bg-slate-200"
-      }`}
+      className="relative h-4 w-7 flex-shrink-0 rounded-full transition-colors duration-200 focus:outline-none"
+      style={{ backgroundColor: checked ? "var(--dm-brand-500)" : "var(--dm-border-strong)" }}
     >
       <span
         className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all duration-200 ${
@@ -390,8 +403,8 @@ function ImportPopover({
   onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
   onCampaignsVerified, savedCampaignsByGroup, savedSelectedCampaigns, onSaveCampaignSelection,
   onClearCampaignSelection,
-  customGroups, onAddCustomGroup, initialTab,
-}: ImportPopoverProps & { initialTab?: ImportTab }) {
+  customGroups, onAddCustomGroup, initialTab, inline,
+}: ImportPopoverProps & { initialTab?: ImportTab; inline?: boolean }) {
   const [tab, setTab]                     = useState<ImportTab>(initialTab ?? "sheets");
   const [url, setUrl]                     = useState("");
   const [loading, setLoading]             = useState<"url" | "csv" | null>(null);
@@ -679,35 +692,52 @@ function ImportPopover({
 
   const tabCls = (t: ImportTab) =>
     `flex-1 rounded-md py-1.5 text-xs font-medium transition ${
-      tab === t ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900" : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
+      tab === t ? "bg-[var(--dm-text-primary)] text-[var(--dm-text-inverse)]" : "text-[var(--dm-text-secondary)]"
     }`;
 
-  const inputCls = "h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500 dark:focus:bg-slate-600";
+  const inputCls = "h-9 w-full rounded-lg border px-3 text-xs outline-none transition focus:ring-1 focus:ring-[var(--dm-brand-500)] focus:border-[var(--dm-brand-500)]";
 
   return (
     <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
+      {/* Backdrop (popover only) */}
+      {!inline && <div className="fixed inset-0 z-40" onClick={onClose} />}
 
-      <div className="absolute right-0 top-full z-50 mt-2 flex max-h-[calc(100vh-80px)] w-[92vw] max-w-[440px] flex-col rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 sm:w-[440px]">
+      <div
+        className={inline
+          ? "flex w-full flex-col rounded-2xl border shadow-sm"
+          : "absolute right-0 top-full z-50 mt-2 flex max-h-[calc(100vh-80px)] w-[92vw] max-w-[440px] flex-col rounded-2xl border shadow-2xl sm:w-[440px]"
+        }
+        style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+      >
 
         {/* Fixed header */}
-        <div className="flex-shrink-0 border-b border-slate-100 p-5 pb-4 dark:border-slate-700">
+        <div className="flex-shrink-0 border-b p-5 pb-4" style={{ borderColor: "var(--dm-border-default)" }}>
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-bold text-slate-900 dark:text-slate-100">Importar dados</p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500">Conecte sua fonte de dados</p>
+              <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>Importar dados</p>
+              <p className="text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>Conecte sua fonte de dados</p>
             </div>
-            <button
-              onClick={onClose}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-            >
-              <X size={15} />
-            </button>
+            {inline ? (
+              <button
+                onClick={onClose}
+                className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium transition hover:opacity-80"
+                style={{ color: "var(--dm-text-tertiary)" }}
+              >
+                ← Voltar
+              </button>
+            ) : (
+              <button
+                onClick={onClose}
+                className="flex h-7 w-7 items-center justify-center rounded-full transition"
+                style={{ color: "var(--dm-text-tertiary)" }}
+              >
+                <X size={15} />
+              </button>
+            )}
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 rounded-xl bg-slate-100 p-1 dark:bg-slate-700">
+          <div className="flex gap-1 rounded-lg p-1" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
             <button className={tabCls("sheets")} onClick={() => setTab("sheets")}>Google Sheets</button>
             <button className={tabCls("csv")}    onClick={() => setTab("csv")}>CSV</button>
             <button className={tabCls("meta")}   onClick={() => setTab("meta")}>Meta Ads</button>
@@ -715,19 +745,20 @@ function ImportPopover({
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className={inline ? "p-5" : "flex-1 overflow-y-auto p-5"}>
 
         {tab === "sheets" && (
           <form onSubmit={handleUrl} className="space-y-3">
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">URL da planilha pública</label>
+              <label className="mb-1.5 block text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>URL da planilha pública</label>
               <div className="flex gap-2">
                 <div className="relative flex-1">
-                  <Link2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none dark:text-slate-500" />
+                  <Link2 size={13} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: "var(--dm-text-tertiary)" }} />
                   <input
                     type="url" required value={url} onChange={(e) => setUrl(e.target.value)}
                     placeholder="https://docs.google.com/spreadsheets/..."
-                    className="h-9 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500 dark:focus:bg-slate-600"
+                    className={`${inputCls} pl-8 pr-3`}
+                    style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
                   />
                 </div>
                 <button type="submit" disabled={!!loading}
@@ -736,24 +767,25 @@ function ImportPopover({
                   {loading === "url" ? "Carregando…" : "Carregar"}
                 </button>
               </div>
-              <p className="mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">A planilha precisa estar com acesso público (Qualquer pessoa com o link)</p>
+              <p className="mt-1.5 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>A planilha precisa estar com acesso público (Qualquer pessoa com o link)</p>
             </div>
           </form>
         )}
 
         {tab === "csv" && (
           <div className="space-y-3">
-            <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">Arquivo CSV exportado</label>
+            <label className="mb-1.5 block text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Arquivo CSV exportado</label>
             <button type="button" onClick={() => fileRef.current?.click()} disabled={!!loading}
-              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-6 text-center transition hover:border-blue-400 hover:bg-blue-50 disabled:opacity-60 dark:border-slate-600 dark:hover:border-blue-500 dark:hover:bg-blue-900/20">
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-6 text-center transition hover:border-[var(--dm-brand-400)] disabled:opacity-60"
+              style={{ borderColor: "var(--dm-border-default)" }}>
               {loading === "csv"
-                ? <Loader2 size={20} className="animate-spin text-blue-500" />
-                : <Upload size={20} className="text-slate-400 dark:text-slate-500" />}
+                ? <Loader2 size={20} className="animate-spin" style={{ color: "var(--dm-brand-500)" }} />
+                : <Upload size={20} style={{ color: "var(--dm-text-tertiary)" }} />}
               <div>
-                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <p className="text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
                   {loading === "csv" ? "Importando arquivo…" : "Clique para selecionar"}
                 </p>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500">Somente arquivos .csv</p>
+                <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>Somente arquivos .csv</p>
               </div>
             </button>
             <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
@@ -918,51 +950,61 @@ function ImportPopover({
 
                     return (
                       <div key={row.rowId} className="border-b border-slate-100 last:border-b-0 dark:border-slate-700">
-                        {/* Main row */}
-                        <div className="flex items-center gap-1.5 px-2 py-2">
-
-                          {/* Group picker — grouped by section */}
-                          <select
-                            value={row.groupId}
-                            onChange={(e) => handleChangeRowGroup(row.rowId, e.target.value)}
-                            className="h-7 w-[140px] flex-shrink-0 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-[10px] text-slate-800 outline-none focus:border-blue-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                          >
-                            {(["pos","livros","ebooks","perpetuo","eventos"] as GroupSection[]).map((sec) => (
-                              <optgroup key={sec} label={SECTION_LABELS[sec]}>
-                                {allGroupsInPopover.filter((grp) => grp.section === sec).map((grp) => {
-                                  const usedByOther = accountRows.some((r) => r.rowId !== row.rowId && r.groupId === grp.id);
-                                  return (
-                                    <option key={grp.id} value={grp.id} disabled={usedByOther}>
-                                      {grp.label}
-                                    </option>
-                                  );
-                                })}
-                              </optgroup>
-                            ))}
-                          </select>
-
-                          {/* Account field: combobox — type manually OR click arrow to pick */}
-                          <div
-                            className="relative min-w-0 flex-1"
-                            ref={(el) => { if (el) inputWrapperRefs.current.set(row.rowId, el); else inputWrapperRefs.current.delete(row.rowId); }}
-                          >
-                            <input
-                              value={row.accountId}
-                              onChange={(e) => handleChangeRowAccount(row.rowId, e.target.value)}
-                              placeholder="act_123456789"
-                              className="h-7 w-full rounded-md border border-slate-200 bg-slate-50 pl-2 pr-6 text-[10px] text-slate-800 placeholder-slate-300 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-600"
-                            />
-                            {metaAccounts.length > 0 && (
-                              <button
-                                type="button"
-                                title="Ver contas disponíveis"
-                                onClick={() => openAccountDropdown(row.rowId)}
-                                className="absolute right-0.5 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
-                              >
-                                <ChevronDown size={11} className={`transition-transform ${openDropdownRow === row.rowId ? "rotate-180" : ""}`} />
-                              </button>
-                            )}
+                        {/* Main row — two lines for better readability */}
+                        <div className="px-3 py-2.5 space-y-2">
+                          {/* Line 1: group + remove button */}
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={row.groupId}
+                              onChange={(e) => handleChangeRowGroup(row.rowId, e.target.value)}
+                              className="h-8 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs text-slate-800 outline-none focus:border-blue-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+                            >
+                              {(["pos","livros","ebooks","perpetuo","eventos"] as GroupSection[]).map((sec) => (
+                                <optgroup key={sec} label={SECTION_LABELS[sec]}>
+                                  {allGroupsInPopover.filter((grp) => grp.section === sec).map((grp) => {
+                                    const usedByOther = accountRows.some((r) => r.rowId !== row.rowId && r.groupId === grp.id);
+                                    return (
+                                      <option key={grp.id} value={grp.id} disabled={usedByOther}>
+                                        {grp.label}
+                                      </option>
+                                    );
+                                  })}
+                                </optgroup>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveRow(row.rowId)}
+                              title="Remover conta"
+                              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-red-300 hover:bg-red-50 hover:text-red-500 dark:border-slate-600 dark:hover:border-red-700 dark:hover:bg-red-900/20 dark:hover:text-red-400"
+                            >
+                              <X size={13} />
+                            </button>
                           </div>
+
+                          {/* Line 2: account input + verify badge */}
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="relative min-w-0 flex-1"
+                              ref={(el) => { if (el) inputWrapperRefs.current.set(row.rowId, el); else inputWrapperRefs.current.delete(row.rowId); }}
+                            >
+                              <input
+                                value={row.accountId}
+                                onChange={(e) => handleChangeRowAccount(row.rowId, e.target.value)}
+                                placeholder="act_123456789"
+                                className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-3 pr-7 text-xs text-slate-800 placeholder-slate-300 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-600"
+                              />
+                              {metaAccounts.length > 0 && (
+                                <button
+                                  type="button"
+                                  title="Ver contas disponíveis"
+                                  onClick={() => openAccountDropdown(row.rowId)}
+                                  className="absolute right-1 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+                                >
+                                  <ChevronDown size={12} className={`transition-transform ${openDropdownRow === row.rowId ? "rotate-180" : ""}`} />
+                                </button>
+                              )}
+                            </div>
 
                           {/* Verify status badge */}
                           {status === "loading" && (
@@ -999,16 +1041,8 @@ function ImportPopover({
                             </button>
                           )}
 
-                          {/* Remove row */}
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveRow(row.rowId)}
-                            title="Remover esta conta"
-                            className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md text-slate-400 transition hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
+                          </div>{/* end Line 2 */}
+                        </div>{/* end space-y-2 */}
 
                         {/* Inline error */}
                         {status === "error" && errMsg && (
@@ -1295,12 +1329,12 @@ function CampaignPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-14 flex-shrink-0 items-center justify-between border-b border-slate-100 px-4 dark:border-slate-700">
-        <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+      <div className="flex h-14 flex-shrink-0 items-center justify-between border-b px-4" style={{ borderColor: "var(--dm-border-default)" }}>
+        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
           {showCourseGroups ? "Cursos" : "Filtros"}
         </p>
         {activeCount > 0 && showCourseGroups && (
-          <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+          <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}>
             {activeCount} ativa{activeCount !== 1 ? "s" : ""}
           </span>
         )}
@@ -1312,17 +1346,18 @@ function CampaignPanel({
         {/* "All" option */}
         <button
           onClick={() => onSelectGroup("all")}
-          className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition ${
-            selectedGroup === "all" ? "bg-slate-100 dark:bg-slate-700" : "hover:bg-slate-50 dark:hover:bg-slate-700/50"
-          }`}
+          className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition"
+          style={{
+            backgroundColor: selectedGroup === "all" ? "var(--dm-brand-50)" : undefined,
+          }}
         >
-          <span className="h-2 w-2 flex-shrink-0 rounded-full bg-slate-300 dark:bg-slate-500" />
-          <span className={`text-xs font-semibold ${selectedGroup === "all" ? "text-slate-800 dark:text-slate-100" : "text-slate-500 dark:text-slate-400"}`}>
+          <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: selectedGroup === "all" ? "var(--dm-brand-500)" : "var(--dm-border-strong)" }} />
+          <span className="text-xs font-semibold" style={{ color: selectedGroup === "all" ? "var(--dm-brand-600)" : "var(--dm-text-secondary)" }}>
             Todos os cursos
           </span>
         </button>
 
-        <div className="mx-4 my-1 h-px bg-slate-100 dark:bg-slate-700" />
+        <div className="mx-4 my-1 h-px" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
 
         {groups.map((group, idx) => {
           const isSelected  = selectedGroup === group.id;
@@ -1335,7 +1370,7 @@ function CampaignPanel({
             <div key={group.id}>
               {/* Section divider — shown at the start of each new section */}
               {isNewSection && (
-                <div className={`${idx > 0 ? "mt-1 border-t border-slate-100 dark:border-slate-700/60" : ""} px-4 pb-0.5 pt-2`}>
+                <div className={`${idx > 0 ? "mt-1 border-t" : ""} px-4 pb-0.5 pt-2`} style={{ borderColor: "var(--dm-border-subtle)" }}>
                   <p className="text-[9px] font-bold uppercase tracking-widest"
                     style={{ color: "var(--dm-text-tertiary)" }}>
                     {SECTION_LABELS[group.section]}
@@ -1347,24 +1382,24 @@ function CampaignPanel({
                 tabIndex={0}
                 onClick={() => onSelectGroup(isSelected ? "all" : group.id)}
                 onKeyDown={(e) => e.key === "Enter" && onSelectGroup(isSelected ? "all" : group.id)}
-                className={`flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left transition ${
-                  isSelected
-                    ? `${group.selectedBg} border-r-2 ${group.selectedBorder} dark:bg-slate-700/50 dark:border-slate-500`
-                    : "hover:bg-slate-50 dark:hover:bg-slate-700/50"
-                }`}
+                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left transition"
+                style={{
+                  backgroundColor: isSelected ? "var(--dm-brand-50)" : undefined,
+                  borderRight: isSelected ? "2px solid var(--dm-brand-400)" : "2px solid transparent",
+                }}
               >
                 <span className="relative flex h-2 w-2 flex-shrink-0 items-center justify-center">
                   {isActive && (
-                    <span className={`absolute h-3 w-3 animate-ping rounded-full opacity-40 ${group.activePulse}`} />
+                    <span className="absolute h-3 w-3 animate-ping rounded-full opacity-40 bg-blue-400" />
                   )}
-                  <span className={`relative h-2 w-2 rounded-full ${isActive ? group.activeDot : "bg-slate-200 dark:bg-slate-600"}`} />
+                  <span className="relative h-2 w-2 rounded-full" style={{ backgroundColor: isActive ? "var(--dm-brand-500)" : "var(--dm-border-strong)" }} />
                 </span>
 
-                <div className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md ${group.iconBg} dark:opacity-80`}>
-                  <group.icon size={12} className={group.iconColor} />
+                <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md" style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}>
+                  <group.icon size={12} />
                 </div>
 
-                <span className={`flex-1 truncate text-xs font-medium ${isSelected ? group.selectedText : "text-slate-700 dark:text-slate-300"}`}>
+                <span className="flex-1 truncate text-xs font-medium" style={{ color: isSelected ? "var(--dm-brand-600)" : "var(--dm-text-secondary)" }}>
                   {group.label}
                 </span>
 
@@ -1376,16 +1411,15 @@ function CampaignPanel({
               </div>
 
               {isSelected && (
-                <div className={`${group.selectedBg} px-4 pb-2.5 pt-1 dark:bg-slate-700/30`}>
-                  <p className="mb-1.5 ml-[38px] text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Turmas</p>
+                <div className="px-4 pb-2.5 pt-1" style={{ backgroundColor: "var(--dm-brand-50)" }}>
+                  <p className="mb-1.5 ml-[38px] text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>Turmas</p>
                   <div className="ml-[38px] flex flex-wrap gap-1.5">
                     <button
                       onClick={() => onSelectTurma("all")}
-                      className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
-                        selectedTurma === "all"
-                          ? "bg-brand text-white shadow-sm"
-                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                      }`}
+                      className="rounded-md px-2 py-1 text-[11px] font-semibold transition"
+                      style={selectedTurma === "all"
+                        ? { backgroundColor: "var(--dm-brand-500)", color: "#fff" }
+                        : { border: "1px solid var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-secondary)" }}
                     >
                       Todas
                     </button>
@@ -1393,17 +1427,16 @@ function CampaignPanel({
                       <button
                         key={t}
                         onClick={() => onSelectTurma(t)}
-                        className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
-                          selectedTurma === t
-                            ? "bg-brand text-white shadow-sm"
-                            : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                        }`}
+                        className="rounded-md px-2 py-1 text-[11px] font-semibold transition"
+                        style={selectedTurma === t
+                          ? { backgroundColor: "var(--dm-brand-500)", color: "#fff" }
+                          : { border: "1px solid var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-secondary)" }}
                       >
                         {t}
                       </button>
                     ))}
                     {turmaList.length === 0 && (
-                      <span className="text-[11px] italic text-slate-400 dark:text-slate-500">Sem turmas carregadas</span>
+                      <span className="text-[11px] italic" style={{ color: "var(--dm-text-tertiary)" }}>Sem turmas carregadas</span>
                     )}
                   </div>
 
@@ -1419,12 +1452,12 @@ function CampaignPanel({
                     const allExplicit = isFilterExplicit && checkedCampaignIds.length === allIds.length;
                     const noneExplicit = isFilterExplicit && checkedCampaignIds.length === 0;
                     return (
-                      <div className="ml-[38px] mt-2 border-t border-slate-100 pt-2 dark:border-slate-700">
+                      <div className="ml-[38px] mt-2 border-t pt-2" style={{ borderColor: "var(--dm-border-default)" }}>
                         {/* Header row */}
                         <div className="mb-1.5 flex items-center justify-between">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
                             Campanha{" "}
-                            <span className={`rounded px-1 text-[9px] font-bold ${isFilterExplicit ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400" : "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400"}`}>
+                            <span className="rounded px-1 text-[9px] font-bold" style={{ backgroundColor: isFilterExplicit ? "var(--dm-brand-50)" : "var(--dm-bg-elevated)", color: isFilterExplicit ? "var(--dm-brand-500)" : "var(--dm-text-tertiary)" }}>
                               {activeChecked}/{allIds.length}
                             </span>
                           </p>
@@ -1463,7 +1496,8 @@ function CampaignPanel({
                             value={campSearch}
                             onChange={(e) => setCampSearch(e.target.value)}
                             placeholder={`Buscar entre ${allIds.length} campanhas…`}
-                            className="h-6 w-full rounded-md border border-slate-200 bg-slate-50 px-2 text-[10px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
+                            className="h-6 w-full rounded-md border px-2 text-[10px] outline-none transition"
+                            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
                           />
                           {campSearch && (
                             <button onClick={() => setCampSearch("")}
@@ -1472,9 +1506,9 @@ function CampaignPanel({
                             </button>
                           )}
                         </div>
-                        <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-800/50">
+                        <div className="max-h-44 overflow-y-auto rounded-lg border" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}>
                           {visibleCamps.length === 0 && (
-                            <p className="px-2 py-2 text-[10px] italic text-slate-400 dark:text-slate-500">
+                            <p className="px-2 py-2 text-[10px] italic" style={{ color: "var(--dm-text-tertiary)" }}>
                               Nenhuma campanha encontrada.
                             </p>
                           )}
@@ -1482,7 +1516,7 @@ function CampaignPanel({
                             const isChecked = !isFilterExplicit || checkedCampaignIds.includes(camp.id);
                             return (
                               <label key={camp.id}
-                                className="flex cursor-pointer items-center gap-2 px-2 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-700/40">
+                                className="flex cursor-pointer items-center gap-2 px-2 py-1.5">
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
@@ -1515,9 +1549,9 @@ function CampaignPanel({
       )} {/* end showCourseGroups */}
 
       {/* Filters — always visible */}
-      <div className={`flex-shrink-0 border-t border-slate-100 p-4 space-y-3 dark:border-slate-700 ${showCourseGroups ? "" : "flex-1"}`}>
+      <div className={`flex-shrink-0 border-t p-4 space-y-3 ${showCourseGroups ? "" : "flex-1"}`} style={{ borderColor: "var(--dm-border-default)" }}>
         <div className="flex items-center justify-between">
-          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">
+          <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
             <SlidersHorizontal size={10} /> Filtros
           </p>
           {hasActiveFilters && (
@@ -1532,17 +1566,19 @@ function CampaignPanel({
 
         <div className="grid grid-cols-2 gap-2">
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">De</span>
+            <span className="text-[10px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>De</span>
             <input
               type="date" value={dateFrom} onChange={(e) => onDateFrom(e.target.value)}
-              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500 dark:focus:bg-slate-600"
+              className="h-8 w-full rounded-lg border px-2 text-[11px] outline-none transition"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Até</span>
+            <span className="text-[10px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Até</span>
             <input
               type="date" value={dateTo} onChange={(e) => onDateTo(e.target.value)}
-              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500 dark:focus:bg-slate-600"
+              className="h-8 w-full rounded-lg border px-2 text-[11px] outline-none transition"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
             />
           </label>
         </div>
@@ -1555,7 +1591,8 @@ function CampaignPanel({
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             placeholder="Buscar campanha…"
-            className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-500 dark:focus:border-blue-500 dark:focus:bg-slate-600"
+            className="h-8 w-full rounded-lg border px-3 text-[11px] outline-none transition"
+            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
           />
           {searchCampaign && (
             <button
@@ -1567,20 +1604,21 @@ function CampaignPanel({
           )}
           {/* Search suggestions dropdown */}
           {showSuggestions && searchSuggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-600 dark:bg-slate-800">
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border shadow-lg" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
               {searchSuggestions.map((name) => (
                 <button
                   key={name}
                   type="button"
                   onMouseDown={(e) => { e.preventDefault(); onSearch(name); setShowSuggestions(false); }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] text-slate-700 transition hover:bg-blue-50 hover:text-blue-700 dark:text-slate-300 dark:hover:bg-blue-900/20 dark:hover:text-blue-400"
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition"
+                  style={{ color: "var(--dm-text-secondary)" }}
                 >
-                  <Filter size={9} className="flex-shrink-0 text-slate-300 dark:text-slate-600" />
+                  <Filter size={9} className="flex-shrink-0" style={{ color: "var(--dm-text-tertiary)" } as React.CSSProperties} />
                   <span className="truncate">{name}</span>
                 </button>
               ))}
               {allCampaignNames.filter((n) => n.toLowerCase().includes(searchCampaign.toLowerCase())).length > 7 && (
-                <p className="px-3 py-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+                <p className="px-3 py-1.5 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
                   +{allCampaignNames.filter((n) => n.toLowerCase().includes(searchCampaign.toLowerCase())).length - 7} mais resultados
                 </p>
               )}
@@ -1589,11 +1627,12 @@ function CampaignPanel({
         </div>
 
         <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">Ordenar por</span>
+          <span className="text-[10px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Ordenar por</span>
           <select
             value={sortBy}
             onChange={(e) => onSortBy(e.target.value as SortBy)}
-            className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 px-2 text-[11px] text-slate-800 outline-none transition focus:border-blue-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-500"
+            className="h-8 w-full rounded-lg border px-2 text-[11px] outline-none transition"
+            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
           >
             {(Object.entries(SORT_LABELS) as [SortBy, string][]).map(([k, v]) => (
               <option key={k} value={k}>{v}</option>
@@ -1625,6 +1664,7 @@ export function Dashboard({
   const [searchCampaign, setSearchCampaign] = useState("");
   const [showImport, setShowImport]         = useState(false);
   const [importInitialTab, setImportInitialTab] = useState<ImportTab>("meta");
+  const [inlineImportTab, setInlineImportTab]   = useState<ImportTab | null>(null);
 
   const openImport = (tab: ImportTab = "meta") => {
     setImportInitialTab(tab);
@@ -1830,13 +1870,13 @@ export function Dashboard({
 
   const navContent = (
     <nav className="flex-1 overflow-y-auto px-3 py-4">
-      <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Menu</p>
+      <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>Menu</p>
       <ul className="space-y-0.5">
         {MAIN_TABS.map(({ id, label, icon: Icon }) => (
           <li key={id}>
             <button
               onClick={() => { setMainTab(id); setShowMobileNav(false); }}
-              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition"
               style={mainTab === id
                 ? {
                     backgroundColor: "var(--dm-nav-active-bg)",
@@ -1895,19 +1935,20 @@ export function Dashboard({
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--dm-bg-page)]">
       {showProfileModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-800">
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-xl border p-5 shadow-2xl" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Editar perfil</h3>
+              <h3 className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>Editar perfil</h3>
               <button
                 type="button"
                 onClick={() => setShowProfileModal(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                className="flex h-7 w-7 items-center justify-center rounded-lg transition"
+                style={{ color: "var(--dm-text-tertiary)" }}
               >
                 <X size={14} />
               </button>
             </div>
-            <label className="mb-2 block text-xs font-semibold text-slate-600 dark:text-slate-300">
+            <label className="mb-2 block text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
               Nome
             </label>
             <input
@@ -1915,14 +1956,16 @@ export function Dashboard({
               value={profileName}
               onChange={(event) => setProfileName(event.target.value)}
               placeholder="Seu nome"
-              className="h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
+              className="h-10 w-full rounded-lg border px-3 text-sm outline-none transition"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
             />
-            <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">{currentUser.email}</p>
+            <p className="mt-2 text-[11px]" style={{ color: "var(--dm-text-secondary)" }}>{currentUser.email}</p>
             <div className="mt-4 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setShowProfileModal(false)}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="rounded-lg border px-3 py-2 text-xs font-semibold transition"
+                style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}
               >
                 Cancelar
               </button>
@@ -1962,7 +2005,7 @@ export function Dashboard({
         } lg:flex lg:w-[220px] lg:flex-shrink-0`}
       >
         {/* Brand */}
-        <div className="flex h-14 items-center justify-between border-b border-slate-100 px-5 dark:border-slate-700">
+        <div className="flex h-14 items-center justify-between border-b px-5" style={{ borderColor: "var(--dm-border-default)" }}>
           <button
             type="button"
             onClick={() => { setMainTab("overview"); setSelectedCategory(null); setShowMobileNav(false); }}
@@ -1983,7 +2026,7 @@ export function Dashboard({
         {navContent}
 
         {/* Footer */}
-        <div className="border-t border-slate-100 px-5 py-4 dark:border-slate-700">
+        <div className="border-t px-5 py-4" style={{ borderColor: "var(--dm-border-default)" }}>
           <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${campaigns.length > 0 ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${campaigns.length > 0 ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-500"}`} />
             <p className={`text-[11px] font-medium ${campaigns.length > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
@@ -2186,92 +2229,100 @@ export function Dashboard({
         {/* Main scrollable content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
 
-          {/* ── Category gate (shown when no category chosen on relevant tabs) ── */}
-          {needsCategory && !selectedCategory && (
+          {/* ── Category gate (analysis & creatives only — overview handles its own flow) ── */}
+          {(mainTab === "analysis" || mainTab === "creatives") && !selectedCategory && (
             <CategoryGate onSelect={setSelectedCategory} />
           )}
 
-          {mainTab === "overview" && selectedCategory && (
+          {/* ── Overview: welcome first → then category gate → then dashboard ── */}
+          {mainTab === "overview" && (
             campaigns.length === 0 ? (
-              /* ── Welcome screen ─────────────────────────────────────────────── */
-              <div className="mx-auto max-w-2xl space-y-5 py-4 sm:space-y-6 sm:py-6">
-                {/* Hero */}
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm sm:p-8 dark:border-slate-700 dark:bg-slate-800">
-                  <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand/10">
-                    <TrendingUp size={26} className="text-brand" />
+              inlineImportTab ? (
+                /* ── Step 2: source selected — tutorial gone, form centered ── */
+                <div className="mx-auto max-w-2xl py-6" style={{ animation: "dm-fade-up 0.28s ease both" }}>
+                  <ImportPopover
+                    inline
+                    initialTab={inlineImportTab}
+                    onImportCsv={onImportCsv}
+                    onImportUrl={onImportUrl}
+                    onImportMeta={onImportMeta}
+                    campaignConfigs={campaignConfigs}
+                    onSaveCampaignConfig={setCampaignConfig}
+                    onClose={() => setInlineImportTab(null)}
+                    onCampaignsVerified={setCampaignsForGroup}
+                    savedCampaignsByGroup={campaignsByGroup}
+                    savedSelectedCampaigns={selectedCampaignsByGroup}
+                    onSaveCampaignSelection={setCampaignSelectionForGroup}
+                    onClearCampaignSelection={clearCampaignSelectionForGroup}
+                    customGroups={customGroups}
+                    onAddCustomGroup={addCustomGroup}
+                  />
+                </div>
+              ) : (
+                /* ── Step 1: full tutorial + source picker ───────────────── */
+                <TabLanding
+                  icon={TrendingUp}
+                  title="Bem-vindo ao DashMonster"
+                  subtitle="Conecte sua fonte de dados e tenha uma visão completa de todas as suas campanhas — KPIs, ROAS, CPA, funil de conversão e muito mais, tudo em um só lugar."
+                  features={[
+                    { icon: BarChart2, label: "KPIs em Tempo Real", description: "ROAS, CPA, ROI, CTR, CPC e CPM sempre atualizados conforme seus dados." },
+                    { icon: Target,    label: "Análise por Campanha", description: "Compare campanhas lado a lado e identifique as que mais convertem." },
+                    { icon: Flag,      label: "Metas e Benchmarks",   description: "Defina metas por KPI e acompanhe o progresso com indicadores visuais." },
+                  ]}
+                  steps={[
+                    { label: "Conecte a fonte",     description: "Meta Ads via API, Google Sheets ou upload de CSV exportado." },
+                    { label: "Escolha campanhas",   description: "Selecione quais campanhas deseja monitorar no painel lateral." },
+                    { label: "Analise seus KPIs",   description: "Visualize métricas, funil, gráficos e tendências automaticamente." },
+                  ]}
+                  cta={{ label: "Importar dados", onClick: () => setInlineImportTab("meta") }}
+                >
+                  {/* Source picker cards */}
+                  <div>
+                    <p className="mb-3 text-center text-[11px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+                      Escolha como conectar
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      {[
+                        { tab: "meta"   as const, icon: Zap,    label: "Meta Ads",      sub: "Dados em tempo real via API" },
+                        { tab: "sheets" as const, icon: Link2,  label: "Google Sheets",  sub: "Planilha compartilhada"      },
+                        { tab: "csv"    as const, icon: Upload,  label: "Arquivo CSV",   sub: "Relatório exportado"         },
+                      ].map(({ tab, icon: Icon, label, sub }) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => setInlineImportTab(tab)}
+                          className="group flex flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 text-center transition hover:shadow-md"
+                          style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--dm-brand-400)"; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--dm-border-default)"; }}
+                        >
+                          <div
+                            className="flex h-11 w-11 items-center justify-center rounded-xl"
+                            style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}
+                          >
+                            <Icon size={20} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>{label}</p>
+                            <p className="mt-0.5 text-[11px]" style={{ color: "var(--dm-text-secondary)" }}>{sub}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-4 text-center text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
+                      Recomendado: <strong style={{ color: "var(--dm-text-secondary)" }}>Meta Ads</strong> — dados em tempo real direto da sua conta de anúncios
+                    </p>
                   </div>
-                  <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Bem-vindo ao DashMonster</h1>
-                  <p className="mt-1.5 text-sm text-slate-500 dark:text-slate-400">
-                    Conecte sua fonte de dados para começar a analisar suas campanhas
-                  </p>
-                </div>
-
-                {/* Connection options */}
-                <div className="grid gap-4 sm:grid-cols-3">
-                  {/* Meta Ads */}
-                  <button
-                    type="button"
-                    onClick={() => openImport("meta")}
-                    className="group flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-blue-200 bg-blue-50/50 p-6 text-center transition hover:border-blue-400 hover:bg-blue-50 hover:shadow-md dark:border-blue-800 dark:bg-blue-900/10 dark:hover:border-blue-600 dark:hover:bg-blue-900/20"
-                  >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100 transition group-hover:bg-blue-200 dark:bg-blue-900/40">
-                      <Zap size={20} className="text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Meta Ads</p>
-                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Conecte via Access Token</p>
-                    </div>
-                    <span className="rounded-full bg-blue-600 px-3 py-1 text-[11px] font-semibold text-white">
-                      Conectar →
-                    </span>
-                  </button>
-
-                  {/* Google Sheets */}
-                  <button
-                    type="button"
-                    onClick={() => openImport("sheets")}
-                    className="group flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/50 p-6 text-center transition hover:border-emerald-400 hover:bg-emerald-50 hover:shadow-md dark:border-emerald-800 dark:bg-emerald-900/10 dark:hover:border-emerald-600 dark:hover:bg-emerald-900/20"
-                  >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 transition group-hover:bg-emerald-200 dark:bg-emerald-900/40">
-                      <Link2 size={20} className="text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Google Sheets</p>
-                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Cole a URL da planilha</p>
-                    </div>
-                    <span className="rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white">
-                      Importar →
-                    </span>
-                  </button>
-
-                  {/* CSV */}
-                  <button
-                    type="button"
-                    onClick={() => openImport("csv")}
-                    className="group flex flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-violet-200 bg-violet-50/50 p-6 text-center transition hover:border-violet-400 hover:bg-violet-50 hover:shadow-md dark:border-violet-800 dark:bg-violet-900/10 dark:hover:border-violet-600 dark:hover:bg-violet-900/20"
-                  >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-100 transition group-hover:bg-violet-200 dark:bg-violet-900/40">
-                      <Upload size={20} className="text-violet-600 dark:text-violet-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Arquivo CSV</p>
-                      <p className="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">Faça upload do seu CSV</p>
-                    </div>
-                    <span className="rounded-full bg-violet-600 px-3 py-1 text-[11px] font-semibold text-white">
-                      Upload →
-                    </span>
-                  </button>
-                </div>
-
-                {/* Tip */}
-                <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
-                  Dica: use <strong className="text-slate-600 dark:text-slate-300">Meta Ads</strong> para dados em tempo real direto da sua conta de anúncios
-                </p>
-              </div>
+                </TabLanding>
+              )
+            ) : !selectedCategory ? (
+              /* ── Step 2: choose category ─────────────────────────────────────── */
+              <CategoryGate onSelect={setSelectedCategory} />
             ) : (
+              /* ── Step 3: full dashboard ──────────────────────────────────────── */
               <div className="space-y-5">
                 {filteredCampaigns.length === 0 && (
-                  <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400">
+                  <div className="flex items-center gap-3 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}>
                     <Filter size={15} className="flex-shrink-0" />
                     Nenhuma campanha encontrada com os filtros aplicados.
                     <button onClick={handleClearFilters} className="ml-auto text-xs font-semibold underline">
@@ -2291,28 +2342,28 @@ export function Dashboard({
                   <KpiCard
                     title="Receita Total" value={formatCurrency(totals.totalRevenue)}
                     subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}
-                    icon={CircleDollarSign} accentColor="emerald"
+                    icon={CircleDollarSign} accentColor="blue"
                     goalValue={goals.roas} goalLabel={goals.roas != null ? `ROAS ${goals.roas.toFixed(1)}x` : undefined}
                     goalPct={goals.roas != null ? (totals.roas / goals.roas) * 100 : null}
                   />
                   <KpiCard
                     title="Conversões" value={formatNumber(totals.totalConversions)}
                     subtitle={`Tx.: ${formatPercent(totals.averageConversionRate)}`}
-                    icon={Target} accentColor="violet"
+                    icon={Target} accentColor="blue"
                     goalValue={goals.conversions} goalLabel={goals.conversions != null ? formatNumber(goals.conversions) : undefined}
                     goalPct={goals.conversions != null ? (totals.totalConversions / goals.conversions) * 100 : null}
                   />
                   <KpiCard
                     title="ROI" value={formatPercent(totals.roi)}
                     subtitle="Retorno sobre investimento"
-                    icon={TrendingUp} accentColor="amber"
+                    icon={TrendingUp} accentColor="blue"
                     goalValue={goals.roi} goalLabel={goals.roi != null ? `${goals.roi.toFixed(0)}%` : undefined}
                     goalPct={goals.roi != null ? (totals.roi / goals.roi) * 100 : null}
                   />
                   <KpiCard
                     title="CPA Médio" value={formatCurrency(totals.averageCpa)}
                     subtitle="Custo por aquisição"
-                    icon={BadgeDollarSign} accentColor="rose" invertTrend
+                    icon={BadgeDollarSign} accentColor="blue" invertTrend
                     goalValue={goals.cpa} goalLabel={goals.cpa != null ? formatCurrency(goals.cpa) : undefined}
                     goalPct={goals.cpa != null && totals.averageCpa > 0 ? (goals.cpa / totals.averageCpa) * 100 : null}
                     goalInvert
@@ -2331,7 +2382,7 @@ export function Dashboard({
                   <KpiCard
                     title="CPC Médio" value={formatCurrency(totals.averageCpc)}
                     subtitle="Custo por clique"
-                    icon={BadgeDollarSign} accentColor="amber" invertTrend
+                    icon={BadgeDollarSign} accentColor="blue" invertTrend
                     goalValue={goals.cpc} goalLabel={goals.cpc != null ? formatCurrency(goals.cpc) : undefined}
                     goalPct={goals.cpc != null && totals.averageCpc > 0 ? (goals.cpc / totals.averageCpc) * 100 : null}
                     goalInvert
@@ -2339,7 +2390,7 @@ export function Dashboard({
                   <KpiCard
                     title="CPM Médio" value={formatCurrency(totals.averageCpm)}
                     subtitle="Custo por mil impressões"
-                    icon={Zap} accentColor="violet" invertTrend
+                    icon={Zap} accentColor="blue" invertTrend
                     goalValue={goals.cpm} goalLabel={goals.cpm != null ? formatCurrency(goals.cpm) : undefined}
                     goalPct={goals.cpm != null && totals.averageCpm > 0 ? (goals.cpm / totals.averageCpm) * 100 : null}
                     goalInvert
@@ -2347,12 +2398,12 @@ export function Dashboard({
                   <KpiCard
                     title="Cliques" value={formatNumber(totals.totalClicks)}
                     subtitle={`${formatNumber(totals.totalImpressions)} impressões`}
-                    icon={MousePointerClick} accentColor="emerald"
+                    icon={MousePointerClick} accentColor="blue"
                   />
                   <KpiCard
                     title="Impressões" value={formatNumber(totals.totalImpressions)}
                     subtitle="Total de visualizações"
-                    icon={Activity} accentColor="rose"
+                    icon={Activity} accentColor="blue"
                   />
                 </div>
 
@@ -2370,13 +2421,57 @@ export function Dashboard({
           )}
 
           {mainTab === "history"   && <HistoricalView />}
-          {mainTab === "analysis"  && selectedCategory && <CampaignAnalysis campaigns={aggregated} />}
-          {mainTab === "creatives" && selectedCategory && (
-            <BestCreatives
-              campaigns={aggregated}
-              adAccountId={selectedGroup !== "all" ? campaignConfigs[selectedGroup]?.adAccountId : undefined}
-            />
+
+          {mainTab === "analysis" && selectedCategory && (
+            aggregated.length === 0 ? (
+              <TabLanding
+                icon={BarChart2}
+                title="Análise de Campanhas"
+                subtitle="Mergulhe fundo nos dados: diagnósticos automáticos, pontos críticos e oportunidades de melhoria para cada campanha."
+                features={[
+                  { icon: Target,     label: "Score de Saúde",          description: "Pontuação de 0 a 100 baseada em KPIs reais da campanha." },
+                  { icon: CheckCircle2, label: "Diagnósticos Automáticos", description: "Pontos positivos, críticos e tarefas de otimização gerados automaticamente." },
+                  { icon: Trophy,     label: "Top Performers",           description: "Identifique os criativos e conjuntos de anúncios com melhor resultado." },
+                ]}
+                steps={[
+                  { label: "Importe os dados",      description: "Conecte Meta Ads, Google Sheets ou envie um CSV." },
+                  { label: "Selecione a campanha",  description: "Use o painel lateral para escolher o grupo a analisar." },
+                  { label: "Leia o diagnóstico",    description: "Veja o score, alertas e ações recomendadas." },
+                ]}
+                cta={{ label: "Importar dados agora", onClick: () => openImport("meta") }}
+              />
+            ) : (
+              <CampaignAnalysis campaigns={aggregated} />
+            )
           )}
+
+          {mainTab === "creatives" && selectedCategory && (
+            aggregated.length === 0 ? (
+              <TabLanding
+                icon={ImageIcon}
+                title="Análise de Criativos"
+                subtitle="Identifique quais criativos performam melhor e construa uma biblioteca visual de referências de sucesso."
+                features={[
+                  { icon: TrendingUp, label: "Ranking de Criativos",    description: "Ordene por CTR, ROAS ou conversões para achar os vencedores." },
+                  { icon: ImageIcon,  label: "Thumbnails Visuais",      description: "Conecte via Meta Ads e veja as imagens reais de cada anúncio." },
+                  { icon: BookOpen,   label: "Biblioteca de Referências", description: "Salve e organize os melhores criativos como referência futura." },
+                ]}
+                steps={[
+                  { label: "Conecte o Meta Ads",    description: "Use seu Access Token para trazer dados em tempo real." },
+                  { label: "Selecione campanhas",   description: "Escolha quais conjuntos de anúncios monitorar." },
+                  { label: "Veja o ranking",         description: "Criativos ordenados por performance com thumbnails." },
+                ]}
+                cta={{ label: "Conectar Meta Ads", onClick: () => openImport("meta") }}
+                ctaSecondary={{ label: "Importar CSV", onClick: () => openImport("csv") }}
+              />
+            ) : (
+              <BestCreatives
+                campaigns={aggregated}
+                adAccountId={selectedGroup !== "all" ? campaignConfigs[selectedGroup]?.adAccountId : undefined}
+              />
+            )
+          )}
+
           {mainTab === "products"  && <ProductBase />}
           {mainTab === "profiles" && (
             <ProfileAnalysis
