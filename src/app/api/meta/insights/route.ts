@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     time_range:     JSON.stringify({ since: dateFrom, until: dateTo }),
     level:          "campaign",   // one row per campaign (not adset)
     time_increment: "1",          // daily breakdown for trend charts
-    limit:          "500",
+    limit:          "500",        // max per page — pagination handles overflow
   });
 
   // Optional campaign filter — limits results to specific campaign IDs
@@ -53,22 +53,29 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const url = `https://graph.facebook.com/${META_API_VERSION}/act_${accountId}/insights?${params.toString()}`;
+  const allData: unknown[] = [];
+  let nextUrl: string | null =
+    `https://graph.facebook.com/${META_API_VERSION}/act_${accountId}/insights?${params.toString()}`;
 
   try {
-    const res  = await fetch(url, { cache: "no-store" });
-    const json = await res.json() as {
-      data?:  unknown[];
-      paging?: unknown;
-      error?: { message?: string; code?: number; type?: string };
-    };
+    while (nextUrl) {
+      const res  = await fetch(nextUrl, { cache: "no-store" });
+      const json = await res.json() as {
+        data?:   unknown[];
+        paging?: { next?: string };
+        error?:  { message?: string; code?: number; type?: string };
+      };
 
-    if (!res.ok || json.error) {
-      const msg = json.error?.message ?? `Meta API error ${res.status}`;
-      return NextResponse.json({ error: msg }, { status: 502 });
+      if (!res.ok || json.error) {
+        const msg = json.error?.message ?? `Meta API error ${res.status}`;
+        return NextResponse.json({ error: msg }, { status: 502 });
+      }
+
+      allData.push(...(json.data ?? []));
+      nextUrl = json.paging?.next ?? null;
     }
 
-    return NextResponse.json(json.data ?? []);
+    return NextResponse.json(allData);
   } catch {
     return NextResponse.json({ error: "Falha ao conectar com Meta API." }, { status: 502 });
   }

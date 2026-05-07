@@ -1753,16 +1753,24 @@ export function Dashboard({
     if (!selectedCategory) return campaigns;
     return campaigns.filter((c) => {
       if (c.id.startsWith("meta-")) {
-        // "meta-act_123456789-2026-04-01-campaignId"
+        // In-memory Meta campaign — adAccountId embedded in id
         const accountId = c.id.split("-")[1]; // "act_123456789"
         return (
           accountSectionMap[accountId] === selectedCategory ||
           accountSectionMap[accountId.replace(/^act_/, "")] === selectedCategory
         );
       }
-      return classifyCampaign(c.campaignName) === selectedCategory;
+      // Supabase-loaded campaign — classify by name using both functions for full coverage
+      const byName = classifyCampaign(c.campaignName);
+      if (byName === selectedCategory) return true;
+      // For groups whose section is set but name classifier doesn't match (e.g. custom groups),
+      // check if any group in the target section has this campaign name verified
+      const groupsInCategory = allGroups.filter((g) => g.section === selectedCategory && campaignsByGroup[g.id]?.length);
+      return groupsInCategory.some((g) =>
+        campaignsByGroup[g.id].some((camp) => camp.name === c.campaignName),
+      );
     });
-  }, [campaigns, selectedCategory, accountSectionMap]);
+  }, [campaigns, selectedCategory, accountSectionMap, allGroups, campaignsByGroup]);
 
   const turmasByGroup = useMemo<Record<string, string[]>>(() => {
     const map: Record<string, Set<string>> = {};
@@ -1798,11 +1806,27 @@ export function Dashboard({
       if (selectedGroup !== "all") {
         const adAccountId = campaignConfigs[selectedGroup]?.adAccountId ?? "";
         if (item.id.startsWith("meta-") && adAccountId) {
+          // In-memory Meta campaign: filter by adAccountId embedded in the id
           const itemAccountId = item.id.split("-")[1];
           const bare = adAccountId.replace(/^act_/, "");
           if (itemAccountId !== adAccountId && itemAccountId.replace(/^act_/, "") !== bare) return false;
         } else if (!item.id.startsWith("meta-")) {
-          if (getLaunchGroup(item.campaignName) !== selectedGroup) return false;
+          const nameGroup = getLaunchGroup(item.campaignName);
+          if (nameGroup === selectedGroup) {
+            // Predefined group matched by campaign name — OK
+          } else if (adAccountId) {
+            // Custom group (has adAccountId) — name-based classification doesn't apply.
+            // Match by verified campaign names from Meta API verification step.
+            const verifiedCamps = campaignsByGroup[selectedGroup] ?? [];
+            if (verifiedCamps.length > 0) {
+              const verifiedNames = new Set(verifiedCamps.map((c) => c.name));
+              if (!verifiedNames.has(item.campaignName)) return false;
+            }
+            // If no campaigns verified yet, no name-based filter — show all candidates
+          } else {
+            // Not a custom group and name doesn't match — exclude
+            return false;
+          }
         }
       }
       if (selectedTurma !== "all" && getSubLaunchCode(item.campaignName) !== selectedTurma) return false;
@@ -1859,7 +1883,12 @@ export function Dashboard({
 
   const handleSelectGroup = (id: string) => {
     setSelectedGroup(id);
-    setCheckedCampaignIds([]);
+    if (id === "all") {
+      setCheckedCampaignIds([]);
+    } else {
+      const saved = selectedCampaignsByGroup[id];
+      setCheckedCampaignIds(saved ?? []);
+    }
     setShowMobilePanel(false);
   };
 
