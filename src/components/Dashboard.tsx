@@ -1317,6 +1317,19 @@ function CampaignPanel({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [campSearch, setCampSearch] = useState("");
 
+  // ── Pending date state: only applied when "Aplicar" is clicked ──
+  const [pendingFrom, setPendingFrom] = useState(dateFrom);
+  const [pendingTo,   setPendingTo]   = useState(dateTo);
+  // Keep pending in sync when parent clears filters externally
+  useEffect(() => { setPendingFrom(dateFrom); }, [dateFrom]);
+  useEffect(() => { setPendingTo(dateTo); }, [dateTo]);
+  const pendingChanged = pendingFrom !== dateFrom || pendingTo !== dateTo;
+
+  const applyDates = () => {
+    onDateFrom(pendingFrom);
+    onDateTo(pendingTo);
+  };
+
   // Flatten all campaign names across all groups for search suggestions
   const allCampaignNames = useMemo(() => {
     const seen = new Set<string>();
@@ -1335,8 +1348,8 @@ function CampaignPanel({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-14 flex-shrink-0 items-center justify-between border-b px-4" style={{ borderColor: "var(--dm-border-default)" }}>
-        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+      <div className="flex h-12 flex-shrink-0 items-center justify-between border-b px-4" style={{ borderColor: "var(--dm-border-default)" }}>
+        <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
           {showCourseGroups ? "Cursos" : "Filtros"}
         </p>
         {activeCount > 0 && showCourseGroups && (
@@ -1352,13 +1365,13 @@ function CampaignPanel({
         {/* "All" option */}
         <button
           onClick={() => onSelectGroup("all")}
-          className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition"
+          className="flex w-full items-center gap-2.5 px-4 py-3 text-left transition"
           style={{
             backgroundColor: selectedGroup === "all" ? "var(--dm-brand-50)" : undefined,
           }}
         >
           <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: selectedGroup === "all" ? "var(--dm-brand-500)" : "var(--dm-border-strong)" }} />
-          <span className="text-xs font-semibold" style={{ color: selectedGroup === "all" ? "var(--dm-brand-600)" : "var(--dm-text-secondary)" }}>
+          <span className="text-[13px] font-semibold" style={{ color: selectedGroup === "all" ? "var(--dm-brand-600)" : "var(--dm-text-primary)" }}>
             Todos os cursos
           </span>
         </button>
@@ -1376,8 +1389,8 @@ function CampaignPanel({
             <div key={group.id}>
               {/* Section divider — shown at the start of each new section */}
               {isNewSection && (
-                <div className={`${idx > 0 ? "mt-1 border-t" : ""} px-4 pb-0.5 pt-2`} style={{ borderColor: "var(--dm-border-subtle)" }}>
-                  <p className="text-[9px] font-bold uppercase tracking-widest"
+                <div className={`${idx > 0 ? "mt-2 border-t" : ""} px-4 pb-1 pt-2.5`} style={{ borderColor: "var(--dm-border-subtle)" }}>
+                  <p className="text-[10px] font-extrabold uppercase tracking-widest"
                     style={{ color: "var(--dm-text-tertiary)" }}>
                     {SECTION_LABELS[group.section]}
                   </p>
@@ -1388,7 +1401,7 @@ function CampaignPanel({
                 tabIndex={0}
                 onClick={() => onSelectGroup(isSelected ? "all" : group.id)}
                 onKeyDown={(e) => e.key === "Enter" && onSelectGroup(isSelected ? "all" : group.id)}
-                className="flex w-full cursor-pointer items-center gap-2.5 px-4 py-2.5 text-left transition"
+                className="flex w-full cursor-pointer items-center gap-3 px-4 py-3 text-left transition"
                 style={{
                   backgroundColor: isSelected ? "var(--dm-brand-50)" : undefined,
                   borderRight: isSelected ? "2px solid var(--dm-brand-400)" : "2px solid transparent",
@@ -1401,11 +1414,11 @@ function CampaignPanel({
                   <span className="relative h-2 w-2 rounded-full" style={{ backgroundColor: isActive ? "var(--dm-brand-500)" : "var(--dm-border-strong)" }} />
                 </span>
 
-                <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-md" style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}>
-                  <group.icon size={12} />
+                <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md" style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}>
+                  <group.icon size={13} />
                 </div>
 
-                <span className="flex-1 truncate text-xs font-medium" style={{ color: isSelected ? "var(--dm-brand-600)" : "var(--dm-text-secondary)" }}>
+                <span className="flex-1 truncate text-[13px] font-semibold leading-tight" style={{ color: isSelected ? "var(--dm-brand-600)" : "var(--dm-text-primary)" }}>
                   {group.label}
                 </span>
 
@@ -1522,7 +1535,7 @@ function CampaignPanel({
                             const isChecked = !isFilterExplicit || checkedCampaignIds.includes(camp.id);
                             return (
                               <label key={camp.id}
-                                className="flex cursor-pointer items-center gap-2 px-2 py-1.5">
+                                className="flex cursor-pointer items-center gap-2 px-2 py-2 transition hover:bg-black/5 dark:hover:bg-white/5">
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
@@ -1533,11 +1546,11 @@ function CampaignPanel({
                                       : [...base, camp.id];
                                     onCheckedCampaignIds(next);
                                   }}
-                                  className="h-3 w-3 flex-shrink-0 rounded accent-blue-600"
+                                  className="h-3.5 w-3.5 flex-shrink-0 rounded accent-blue-600"
                                 />
-                                <span className="flex-1 truncate text-[10px] text-slate-700 dark:text-slate-300" title={camp.name}>
+                                <span className="flex-1 truncate text-[11px] font-medium" style={{ color: "var(--dm-text-secondary)" }} title={camp.name}>
                                   {camp.status !== "ACTIVE" && <span className="mr-0.5 text-amber-400">◐</span>}
-                                  {camp.name.length > 26 ? camp.name.slice(0, 26) + "…" : camp.name}
+                                  {camp.name.length > 28 ? camp.name.slice(0, 28) + "…" : camp.name}
                                 </span>
                               </label>
                             );
@@ -1555,96 +1568,133 @@ function CampaignPanel({
       )} {/* end showCourseGroups */}
 
       {/* Filters — always visible */}
-      <div className={`flex-shrink-0 border-t p-4 space-y-3 ${showCourseGroups ? "" : "flex-1"}`} style={{ borderColor: "var(--dm-border-default)" }}>
-        <div className="flex items-center justify-between">
-          <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
-            <SlidersHorizontal size={10} /> Filtros
+      <div
+        className={`flex-shrink-0 border-t ${showCourseGroups ? "" : "flex-1"}`}
+        style={{ borderColor: "var(--dm-border-default)" }}
+      >
+        {/* Filter header */}
+        <div className="flex items-center justify-between px-4 py-3">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+            <SlidersHorizontal size={11} /> Filtros
           </p>
           {hasActiveFilters && (
             <button
               onClick={onClearFilters}
-              className="text-[10px] font-semibold text-red-500 transition hover:text-red-700 dark:text-red-400"
+              className="rounded px-2 py-0.5 text-[11px] font-semibold text-red-500 transition hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/30"
             >
               Limpar
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>De</span>
-            <input
-              type="date" value={dateFrom} onChange={(e) => onDateFrom(e.target.value)}
-              className="h-8 w-full rounded-lg border px-2 text-[11px] outline-none transition"
-              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="text-[10px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Até</span>
-            <input
-              type="date" value={dateTo} onChange={(e) => onDateTo(e.target.value)}
-              className="h-8 w-full rounded-lg border px-2 text-[11px] outline-none transition"
-              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
-            />
-          </label>
-        </div>
+        <div className="space-y-3 px-4 pb-4">
+          {/* Date range */}
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Período</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>De</span>
+                <input
+                  type="date"
+                  value={pendingFrom}
+                  onChange={(e) => setPendingFrom(e.target.value)}
+                  className="h-9 w-full rounded-lg border px-2 text-xs outline-none transition focus:ring-1"
+                  style={{
+                    borderColor: pendingFrom !== dateFrom ? "var(--dm-brand-400)" : "var(--dm-border-default)",
+                    backgroundColor: "var(--dm-bg-elevated)",
+                    color: "var(--dm-text-primary)",
+                  }}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>Até</span>
+                <input
+                  type="date"
+                  value={pendingTo}
+                  onChange={(e) => setPendingTo(e.target.value)}
+                  className="h-9 w-full rounded-lg border px-2 text-xs outline-none transition focus:ring-1"
+                  style={{
+                    borderColor: pendingTo !== dateTo ? "var(--dm-brand-400)" : "var(--dm-border-default)",
+                    backgroundColor: "var(--dm-bg-elevated)",
+                    color: "var(--dm-text-primary)",
+                  }}
+                />
+              </label>
+            </div>
 
-        <div className="relative">
-          <input
-            type="text"
-            value={searchCampaign}
-            onChange={(e) => { onSearch(e.target.value); setShowSuggestions(true); }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-            placeholder="Buscar campanha…"
-            className="h-8 w-full rounded-lg border px-3 text-[11px] outline-none transition"
-            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
-          />
-          {searchCampaign && (
-            <button
-              onClick={() => onSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-            >
-              <X size={12} />
-            </button>
-          )}
-          {/* Search suggestions dropdown */}
-          {showSuggestions && searchSuggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border shadow-lg" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
-              {searchSuggestions.map((name) => (
+            {/* Apply button — only when pending differs from applied */}
+            {pendingChanged && (
+              <button
+                onClick={applyDates}
+                className="mt-2 w-full rounded-lg py-2 text-xs font-bold text-white transition active:scale-95"
+                style={{ backgroundColor: "var(--dm-brand-500)" }}
+              >
+                Aplicar período
+              </button>
+            )}
+          </div>
+
+          {/* Campaign search */}
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Buscar campanha</p>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchCampaign}
+                onChange={(e) => { onSearch(e.target.value); setShowSuggestions(true); }}
+                onFocus={() => setShowSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                placeholder="Nome da campanha…"
+                className="h-9 w-full rounded-lg border px-3 text-xs outline-none transition"
+                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
+              />
+              {searchCampaign && (
                 <button
-                  key={name}
-                  type="button"
-                  onMouseDown={(e) => { e.preventDefault(); onSearch(name); setShowSuggestions(false); }}
-                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition"
-                  style={{ color: "var(--dm-text-secondary)" }}
+                  onClick={() => onSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
                 >
-                  <Filter size={9} className="flex-shrink-0" style={{ color: "var(--dm-text-tertiary)" } as React.CSSProperties} />
-                  <span className="truncate">{name}</span>
+                  <X size={12} />
                 </button>
-              ))}
-              {allCampaignNames.filter((n) => n.toLowerCase().includes(searchCampaign.toLowerCase())).length > 7 && (
-                <p className="px-3 py-1.5 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
-                  +{allCampaignNames.filter((n) => n.toLowerCase().includes(searchCampaign.toLowerCase())).length - 7} mais resultados
-                </p>
+              )}
+              {showSuggestions && searchSuggestions.length > 0 && (
+                <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border shadow-lg" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
+                  {searchSuggestions.map((name) => (
+                    <button
+                      key={name}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); onSearch(name); setShowSuggestions(false); }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition hover:bg-black/5 dark:hover:bg-white/5"
+                      style={{ color: "var(--dm-text-secondary)" }}
+                    >
+                      <Filter size={9} className="flex-shrink-0" style={{ color: "var(--dm-text-tertiary)" } as React.CSSProperties} />
+                      <span className="truncate">{name}</span>
+                    </button>
+                  ))}
+                  {allCampaignNames.filter((n) => n.toLowerCase().includes(searchCampaign.toLowerCase())).length > 7 && (
+                    <p className="px-3 py-1.5 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+                      +{allCampaignNames.filter((n) => n.toLowerCase().includes(searchCampaign.toLowerCase())).length - 7} mais resultados
+                    </p>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
+          </div>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Ordenar por</span>
-          <select
-            value={sortBy}
-            onChange={(e) => onSortBy(e.target.value as SortBy)}
-            className="h-8 w-full rounded-lg border px-2 text-[11px] outline-none transition"
-            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
-          >
-            {(Object.entries(SORT_LABELS) as [SortBy, string][]).map(([k, v]) => (
-              <option key={k} value={k}>{v}</option>
-            ))}
-          </select>
-        </label>
+          {/* Sort */}
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Ordenar por</p>
+            <select
+              value={sortBy}
+              onChange={(e) => onSortBy(e.target.value as SortBy)}
+              className="h-9 w-full rounded-lg border px-2 text-xs outline-none transition"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
+            >
+              {(Object.entries(SORT_LABELS) as [SortBy, string][]).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
     </div>
   );
