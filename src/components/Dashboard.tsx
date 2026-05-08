@@ -1696,14 +1696,35 @@ export function Dashboard({
 
   // Sync sidebar checkboxes from persisted selections when the selected group or
   // store data changes (including the initial localStorage hydration).
+  // Also auto-clears stale saved IDs that no longer exist in the current campaignsByGroup,
+  // preventing the "ghost filter" bug where an old selection silently shows nothing.
   useEffect(() => {
     if (selectedGroup === "all") {
       setCheckedCampaignIds([]);
-    } else {
-      const saved = selectedCampaignsByGroup[selectedGroup];
-      setCheckedCampaignIds(saved?.length ? saved : []);
+      return;
     }
-  }, [selectedGroup, selectedCampaignsByGroup]);
+    const saved = selectedCampaignsByGroup[selectedGroup];
+    if (!saved?.length) {
+      setCheckedCampaignIds([]);
+      return;
+    }
+    const currentGroupIds = (campaignsByGroup[selectedGroup] ?? []).map((c) => c.id);
+    if (currentGroupIds.length > 0) {
+      // Only keep saved IDs that still exist in the current campaign list
+      const valid = saved.filter((id) => currentGroupIds.includes(id));
+      if (valid.length !== saved.length) {
+        // Some IDs are stale — update the persisted store to the valid subset
+        setCampaignSelectionForGroup(selectedGroup, valid);
+        setCheckedCampaignIds(valid);
+      } else {
+        setCheckedCampaignIds(valid);
+      }
+    } else {
+      // Campaign list not loaded yet — keep saved IDs as-is until list arrives
+      setCheckedCampaignIds(saved);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGroup, selectedCampaignsByGroup, campaignsByGroup]);
 
   // Persist sidebar checkbox changes back to the store so they survive remounts.
   const handleCheckedCampaignIds = useCallback((ids: string[]) => {
@@ -1836,12 +1857,24 @@ export function Dashboard({
         if (campName && item.campaignName !== campName) return false;
       }
       if (isFilterExplicit && selectedGroup !== "all") {
-        if (checkedCampaignIds.length === 0) return false; // deselect-all mode
+        if (checkedCampaignIds.length === 0) return false; // deselect-all: nothing shows
+
         const groupCamps = campaignsByGroup[selectedGroup] ?? [];
-        const checkedNames = new Set(
-          groupCamps.filter((c) => checkedCampaignIds.includes(c.id)).map((c) => c.name),
-        );
-        if (checkedNames.size > 0 && !checkedNames.has(item.campaignName)) return false;
+        if (groupCamps.length > 0) {
+          // Resolve checked campaign IDs → names
+          const checkedNames = new Set(
+            groupCamps.filter((c) => checkedCampaignIds.includes(c.id)).map((c) => c.name),
+          );
+          if (checkedNames.size > 0) {
+            // Normal case: only show campaigns whose name is in the checked set
+            if (!checkedNames.has(item.campaignName)) return false;
+          } else {
+            // IDs saved but none resolved to names (stale data after re-verification):
+            // safe default — show nothing so the user knows to re-select
+            return false;
+          }
+        }
+        // groupCamps empty (checkboxes not loaded yet): don't block, show all
       }
       if (searchCampaign && !item.campaignName.toLowerCase().includes(searchCampaign.toLowerCase())) return false;
       return true;
