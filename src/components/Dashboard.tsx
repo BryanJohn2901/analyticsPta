@@ -1665,8 +1665,45 @@ export function Dashboard({
   onUpdateProfile,
 }: DashboardProps) {
   const [mainTab, setMainTab]               = useState<MainTab>("overview");
-  const [dateFrom, setDateFrom]             = useState("");
-  const [dateTo, setDateTo]                 = useState("");
+  const [dateFrom, setDateFrom]             = useState<string>(() => {
+    try { return localStorage.getItem("pta_date_from_v1") ?? ""; } catch { return ""; }
+  });
+  const [dateTo, setDateTo]                 = useState<string>(() => {
+    try { return localStorage.getItem("pta_date_to_v1") ?? ""; } catch { return ""; }
+  });
+  const setDateFromPersist = (v: string) => {
+    setDateFrom(v);
+    try { v ? localStorage.setItem("pta_date_from_v1", v) : localStorage.removeItem("pta_date_from_v1"); } catch {}
+  };
+  const setDateToPersist = (v: string) => {
+    setDateTo(v);
+    try { v ? localStorage.setItem("pta_date_to_v1", v) : localStorage.removeItem("pta_date_to_v1"); } catch {}
+  };
+
+  // ── KPI visibility toggle (persisted to localStorage) ─────────────────────
+  const ALL_KPI_IDS = ["investment","revenue","conversions","roi","cpa","ctr","cpc","cpm","clicks","impressions"] as const;
+  type KpiId = typeof ALL_KPI_IDS[number];
+  const KPI_LABELS: Record<KpiId, string> = {
+    investment: "Total Investido", revenue: "Receita Total", conversions: "Conversões",
+    roi: "ROI", cpa: "CPA Médio", ctr: "CTR Médio", cpc: "CPC Médio",
+    cpm: "CPM Médio", clicks: "Cliques", impressions: "Impressões",
+  };
+  const [hiddenKpis, setHiddenKpis] = useState<Set<KpiId>>(() => {
+    try {
+      const raw = localStorage.getItem("pta_hidden_kpis_v1");
+      return raw ? new Set(JSON.parse(raw) as KpiId[]) : new Set<KpiId>();
+    } catch { return new Set<KpiId>(); }
+  });
+  const [showKpiPanel, setShowKpiPanel] = useState(false);
+  const toggleKpi = (id: KpiId) => {
+    setHiddenKpis((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem("pta_hidden_kpis_v1", JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+  const kpiVisible = (id: KpiId) => !hiddenKpis.has(id);
   const [searchCampaign, setSearchCampaign] = useState("");
   const [showImport, setShowImport]         = useState(false);
   const [importInitialTab, setImportInitialTab] = useState<ImportTab>("meta");
@@ -1917,7 +1954,7 @@ export function Dashboard({
   const needsCategory = mainTab !== "history" && mainTab !== "profiles" && mainTab !== "products";
 
   const handleClearFilters = () => {
-    setDateFrom(""); setDateTo(""); setSearchCampaign(""); setSelectedGroup("all"); setSelectedCampaign("all"); setCheckedCampaignIds([]);
+    setDateFromPersist(""); setDateToPersist(""); setSearchCampaign(""); setSelectedGroup("all"); setSelectedCampaign("all"); setCheckedCampaignIds([]);
   };
 
   const handleSelectGroup = (id: string) => {
@@ -1989,8 +2026,8 @@ export function Dashboard({
     onSelectTurma: (t) => { setSelectedTurma(t); setShowMobilePanel(false); },
     onSelectCampaign: handleSelectCampaign,
     onToggleActive: toggleActive,
-    onDateFrom: setDateFrom,
-    onDateTo: setDateTo,
+    onDateFrom: setDateFromPersist,
+    onDateTo: setDateToPersist,
     onSearch: setSearchCampaign,
     onClearFilters: handleClearFilters,
     onSortBy: setSortBy,
@@ -2398,88 +2435,164 @@ export function Dashboard({
                     </button>
                   </div>
                 )}
-                {/* Primary KPIs */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                  <KpiCard
-                    title="Total Investido"  value={formatCurrency(totals.totalInvestment)}
-                    subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}
-                    icon={Wallet} accentColor="blue"
-                    goalValue={goals.investment} goalLabel={goals.investment != null ? formatCurrency(goals.investment) : undefined}
-                    goalPct={goals.investment != null ? (totals.totalInvestment / goals.investment) * 100 : null}
-                  />
-                  <KpiCard
-                    title="Receita Total" value={formatCurrency(totals.totalRevenue)}
-                    subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}
-                    icon={CircleDollarSign} accentColor="blue"
-                    goalValue={goals.roas} goalLabel={goals.roas != null ? `ROAS ${goals.roas.toFixed(1)}x` : undefined}
-                    goalPct={goals.roas != null ? (totals.roas / goals.roas) * 100 : null}
-                  />
-                  <KpiCard
-                    title="Conversões" value={formatNumber(totals.totalConversions)}
-                    subtitle={`Tx.: ${formatPercent(totals.averageConversionRate)}`}
-                    icon={Target} accentColor="blue"
-                    goalValue={goals.conversions} goalLabel={goals.conversions != null ? formatNumber(goals.conversions) : undefined}
-                    goalPct={goals.conversions != null ? (totals.totalConversions / goals.conversions) * 100 : null}
-                  />
-                  <KpiCard
-                    title="ROI" value={formatPercent(totals.roi)}
-                    subtitle="Retorno sobre investimento"
-                    icon={TrendingUp} accentColor="blue"
-                    goalValue={goals.roi} goalLabel={goals.roi != null ? `${goals.roi.toFixed(0)}%` : undefined}
-                    goalPct={goals.roi != null ? (totals.roi / goals.roi) * 100 : null}
-                  />
-                  <KpiCard
-                    title="CPA Médio" value={formatCurrency(totals.averageCpa)}
-                    subtitle="Custo por aquisição"
-                    icon={BadgeDollarSign} accentColor="blue" invertTrend
-                    goalValue={goals.cpa} goalLabel={goals.cpa != null ? formatCurrency(goals.cpa) : undefined}
-                    goalPct={goals.cpa != null && totals.averageCpa > 0 ? (goals.cpa / totals.averageCpa) * 100 : null}
-                    goalInvert
-                  />
+                {/* KPI header with customize toggle */}
+                <div className="relative flex items-center justify-between">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+                    Métricas
+                  </p>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowKpiPanel((v) => !v)}
+                      className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition hover:opacity-80"
+                      style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
+                    >
+                      <SlidersHorizontal size={11} /> Personalizar
+                    </button>
+                    {showKpiPanel && (
+                      <div
+                        className="absolute right-0 top-full z-30 mt-1 w-52 rounded-xl border p-3 shadow-lg"
+                        style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+                      >
+                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+                          Mostrar / ocultar
+                        </p>
+                        <div className="space-y-1">
+                          {ALL_KPI_IDS.map((id) => (
+                            <label key={id} className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 hover:bg-[var(--dm-bg-elevated)]">
+                              <input
+                                type="checkbox"
+                                checked={kpiVisible(id)}
+                                onChange={() => toggleKpi(id)}
+                                className="h-3.5 w-3.5 accent-blue-500"
+                              />
+                              <span className="text-xs" style={{ color: "var(--dm-text-secondary)" }}>{KPI_LABELS[id]}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { setHiddenKpis(new Set()); try { localStorage.removeItem("pta_hidden_kpis_v1"); } catch {} }}
+                          className="mt-2 w-full rounded-md py-1 text-[10px] font-semibold text-blue-500 hover:underline"
+                        >
+                          Mostrar todos
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Secondary KPIs */}
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                  <KpiCard
-                    title="CTR Médio" value={formatPercent(totals.averageCtr)}
-                    subtitle="Taxa de cliques"
-                    icon={MousePointerClick} accentColor="blue"
-                    goalValue={goals.ctr} goalLabel={goals.ctr != null ? `${goals.ctr.toFixed(1)}%` : undefined}
-                    goalPct={goals.ctr != null ? (totals.averageCtr / goals.ctr) * 100 : null}
-                  />
-                  <KpiCard
-                    title="CPC Médio" value={formatCurrency(totals.averageCpc)}
-                    subtitle="Custo por clique"
-                    icon={BadgeDollarSign} accentColor="blue" invertTrend
-                    goalValue={goals.cpc} goalLabel={goals.cpc != null ? formatCurrency(goals.cpc) : undefined}
-                    goalPct={goals.cpc != null && totals.averageCpc > 0 ? (goals.cpc / totals.averageCpc) * 100 : null}
-                    goalInvert
-                  />
-                  <KpiCard
-                    title="CPM Médio" value={formatCurrency(totals.averageCpm)}
-                    subtitle="Custo por mil impressões"
-                    icon={Zap} accentColor="blue" invertTrend
-                    goalValue={goals.cpm} goalLabel={goals.cpm != null ? formatCurrency(goals.cpm) : undefined}
-                    goalPct={goals.cpm != null && totals.averageCpm > 0 ? (goals.cpm / totals.averageCpm) * 100 : null}
-                    goalInvert
-                  />
-                  <KpiCard
-                    title="Cliques" value={formatNumber(totals.totalClicks)}
-                    subtitle={`${formatNumber(totals.totalImpressions)} impressões`}
-                    icon={MousePointerClick} accentColor="blue"
-                  />
-                  <KpiCard
-                    title="Impressões" value={formatNumber(totals.totalImpressions)}
-                    subtitle="Total de visualizações"
-                    icon={Activity} accentColor="blue"
-                  />
-                </div>
+                {/* All KPI cards in one adaptive grid */}
+                {(() => {
+                  const visibleCards = [
+                    kpiVisible("investment") && (
+                      <KpiCard key="investment"
+                        title="Total Investido"  value={formatCurrency(totals.totalInvestment)}
+                        subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}
+                        icon={Wallet} accentColor="blue"
+                        goalValue={goals.investment} goalLabel={goals.investment != null ? formatCurrency(goals.investment) : undefined}
+                        goalPct={goals.investment != null ? (totals.totalInvestment / goals.investment) * 100 : null}
+                      />
+                    ),
+                    kpiVisible("revenue") && (
+                      <KpiCard key="revenue"
+                        title="Receita Total" value={formatCurrency(totals.totalRevenue)}
+                        subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}
+                        icon={CircleDollarSign} accentColor="blue"
+                        goalValue={goals.roas} goalLabel={goals.roas != null ? `ROAS ${goals.roas.toFixed(1)}x` : undefined}
+                        goalPct={goals.roas != null ? (totals.roas / goals.roas) * 100 : null}
+                      />
+                    ),
+                    kpiVisible("conversions") && (
+                      <KpiCard key="conversions"
+                        title="Conversões" value={formatNumber(totals.totalConversions)}
+                        subtitle={`Tx.: ${formatPercent(totals.averageConversionRate)}`}
+                        icon={Target} accentColor="blue"
+                        goalValue={goals.conversions} goalLabel={goals.conversions != null ? formatNumber(goals.conversions) : undefined}
+                        goalPct={goals.conversions != null ? (totals.totalConversions / goals.conversions) * 100 : null}
+                      />
+                    ),
+                    kpiVisible("roi") && (
+                      <KpiCard key="roi"
+                        title="ROI" value={formatPercent(totals.roi)}
+                        subtitle="Retorno sobre investimento"
+                        icon={TrendingUp} accentColor="blue"
+                        goalValue={goals.roi} goalLabel={goals.roi != null ? `${goals.roi.toFixed(0)}%` : undefined}
+                        goalPct={goals.roi != null ? (totals.roi / goals.roi) * 100 : null}
+                      />
+                    ),
+                    kpiVisible("cpa") && (
+                      <KpiCard key="cpa"
+                        title="CPA Médio" value={formatCurrency(totals.averageCpa)}
+                        subtitle="Custo por aquisição"
+                        icon={BadgeDollarSign} accentColor="blue" invertTrend
+                        goalValue={goals.cpa} goalLabel={goals.cpa != null ? formatCurrency(goals.cpa) : undefined}
+                        goalPct={goals.cpa != null && totals.averageCpa > 0 ? (goals.cpa / totals.averageCpa) * 100 : null}
+                        goalInvert
+                      />
+                    ),
+                    kpiVisible("ctr") && (
+                      <KpiCard key="ctr"
+                        title="CTR Médio" value={formatPercent(totals.averageCtr)}
+                        subtitle="Taxa de cliques"
+                        icon={MousePointerClick} accentColor="blue"
+                        goalValue={goals.ctr} goalLabel={goals.ctr != null ? `${goals.ctr.toFixed(1)}%` : undefined}
+                        goalPct={goals.ctr != null ? (totals.averageCtr / goals.ctr) * 100 : null}
+                      />
+                    ),
+                    kpiVisible("cpc") && (
+                      <KpiCard key="cpc"
+                        title="CPC Médio" value={formatCurrency(totals.averageCpc)}
+                        subtitle="Custo por clique"
+                        icon={BadgeDollarSign} accentColor="blue" invertTrend
+                        goalValue={goals.cpc} goalLabel={goals.cpc != null ? formatCurrency(goals.cpc) : undefined}
+                        goalPct={goals.cpc != null && totals.averageCpc > 0 ? (goals.cpc / totals.averageCpc) * 100 : null}
+                        goalInvert
+                      />
+                    ),
+                    kpiVisible("cpm") && (
+                      <KpiCard key="cpm"
+                        title="CPM Médio" value={formatCurrency(totals.averageCpm)}
+                        subtitle="Custo por mil impressões"
+                        icon={Zap} accentColor="blue" invertTrend
+                        goalValue={goals.cpm} goalLabel={goals.cpm != null ? formatCurrency(goals.cpm) : undefined}
+                        goalPct={goals.cpm != null && totals.averageCpm > 0 ? (goals.cpm / totals.averageCpm) * 100 : null}
+                        goalInvert
+                      />
+                    ),
+                    kpiVisible("clicks") && (
+                      <KpiCard key="clicks"
+                        title="Cliques" value={formatNumber(totals.totalClicks)}
+                        subtitle={`${formatNumber(totals.totalImpressions)} impressões`}
+                        icon={MousePointerClick} accentColor="blue"
+                      />
+                    ),
+                    kpiVisible("impressions") && (
+                      <KpiCard key="impressions"
+                        title="Impressões" value={formatNumber(totals.totalImpressions)}
+                        subtitle="Total de visualizações"
+                        icon={Activity} accentColor="blue"
+                      />
+                    ),
+                  ].filter(Boolean);
+
+                  return visibleCards.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                      {visibleCards}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center rounded-xl border py-6" style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-tertiary)" }}>
+                      <p className="text-xs">Nenhuma métrica visível. <button className="text-blue-500 underline" onClick={() => { setHiddenKpis(new Set()); try { localStorage.removeItem("pta_hidden_kpis_v1"); } catch {} }}>Mostrar todas</button></p>
+                    </div>
+                  );
+                })()}
 
                 {/* Funnel */}
                 <FunnelCard
                   impressions={totals.totalImpressions}
                   clicks={totals.totalClicks}
                   conversions={totals.totalConversions}
+                  investment={totals.totalInvestment}
                 />
 
                 <ChartsSection dailyTrend={dailyTrend} campaignComparison={campaignComparison} budgetDistribution={budgetDistribution} />

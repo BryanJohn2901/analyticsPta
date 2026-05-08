@@ -283,46 +283,89 @@ export function ChartsSection({
 
   // ── Comparison chart ─────────────────────────────────────────────────────────
 
+  // Enrich comparison data with ROAS for tooltip
+  const comparisonDataWithRoas = useMemo(() =>
+    campaignComparison.map((c) => ({
+      ...c,
+      roas: c.investment > 0 ? c.revenue / c.investment : 0,
+    })),
+  [campaignComparison]);
+
+  // For grouped: scroll horizontally when many campaigns (each bar group = 72px min)
+  const groupedMinWidth = Math.max(comparisonDataWithRoas.length * 72, 400);
+  // For horizontal: dynamic height — 36px per campaign row, min 200px
+  const horizontalHeight = Math.max(comparisonDataWithRoas.length * 36 + 20, 200);
+
+  const comparisonTooltip = {
+    ...tooltipStyle,
+    formatter: (v: unknown, name: string) => [formatCurrency(Number(v)), name],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    content: (({ active, payload, label }: { active?: boolean; payload?: any[]; label?: string }) => {
+      if (!active || !payload?.length) return null;
+      const roas = comparisonDataWithRoas.find((c) => c.campaignName === label)?.roas ?? 0;
+      return (
+        <div style={{ ...tooltipStyle.contentStyle, padding: "10px 14px", minWidth: 180 }}>
+          <p style={{ fontWeight: 700, marginBottom: 6, fontSize: 11 }}>{label}</p>
+          {payload.map((p: { name?: string; value?: number; fill?: string }) => (
+            <div key={p.name} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
+              <span style={{ color: p.fill, fontWeight: 600, fontSize: 11 }}>{p.name}</span>
+              <span style={{ fontWeight: 700, fontSize: 11 }}>{formatCurrency(p.value ?? 0)}</span>
+            </div>
+          ))}
+          <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 6, paddingTop: 6, display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 11, opacity: 0.7 }}>ROAS</span>
+            <span style={{ fontWeight: 700, fontSize: 11, color: roas >= 1 ? "#059669" : "#dc2626" }}>{roas.toFixed(2)}x</span>
+          </div>
+        </div>
+      );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any,
+  };
+
   const comparisonChart = comparisonMode === "grouped" ? (
-    <div className="h-64 sm:h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={campaignComparison} barCategoryGap="25%" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
-          <CartesianGrid {...GRID_PROPS} />
-          <XAxis
-            dataKey="campaignName"
-            {...AXIS_STYLE}
-            interval={0}
-            angle={-25}
-            textAnchor="end"
-            height={52}
-            tickFormatter={(v: string) => v.length > 16 ? `${v.slice(0, 16)}…` : v}
-          />
-          <YAxis {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={52} />
-          <Tooltip {...tooltipStyle} formatter={(v) => [formatCurrency(Number(v)), ""]} />
-          <Bar dataKey="investment" name="Investimento" fill="#2563eb" radius={[4, 4, 0, 0]} />
-          <Bar dataKey="revenue"    name="Receita"      fill="#059669" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="overflow-x-auto">
+      <div style={{ minWidth: groupedMinWidth, height: 280 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={comparisonDataWithRoas} barCategoryGap="30%" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+            <CartesianGrid {...GRID_PROPS} />
+            <XAxis
+              dataKey="campaignName"
+              {...AXIS_STYLE}
+              interval={0}
+              angle={-30}
+              textAnchor="end"
+              height={60}
+              tickFormatter={(v: string) => v.length > 18 ? `${v.slice(0, 18)}…` : v}
+            />
+            <YAxis {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={52} />
+            <Tooltip content={comparisonTooltip.content} cursor={tooltipStyle.cursor} />
+            <Bar dataKey="investment" name="Investimento" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={32} />
+            <Bar dataKey="revenue"    name="Receita"      fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   ) : (
-    <div className="h-64 sm:h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={campaignComparison} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 0 }}>
-          <CartesianGrid {...GRID_PROPS} horizontal={false} />
-          <XAxis type="number" {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-          <YAxis
-            type="category"
-            dataKey="campaignName"
-            {...AXIS_STYLE}
-            width={130}
-            tick={{ fontSize: 10, fill: "#94a3b8" }}
-            tickFormatter={(v: string) => v.length > 18 ? `${v.slice(0, 18)}…` : v}
-          />
-          <Tooltip {...tooltipStyle} formatter={(v) => [formatCurrency(Number(v)), ""]} />
-          <Bar dataKey="investment" name="Investimento" fill="#2563eb" radius={[0, 4, 4, 0]} />
-          <Bar dataKey="revenue"    name="Receita"      fill="#059669" radius={[0, 4, 4, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+    <div style={{ height: horizontalHeight, overflowY: "auto" }}>
+      <div style={{ minHeight: horizontalHeight }}>
+        <ResponsiveContainer width="100%" height={Math.max(horizontalHeight, 200)}>
+          <BarChart data={comparisonDataWithRoas} layout="vertical" margin={{ left: 4, right: 56, top: 4, bottom: 0 }}>
+            <CartesianGrid {...GRID_PROPS} horizontal={false} />
+            <XAxis type="number" {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+            <YAxis
+              type="category"
+              dataKey="campaignName"
+              {...AXIS_STYLE}
+              width={160}
+              tick={{ fontSize: 10, fill: tickFill }}
+              tickFormatter={(v: string) => v.length > 22 ? `${v.slice(0, 22)}…` : v}
+            />
+            <Tooltip content={comparisonTooltip.content} cursor={tooltipStyle.cursor} />
+            <Bar dataKey="investment" name="Investimento" fill="#3b82f6" radius={[0, 4, 4, 0]} maxBarSize={14} />
+            <Bar dataKey="revenue"    name="Receita"      fill="#10b981" radius={[0, 4, 4, 0]} maxBarSize={14} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 
