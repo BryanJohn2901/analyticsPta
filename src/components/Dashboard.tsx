@@ -544,13 +544,19 @@ function ImportPopover({
           dateRange.to,
           Object.keys(campaignFilter).length > 0 ? campaignFilter : undefined,
         );
-        // Reset the dashboard view filter for all imported groups so the user
-        // sees all fresh data by default (not a stale import-filter selection).
-        if (onClearCampaignSelection) {
-          accountRows.forEach((r) => {
-            if (r.accountId.trim()) onClearCampaignSelection(r.groupId);
-          });
-        }
+        // Sync the dashboard campaign filter to match what was actually imported.
+        // If the user picked a strict subset → apply it as the active filter so
+        // only those campaigns appear in the sidebar and charts.
+        // If the user imported everything → clear any stale filter.
+        accountRows.forEach((r) => {
+          if (!r.accountId.trim()) return;
+          const importedIds = campaignFilter[r.groupId]; // defined only when a strict subset was chosen
+          if (importedIds && importedIds.length > 0) {
+            onSaveCampaignSelection(r.groupId, importedIds);
+          } else if (onClearCampaignSelection) {
+            onClearCampaignSelection(r.groupId);
+          }
+        });
         onClose(); // close popover on success
       } catch (err) {
         setMetaImportError(err instanceof Error ? err.message : "Falha ao buscar dados da Meta.");
