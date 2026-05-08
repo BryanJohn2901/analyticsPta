@@ -8,9 +8,11 @@ export interface CreativeData {
   mediaUrl: string;  // URL to image / video thumbnail
   adLink: string;    // click-through: the ad, landing page, or Meta Ads Manager link
   notes: string;
+  starred?: boolean; // marked as "best creative"
+  starredAt?: string; // ISO date when starred
 }
 
-export const EMPTY_CREATIVE: CreativeData = { mediaUrl: "", adLink: "", notes: "" };
+export const EMPTY_CREATIVE: CreativeData = { mediaUrl: "", adLink: "", notes: "", starred: false };
 
 type CreativeStore = Record<string, CreativeData>; // key = campaignName
 

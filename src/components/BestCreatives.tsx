@@ -3,12 +3,14 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Check,
+  Download,
   ExternalLink,
   ImageIcon,
   Loader2,
   MousePointerClick,
   Pencil,
   ShoppingCart,
+  Star,
   X,
 } from "lucide-react";
 import { AggregatedCampaign } from "@/types/campaign";
@@ -30,9 +32,26 @@ interface CreativeCardProps {
   onEditOpen: () => void;
   onSave: (data: CreativeData) => void;
   onCancel: () => void;
+  onToggleStar: () => void;
 }
 
-function CreativeCard({ campaign: c, creative, isEditing, onEditOpen, onSave, onCancel }: CreativeCardProps) {
+function downloadBlob(url: string, filename: string) {
+  fetch(url)
+    .then((r) => r.blob())
+    .then((blob) => {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    })
+    .catch(() => {
+      // Fallback: open in new tab
+      window.open(url, "_blank");
+    });
+}
+
+function CreativeCard({ campaign: c, creative, isEditing, onEditOpen, onSave, onCancel, onToggleStar }: CreativeCardProps) {
   const [draft, setDraft] = useState<CreativeData>(creative);
 
   const handleOpen = () => {
@@ -42,6 +61,7 @@ function CreativeCard({ campaign: c, creative, isEditing, onEditOpen, onSave, on
 
   const hasMedia = Boolean(creative.mediaUrl);
   const hasLink = Boolean(creative.adLink);
+  const isStarred = Boolean(creative.starred);
 
   return (
     <div
@@ -74,8 +94,37 @@ function CreativeCard({ campaign: c, creative, isEditing, onEditOpen, onSave, on
           <span className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>Sem criativo</span>
         </div>
 
-        {/* Actions overlay */}
+        {/* Star badge (top-left) */}
+        {isStarred && (
+          <div className="absolute left-2 top-2">
+            <span className="flex items-center gap-1 rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-bold text-white shadow backdrop-blur-sm">
+              <Star size={10} fill="white" /> Destaque
+            </span>
+          </div>
+        )}
+
+        {/* Actions overlay (top-right) */}
         <div className="absolute right-2 top-2 flex gap-1">
+          {/* Star/unstar */}
+          <button
+            type="button"
+            onClick={onToggleStar}
+            className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 shadow backdrop-blur-sm hover:bg-white dark:bg-slate-800/90 dark:hover:bg-slate-800"
+            title={isStarred ? "Remover destaque" : "Marcar como destaque"}
+          >
+            <Star size={13} fill={isStarred ? "#f59e0b" : "none"} stroke={isStarred ? "#f59e0b" : "currentColor"} className="text-slate-400" />
+          </button>
+          {/* Download */}
+          {hasMedia && (
+            <button
+              type="button"
+              onClick={() => downloadBlob(creative.mediaUrl, `${c.campaignName}-criativo.jpg`)}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 shadow backdrop-blur-sm hover:bg-white dark:bg-slate-800/90 dark:hover:bg-slate-800"
+              title="Baixar imagem"
+            >
+              <Download size={13} className="text-slate-500 dark:text-slate-400" />
+            </button>
+          )}
           {hasLink && (
             <a
               href={creative.adLink}
@@ -256,6 +305,15 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
   const storeRef = useRef(store);
   storeRef.current = store;
 
+  const toggleStar = (campaignName: string) => {
+    const existing = storeRef.current[campaignName] ?? EMPTY_CREATIVE;
+    saveCreative(campaignName, {
+      ...existing,
+      starred: !existing.starred,
+      starredAt: !existing.starred ? new Date().toISOString() : undefined,
+    });
+  };
+
   useEffect(() => {
     if (!adAccountId) return;
     const { accessToken } = loadMetaCredentials();
@@ -299,6 +357,19 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
     [campaigns],
   );
 
+  const starred = useMemo(
+    () =>
+      campaigns
+        .map((c) => ({ campaign: c, creative: store[c.campaignName] }))
+        .filter((x) => x.creative?.starred)
+        .sort((a, b) => {
+          const ta = a.creative.starredAt ?? "";
+          const tb = b.creative.starredAt ?? "";
+          return tb.localeCompare(ta);
+        }),
+    [campaigns, store],
+  );
+
   if (campaigns.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-20 text-center">
@@ -331,7 +402,8 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
           <p className="text-xs font-semibold" style={{ color: "var(--dm-brand-700)" }}>Como funciona esta seção</p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]" style={{ color: "var(--dm-brand-600)" }}>
             <span className="flex items-center gap-1"><MousePointerClick size={11} /> Rankings automáticos por CTR e conversão</span>
-            <span className="flex items-center gap-1"><ImageIcon size={11} /> Adicione thumbnail e link clicando no lápis de cada card</span>
+            <span className="flex items-center gap-1"><Star size={11} /> Marque como destaque com a estrela — aparece na biblioteca</span>
+            <span className="flex items-center gap-1"><Download size={11} /> Baixe a imagem do criativo com um clique</span>
             <span className="flex items-center gap-1"><ExternalLink size={11} /> Acesse o anúncio diretamente pelo ícone de link</span>
           </div>
         </div>
@@ -365,11 +437,90 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
                   setEditingCampaign(null);
                 }}
                 onCancel={() => setEditingCampaign(null)}
+                onToggleStar={() => toggleStar(c.campaignName)}
               />
             );
           })}
         </div>
       </section>
+
+      {/* ── Biblioteca de Destaque ───────────────────────────────────────── */}
+      {starred.length > 0 && (
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <Star size={15} fill="#f59e0b" stroke="#f59e0b" />
+            <h2 className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>
+              Biblioteca de Destaques ({starred.length})
+            </h2>
+            <p className="text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>— Criativos marcados como melhores</p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {starred.map(({ campaign: c, creative }) => (
+              <div
+                key={c.campaignName}
+                className="flex flex-col overflow-hidden rounded-xl border shadow-sm"
+                style={{ borderColor: "#f59e0b", backgroundColor: "var(--dm-bg-surface)" }}
+              >
+                {/* Thumbnail */}
+                <div className="relative aspect-video overflow-hidden" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+                  {creative.mediaUrl ? (
+                    <img src={creative.mediaUrl} alt={c.campaignName} className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <ImageIcon size={24} style={{ color: "var(--dm-border-strong)" }} />
+                    </div>
+                  )}
+                  <div className="absolute left-2 top-2">
+                    <span className="flex items-center gap-1 rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-bold text-white">
+                      <Star size={9} fill="white" /> Destaque
+                    </span>
+                  </div>
+                  {creative.adLink && (
+                    <div className="absolute right-2 top-2 flex gap-1">
+                      <button
+                        type="button"
+                        onClick={() => downloadBlob(creative.mediaUrl, `${c.campaignName}-destaque.jpg`)}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 shadow hover:bg-white"
+                        title="Baixar"
+                      >
+                        <Download size={12} className="text-slate-500" />
+                      </button>
+                      <a
+                        href={creative.adLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 shadow hover:bg-white"
+                        title="Abrir anúncio"
+                      >
+                        <ExternalLink size={12} className="text-blue-500" />
+                      </a>
+                    </div>
+                  )}
+                </div>
+                {/* Info */}
+                <div className="flex flex-col gap-1 p-3">
+                  <p className="line-clamp-2 text-xs font-semibold leading-snug" style={{ color: "var(--dm-text-primary)" }}>{c.campaignName}</p>
+                  <div className="flex flex-wrap gap-x-2 text-[10px]" style={{ color: "var(--dm-text-secondary)" }}>
+                    <span>CTR {formatPercent(c.ctr)}</span>
+                    <span>ROAS {c.roas.toFixed(2)}x</span>
+                  </div>
+                  {creative.notes && (
+                    <p className="mt-0.5 line-clamp-2 text-[10px] italic leading-snug" style={{ color: "var(--dm-text-tertiary)" }}>{creative.notes}</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => toggleStar(c.campaignName)}
+                    className="mt-1 self-start rounded-md px-2 py-0.5 text-[10px] font-medium"
+                    style={{ color: "#f59e0b", backgroundColor: "rgba(245,158,11,0.08)" }}
+                  >
+                    Remover destaque
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── Rankings ────────────────────────────────────────────────────── */}
       <div className="grid gap-4 md:grid-cols-2">
