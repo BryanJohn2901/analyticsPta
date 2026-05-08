@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
-  Legend, Pie, PieChart, ResponsiveContainer, Tooltip,
+  Line, LineChart, ComposedChart,
+  Pie, PieChart, ResponsiveContainer, Tooltip,
   XAxis, YAxis,
 } from "recharts";
 import {
@@ -21,8 +22,9 @@ interface ChartsSectionProps {
 const PIE_COLORS = [
   "#2563eb", "#7c3aed", "#0891b2", "#059669",
   "#d97706", "#dc2626", "#db2777", "#0d9488",
+  "#6366f1", "#84cc16", "#f97316", "#14b8a6",
 ];
-const MAX_PIE_ITEMS = 8;
+const MAX_PIE_ITEMS = 10;
 
 // ─── Shared chart theme ────────────────────────────────────────────────────────
 
@@ -47,18 +49,28 @@ function useChartTheme() {
   };
 }
 
-// Smart interval so labels never overlap. Target ≤ 7 visible ticks.
-function xInterval(length: number): number {
-  if (length <= 7)  return 0;
-  if (length <= 14) return 1;
-  if (length <= 30) return Math.ceil(length / 6) - 1;
-  if (length <= 90) return Math.ceil(length / 5) - 1;
-  return Math.ceil(length / 4) - 1;
+// Short "DD/MM" date label — no rotation needed
+function shortDate(v: string): string {
+  const d = new Date(String(v));
+  if (isNaN(d.getTime())) return String(v);
+  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-// Tall enough to hold rotated labels without clipping.
-function xHeight(length: number): number {
-  return length > 7 ? 52 : 28;
+// Smart interval: target ≤ 8 visible ticks
+function xInterval(length: number): number {
+  if (length <= 8)  return 0;
+  if (length <= 16) return 1;
+  if (length <= 32) return Math.ceil(length / 7) - 1;
+  if (length <= 90) return Math.ceil(length / 6) - 1;
+  return Math.ceil(length / 5) - 1;
+}
+
+// "YYYY-MM" → "Mês/Ano" in pt-BR
+function monthLabel(key: string): string {
+  const [year, month] = key.split("-");
+  const monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const m = parseInt(month, 10) - 1;
+  return `${monthNames[m] ?? month}/${(year ?? "").slice(2)}`;
 }
 
 // ─── Toggle group ─────────────────────────────────────────────────────────────
@@ -134,27 +146,67 @@ function DotLegend({ items }: { items: { color: string; label: string }[] }) {
 export function ChartsSection({
   dailyTrend, campaignComparison, budgetDistribution,
 }: ChartsSectionProps) {
-  const [trendMode, setTrendMode]           = useState<"area" | "bar">("area");
+  const [trendMode, setTrendMode]           = useState<"area" | "bar" | "invest">("area");
   const [comparisonMode, setComparisonMode] = useState<"grouped" | "horizontal">("grouped");
-  const [budgetMode, setBudgetMode]         = useState<"donut" | "bar">("donut");
+  const [budgetMode, setBudgetMode]         = useState<"donut" | "mensal" | "bar">("donut");
   const { gridStroke, tickFill, tooltipStyle } = useChartTheme();
 
   const GRID_PROPS = { strokeDasharray: "3 3", stroke: gridStroke, vertical: false as const };
   const AXIS_STYLE = { stroke: "none", tick: { fontSize: 11, fill: tickFill }, tickLine: false as const, axisLine: false as const };
 
+  // ── Pie / budget data ─────────────────────────────────────────────────────
   const pieData = useMemo(() => {
     if (budgetDistribution.length <= MAX_PIE_ITEMS) return budgetDistribution;
-    const sorted  = [...budgetDistribution].sort((a, b) => b.investment - a.investment);
+    const sorted   = [...budgetDistribution].sort((a, b) => b.investment - a.investment);
     const topItems = sorted.slice(0, MAX_PIE_ITEMS);
     const rest     = sorted.slice(MAX_PIE_ITEMS).reduce((s, i) => s + i.investment, 0);
     return [...topItems, { campaignName: "Outros", investment: rest }];
   }, [budgetDistribution]);
 
+  // ── Monthly investment aggregated from dailyTrend ─────────────────────────
+  const monthlyData = useMemo(() => {
+    const map = new Map<string, number>();
+    dailyTrend.forEach((d) => {
+      const key = d.date.slice(0, 7); // "YYYY-MM"
+      map.set(key, (map.get(key) ?? 0) + (d.investment ?? 0));
+    });
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, investment], i, arr) => {
+        const prev = i > 0 ? arr[i - 1][1] : null;
+        const delta = prev !== null && prev > 0 ? ((investment - prev) / prev) * 100 : null;
+        return { key, label: monthLabel(key), investment, delta };
+      });
+  }, [dailyTrend]);
+
   const interval = xInterval(dailyTrend.length);
 
   // ── Trend chart ──────────────────────────────────────────────────────────────
 
-  const trendChart = trendMode === "area" ? (
+  const trendChart = trendMode === "invest" ? (
+    // Investment per day view
+    <ResponsiveContainer width="100%" height="100%">
+      <ComposedChart data={dailyTrend} margin={{ top: 4, right: 52, bottom: 0, left: 0 }}>
+        <defs>
+          <linearGradient id="gradInvest" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#d97706" stopOpacity={0.25} />
+            <stop offset="100%" stopColor="#d97706" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid {...GRID_PROPS} />
+        <XAxis dataKey="date" {...AXIS_STYLE} tickFormatter={shortDate} interval={interval} angle={0} textAnchor="middle" height={24} />
+        <YAxis yAxisId="inv" {...AXIS_STYLE} tickFormatter={(v) => `R$${(Number(v) / 1000).toFixed(0)}k`} width={52} />
+        <YAxis yAxisId="clicks" orientation="right" {...AXIS_STYLE} tickFormatter={(v) => formatNumber(Number(v))} width={44} />
+        <Tooltip
+          {...tooltipStyle}
+          labelFormatter={(v) => formatDatePtBr(String(v))}
+          formatter={(v, name) => name === "Investimento" ? [formatCurrency(Number(v)), name] : [formatNumber(Number(v)), name]}
+        />
+        <Area yAxisId="inv" type="monotone" dataKey="investment" name="Investimento" stroke="#d97706" strokeWidth={2} fill="url(#gradInvest)" />
+        <Line yAxisId="clicks" type="monotone" dataKey="clicks" name="Cliques" stroke="#3b82f6" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
+      </ComposedChart>
+    </ResponsiveContainer>
+  ) : trendMode === "area" ? (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={dailyTrend} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
         <defs>
@@ -168,48 +220,20 @@ export function ChartsSection({
           </linearGradient>
         </defs>
         <CartesianGrid {...GRID_PROPS} />
-        <XAxis
-          dataKey="date"
-          {...AXIS_STYLE}
-          tickFormatter={(v) => formatDatePtBr(String(v))}
-          interval={interval}
-          angle={interval > 0 ? -40 : 0}
-          textAnchor={interval > 0 ? "end" : "middle"}
-          height={xHeight(dailyTrend.length)}
-        />
-        <YAxis
-          {...AXIS_STYLE}
-          tickFormatter={(v) => formatNumber(Number(v))}
-          width={48}
-        />
-        <Tooltip
-          {...tooltipStyle}
-          labelFormatter={(v) => formatDatePtBr(String(v))}
-          formatter={(v, name) => [formatNumber(Number(v)), name]}
-        />
-        <Area type="monotone" dataKey="clicks"      name="Cliques"     stroke="#2563eb" strokeWidth={2} fill="url(#gradClicks)" />
-        <Area type="monotone" dataKey="conversions" name="Conversões"  stroke="#059669" strokeWidth={2} fill="url(#gradConv)" />
+        <XAxis dataKey="date" {...AXIS_STYLE} tickFormatter={shortDate} interval={interval} angle={0} textAnchor="middle" height={24} />
+        <YAxis {...AXIS_STYLE} tickFormatter={(v) => formatNumber(Number(v))} width={48} />
+        <Tooltip {...tooltipStyle} labelFormatter={(v) => formatDatePtBr(String(v))} formatter={(v, name) => [formatNumber(Number(v)), name]} />
+        <Area type="monotone" dataKey="clicks"      name="Cliques"    stroke="#2563eb" strokeWidth={2} fill="url(#gradClicks)" />
+        <Area type="monotone" dataKey="conversions" name="Conversões" stroke="#059669" strokeWidth={2} fill="url(#gradConv)" />
       </AreaChart>
     </ResponsiveContainer>
   ) : (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={dailyTrend} barCategoryGap="30%" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+      <BarChart data={dailyTrend} barCategoryGap="20%" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
         <CartesianGrid {...GRID_PROPS} />
-        <XAxis
-          dataKey="date"
-          {...AXIS_STYLE}
-          tickFormatter={(v) => formatDatePtBr(String(v))}
-          interval={interval}
-          angle={interval > 0 ? -40 : 0}
-          textAnchor={interval > 0 ? "end" : "middle"}
-          height={xHeight(dailyTrend.length)}
-        />
+        <XAxis dataKey="date" {...AXIS_STYLE} tickFormatter={shortDate} interval={interval} angle={0} textAnchor="middle" height={24} />
         <YAxis {...AXIS_STYLE} tickFormatter={(v) => formatNumber(Number(v))} width={48} />
-        <Tooltip
-          {...tooltipStyle}
-          labelFormatter={(v) => formatDatePtBr(String(v))}
-          formatter={(v, name) => [formatNumber(Number(v)), name]}
-        />
+        <Tooltip {...tooltipStyle} labelFormatter={(v) => formatDatePtBr(String(v))} formatter={(v, name) => [formatNumber(Number(v)), name]} />
         <Bar dataKey="clicks"      name="Cliques"    fill="#2563eb" radius={[3, 3, 0, 0]} />
         <Bar dataKey="conversions" name="Conversões" fill="#059669" radius={[3, 3, 0, 0]} />
       </BarChart>
@@ -217,6 +241,61 @@ export function ChartsSection({
   );
 
   // ── Budget chart ──────────────────────────────────────────────────────────────
+
+  // Monthly view: bar chart with investment per month + delta indicator
+  const monthlySummaryChart = (
+    <div>
+      <div className="h-52">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={monthlyData} barCategoryGap="20%" margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+            <CartesianGrid {...GRID_PROPS} />
+            <XAxis
+              dataKey="label"
+              {...AXIS_STYLE}
+              angle={0}
+              textAnchor="middle"
+              height={24}
+            />
+            <YAxis
+              {...AXIS_STYLE}
+              tickFormatter={(v) => `R$${(Number(v) / 1000).toFixed(0)}k`}
+              width={52}
+            />
+            <Tooltip
+              {...tooltipStyle}
+              formatter={(v) => [formatCurrency(Number(v)), "Investimento"]}
+            />
+            <Bar dataKey="investment" name="Investimento" radius={[4, 4, 0, 0]}>
+              {monthlyData.map((entry, i) => (
+                <Cell
+                  key={`cell-${i}`}
+                  fill={PIE_COLORS[i % PIE_COLORS.length]}
+                />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      {/* Month-by-month delta badges */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {monthlyData.map((m) => (
+          <div key={m.key} className="flex flex-col items-center rounded-lg border px-3 py-1.5 text-center"
+            style={{ borderColor: "var(--dm-border-subtle)", backgroundColor: "var(--dm-bg-elevated)" }}>
+            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400">{m.label}</span>
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{formatCurrency(m.investment)}</span>
+            {m.delta !== null && (
+              <span className={`text-[10px] font-bold ${m.delta >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                {m.delta >= 0 ? "▲" : "▼"} {Math.abs(m.delta).toFixed(1)}%
+              </span>
+            )}
+          </div>
+        ))}
+        {monthlyData.length === 0 && (
+          <p className="text-xs text-slate-400">Sem dados no período.</p>
+        )}
+      </div>
+    </div>
+  );
 
   const budgetChart = budgetMode === "donut" ? (
     <div className="flex flex-col items-center">
@@ -256,19 +335,20 @@ export function ChartsSection({
         ))}
       </div>
     </div>
-  ) : (
-    <div className="h-64 sm:h-72">
+  ) : budgetMode === "mensal" ? monthlySummaryChart : (
+    // Horizontal bar chart with % of total
+    <div className="h-56 sm:h-64">
       <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={pieData} layout="vertical" margin={{ left: 0, right: 16, top: 4, bottom: 0 }}>
+        <BarChart data={pieData} layout="vertical" margin={{ left: 0, right: 56, top: 4, bottom: 0 }}>
           <CartesianGrid {...GRID_PROPS} horizontal={false} />
           <XAxis type="number" {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
           <YAxis
             type="category"
             dataKey="campaignName"
             {...AXIS_STYLE}
-            width={100}
-            tick={{ fontSize: 10, fill: "#94a3b8" }}
-            tickFormatter={(v: string) => v.length > 14 ? `${v.slice(0, 14)}…` : v}
+            width={110}
+            tick={{ fontSize: 10, fill: tickFill }}
+            tickFormatter={(v: string) => v.length > 15 ? `${v.slice(0, 15)}…` : v}
           />
           <Tooltip {...tooltipStyle} formatter={(v) => [formatCurrency(Number(v)), "Investimento"]} />
           <Bar dataKey="investment" name="Investimento" radius={[0, 4, 4, 0]}>
@@ -283,7 +363,6 @@ export function ChartsSection({
 
   // ── Comparison chart ─────────────────────────────────────────────────────────
 
-  // Enrich comparison data with ROAS for tooltip
   const comparisonDataWithRoas = useMemo(() =>
     campaignComparison.map((c) => ({
       ...c,
@@ -291,10 +370,13 @@ export function ChartsSection({
     })),
   [campaignComparison]);
 
-  // For grouped: scroll horizontally when many campaigns (each bar group = 72px min)
-  const groupedMinWidth = Math.max(comparisonDataWithRoas.length * 72, 400);
-  // For horizontal: dynamic height — 36px per campaign row, min 200px
-  const horizontalHeight = Math.max(comparisonDataWithRoas.length * 36 + 20, 200);
+  const n = comparisonDataWithRoas.length;
+  // For grouped: each campaign needs space. Few campaigns → wider bars.
+  const groupedMinWidth = Math.max(n * 90, 500);
+  const groupedBarSize  = n <= 2 ? 72 : n <= 4 ? 52 : n <= 8 ? 36 : 28;
+  // For horizontal: 40px per row, min 200px
+  const horizontalHeight = Math.max(n * 42 + 24, 200);
+  const horizontalBarSize = n <= 4 ? 20 : n <= 8 ? 16 : 12;
 
   const comparisonTooltip = {
     ...tooltipStyle,
@@ -304,16 +386,16 @@ export function ChartsSection({
       if (!active || !payload?.length) return null;
       const roas = comparisonDataWithRoas.find((c) => c.campaignName === label)?.roas ?? 0;
       return (
-        <div style={{ ...tooltipStyle.contentStyle, padding: "10px 14px", minWidth: 180 }}>
-          <p style={{ fontWeight: 700, marginBottom: 6, fontSize: 11 }}>{label}</p>
+        <div style={{ ...tooltipStyle.contentStyle, padding: "10px 14px", minWidth: 190 }}>
+          <p style={{ fontWeight: 700, marginBottom: 6, fontSize: 11, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</p>
           {payload.map((p: { name?: string; value?: number; fill?: string }) => (
             <div key={p.name} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
               <span style={{ color: p.fill, fontWeight: 600, fontSize: 11 }}>{p.name}</span>
               <span style={{ fontWeight: 700, fontSize: 11 }}>{formatCurrency(p.value ?? 0)}</span>
             </div>
           ))}
-          <div style={{ borderTop: "1px solid #e2e8f0", marginTop: 6, paddingTop: 6, display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 11, opacity: 0.7 }}>ROAS</span>
+          <div style={{ borderTop: "1px solid rgba(0,0,0,0.08)", marginTop: 6, paddingTop: 6, display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 11, opacity: 0.6 }}>ROAS</span>
             <span style={{ fontWeight: 700, fontSize: 11, color: roas >= 1 ? "#059669" : "#dc2626" }}>{roas.toFixed(2)}x</span>
           </div>
         </div>
@@ -323,49 +405,52 @@ export function ChartsSection({
   };
 
   const comparisonChart = comparisonMode === "grouped" ? (
-    <div className="overflow-x-auto">
-      <div style={{ minWidth: groupedMinWidth, height: 280 }}>
+    <div className="w-full overflow-x-auto">
+      <div style={{ minWidth: groupedMinWidth, height: 300 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={comparisonDataWithRoas} barCategoryGap="30%" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+          <BarChart
+            data={comparisonDataWithRoas}
+            barCategoryGap={n <= 3 ? "15%" : "25%"}
+            margin={{ top: 4, right: 8, bottom: 8, left: 0 }}
+          >
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="campaignName"
               {...AXIS_STYLE}
               interval={0}
-              angle={-30}
-              textAnchor="end"
-              height={60}
-              tickFormatter={(v: string) => v.length > 18 ? `${v.slice(0, 18)}…` : v}
+              angle={0}
+              textAnchor="middle"
+              height={36}
+              tick={{ fontSize: 10, fill: tickFill }}
+              tickFormatter={(v: string) => v.length > 20 ? `${v.slice(0, 20)}…` : v}
             />
             <YAxis {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} width={52} />
             <Tooltip content={comparisonTooltip.content} cursor={tooltipStyle.cursor} />
-            <Bar dataKey="investment" name="Investimento" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={32} />
-            <Bar dataKey="revenue"    name="Receita"      fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={32} />
+            <Bar dataKey="investment" name="Investimento" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={groupedBarSize} />
+            <Bar dataKey="revenue"    name="Receita"      fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={groupedBarSize} />
           </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
   ) : (
     <div style={{ height: horizontalHeight, overflowY: "auto" }}>
-      <div style={{ minHeight: horizontalHeight }}>
-        <ResponsiveContainer width="100%" height={Math.max(horizontalHeight, 200)}>
-          <BarChart data={comparisonDataWithRoas} layout="vertical" margin={{ left: 4, right: 56, top: 4, bottom: 0 }}>
-            <CartesianGrid {...GRID_PROPS} horizontal={false} />
-            <XAxis type="number" {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
-            <YAxis
-              type="category"
-              dataKey="campaignName"
-              {...AXIS_STYLE}
-              width={160}
-              tick={{ fontSize: 10, fill: tickFill }}
-              tickFormatter={(v: string) => v.length > 22 ? `${v.slice(0, 22)}…` : v}
-            />
-            <Tooltip content={comparisonTooltip.content} cursor={tooltipStyle.cursor} />
-            <Bar dataKey="investment" name="Investimento" fill="#3b82f6" radius={[0, 4, 4, 0]} maxBarSize={14} />
-            <Bar dataKey="revenue"    name="Receita"      fill="#10b981" radius={[0, 4, 4, 0]} maxBarSize={14} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <ResponsiveContainer width="100%" height={Math.max(horizontalHeight, 200)}>
+        <BarChart data={comparisonDataWithRoas} layout="vertical" margin={{ left: 4, right: 60, top: 4, bottom: 0 }}>
+          <CartesianGrid {...GRID_PROPS} horizontal={false} />
+          <XAxis type="number" {...AXIS_STYLE} tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+          <YAxis
+            type="category"
+            dataKey="campaignName"
+            {...AXIS_STYLE}
+            width={170}
+            tick={{ fontSize: 10, fill: tickFill }}
+            tickFormatter={(v: string) => v.length > 24 ? `${v.slice(0, 24)}…` : v}
+          />
+          <Tooltip content={comparisonTooltip.content} cursor={tooltipStyle.cursor} />
+          <Bar dataKey="investment" name="Investimento" fill="#3b82f6" radius={[0, 4, 4, 0]} maxBarSize={horizontalBarSize} />
+          <Bar dataKey="revenue"    name="Receita"      fill="#10b981" radius={[0, 4, 4, 0]} maxBarSize={horizontalBarSize} />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   );
 
@@ -379,17 +464,22 @@ export function ChartsSection({
           subtitle="Cliques e conversões ao longo do tempo"
           action={
             <ToggleGroup
-              options={[{ value: "area", label: "Área" }, { value: "bar", label: "Barras" }]}
+              options={[
+                { value: "area",   label: "Área"        },
+                { value: "bar",    label: "Barras"      },
+                { value: "invest", label: "Investimento" },
+              ]}
               value={trendMode}
               onChange={setTrendMode}
             />
           }
         >
           <div className="h-64 sm:h-72">{trendChart}</div>
-          <DotLegend items={[
-            { color: "#2563eb", label: "Cliques" },
-            { color: "#059669", label: "Conversões" },
-          ]} />
+          <DotLegend items={
+            trendMode === "invest"
+              ? [{ color: "#d97706", label: "Investimento" }, { color: "#3b82f6", label: "Cliques" }]
+              : [{ color: "#2563eb", label: "Cliques" }, { color: "#059669", label: "Conversões" }]
+          } />
         </ChartCard>
       </div>
 
@@ -397,10 +487,14 @@ export function ChartsSection({
       <div className="xl:col-span-4">
         <ChartCard
           title="Distribuição de Orçamento"
-          subtitle="Investimento por campanha"
+          subtitle={budgetMode === "mensal" ? "Investimento mês a mês" : "Investimento por campanha"}
           action={
             <ToggleGroup
-              options={[{ value: "donut", label: "Rosca" }, { value: "bar", label: "Barras" }]}
+              options={[
+                { value: "donut",  label: "Rosca"  },
+                { value: "mensal", label: "Mensal"  },
+                { value: "bar",    label: "Barras"  },
+              ]}
               value={budgetMode}
               onChange={setBudgetMode}
             />

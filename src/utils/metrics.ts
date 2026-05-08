@@ -85,10 +85,12 @@ export const buildDailyTrend = (campaigns: CampaignData[]): DailyTrendPoint[] =>
       date: campaign.date,
       clicks: 0,
       conversions: 0,
+      investment: 0,
     };
 
     current.clicks += campaign.clicks;
     current.conversions += campaign.conversions;
+    current.investment += campaign.investment;
     map.set(campaign.date, current);
   });
 

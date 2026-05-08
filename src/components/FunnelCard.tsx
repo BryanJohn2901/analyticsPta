@@ -73,38 +73,44 @@ export function FunnelCard({ impressions, clicks, conversions, investment, pageV
 
             {/* Rate badge between steps */}
             {i > 0 && step.rateLabel && (
-              <div className="flex items-center justify-center gap-2 py-1">
-                <span className="h-px w-8 flex-shrink-0" style={{ backgroundColor: "var(--dm-border-default)" }} />
+              <div className="flex items-center justify-center gap-2 py-2">
+                <span className="h-px flex-1" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
                 <span
-                  className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold"
-                  style={{ backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
+                  className="rounded-full px-3 py-1 text-[11px] font-semibold"
+                  style={{ backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)", border: "1px solid var(--dm-border-subtle)" }}
                 >
                   {step.rateLabel}: {step.rate !== undefined ? formatPercent(step.rate) : "—"}
                 </span>
-                <span className="h-px w-8 flex-shrink-0" style={{ backgroundColor: "var(--dm-border-default)" }} />
+                <span className="h-px flex-1" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
               </div>
             )}
 
+            {/* Spacer between non-rate steps */}
+            {i > 0 && !step.rateLabel && (
+              <div className="py-1.5" />
+            )}
+
             {/* Funnel bar row */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               {/* Label + value (left) */}
-              <div className="w-24 flex-shrink-0 text-right">
-                <p className="text-[11px] font-medium" style={{ color: "var(--dm-text-secondary)" }}>{step.label}</p>
-                <p className="text-sm font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatNumber(step.value)}</p>
+              <div className="w-28 flex-shrink-0 text-right">
+                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>{step.label}</p>
+                <p className="text-base font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatNumber(step.value)}</p>
               </div>
 
-              {/* Centered trapezoid bar */}
+              {/* Funnel bar */}
               <div className="flex flex-1 justify-center">
                 <div
-                  className="flex h-9 items-center justify-center rounded-lg transition-all duration-700"
+                  className="flex h-10 items-center justify-center rounded-lg transition-all duration-700"
                   style={{
                     width: `${step.widthPct}%`,
                     backgroundColor: step.color,
-                    opacity: step.value > 0 ? 1 : 0.2,
+                    opacity: step.value > 0 ? 1 : 0.18,
+                    minWidth: 32,
                   }}
                 >
-                  {step.widthPct > 25 && step.value > 0 && (
-                    <span className="text-[10px] font-bold text-white/90">
+                  {step.widthPct > 22 && step.value > 0 && (
+                    <span className="text-[11px] font-bold text-white/90 px-2 truncate">
                       {formatNumber(step.value)}
                     </span>
                   )}
@@ -112,11 +118,11 @@ export function FunnelCard({ impressions, clicks, conversions, investment, pageV
               </div>
 
               {/* Cost (right) */}
-              <div className="w-24 flex-shrink-0 text-left">
+              <div className="w-28 flex-shrink-0 text-left">
                 {investment && step.costLabel && getCostValue(step) ? (
                   <>
-                    <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>{step.costLabel}</p>
-                    <p className="text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>{getCostValue(step)}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>{step.costLabel}</p>
+                    <p className="text-sm font-bold" style={{ color: "var(--dm-text-secondary)" }}>{getCostValue(step)}</p>
                   </>
                 ) : null}
               </div>
@@ -129,30 +135,39 @@ export function FunnelCard({ impressions, clicks, conversions, investment, pageV
       {/* Summary row */}
       {investment && investment > 0 && (
         <div
-          className="mt-5 flex flex-wrap justify-around gap-3 rounded-lg border p-3"
-          style={{ borderColor: "var(--dm-border-subtle)", backgroundColor: "var(--dm-bg-elevated)" }}
+          className="mt-6 grid gap-px rounded-xl overflow-hidden border"
+          style={{ borderColor: "var(--dm-border-subtle)", backgroundColor: "var(--dm-border-subtle)", gridTemplateColumns: `repeat(${2 + (clicks > 0 ? 1 : 0) + (conversions > 0 ? 2 : 0)}, 1fr)` }}
         >
-          <div className="text-center">
-            <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>Investimento</p>
-            <p className="text-xs font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatCurrency(investment)}</p>
+          {/* Total Investido */}
+          <div className="flex flex-col items-center justify-center px-3 py-3" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>Investimento</p>
+            <p className="mt-0.5 text-sm font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatCurrency(investment)}</p>
           </div>
+
+          {/* CPM */}
+          <div className="flex flex-col items-center justify-center px-3 py-3" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+            <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>CPM</p>
+            <p className="mt-0.5 text-sm font-bold" style={{ color: "var(--dm-text-primary)" }}>{impressions > 0 ? formatCurrency((investment / impressions) * 1000) : "—"}</p>
+          </div>
+
           {clicks > 0 && (
-            <div className="text-center">
-              <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>CTR</p>
-              <p className="text-xs font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatPercent(impressions > 0 ? (clicks / impressions) * 100 : 0)}</p>
+            <div className="flex flex-col items-center justify-center px-3 py-3" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>CTR</p>
+              <p className="mt-0.5 text-sm font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatPercent(impressions > 0 ? (clicks / impressions) * 100 : 0)}</p>
             </div>
           )}
+
           {conversions > 0 && (
-            <div className="text-center">
-              <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>Tx. Conversão</p>
-              <p className="text-xs font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatPercent(clicks > 0 ? (conversions / clicks) * 100 : 0)}</p>
-            </div>
-          )}
-          {conversions > 0 && (
-            <div className="text-center">
-              <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>CPA</p>
-              <p className="text-xs font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatCurrency(investment / conversions)}</p>
-            </div>
+            <>
+              <div className="flex flex-col items-center justify-center px-3 py-3" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>Tx. Conv.</p>
+                <p className="mt-0.5 text-sm font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatPercent(clicks > 0 ? (conversions / clicks) * 100 : 0)}</p>
+              </div>
+              <div className="flex flex-col items-center justify-center px-3 py-3" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>CPA</p>
+                <p className="mt-0.5 text-sm font-bold" style={{ color: "var(--dm-text-primary)" }}>{formatCurrency(investment / conversions)}</p>
+              </div>
+            </>
           )}
         </div>
       )}

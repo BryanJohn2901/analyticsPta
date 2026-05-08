@@ -47,6 +47,7 @@ export interface DailyTrendPoint {
   date: string;
   clicks: number;
   conversions: number;
+  investment: number;
 }
 
 export interface CampaignComparisonPoint {
