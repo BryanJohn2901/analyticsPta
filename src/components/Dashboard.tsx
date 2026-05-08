@@ -2672,7 +2672,7 @@ export function Dashboard({
                 cta={{ label: "Importar dados agora", onClick: () => openImport("meta") }}
               />
             ) : (
-              <CampaignAnalysis campaigns={aggregated} />
+              <CampaignAnalysis campaigns={aggregated} selectedCategory={selectedCategory} />
             )
           )}
 

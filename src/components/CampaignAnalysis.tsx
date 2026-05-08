@@ -5,12 +5,15 @@ import {
   AlertTriangle, Award, CheckCircle2, CheckSquare, DollarSign,
   Globe, ImageIcon, PauseCircle, Square, Star, TrendingUp,
   XCircle, Zap, ChevronLeft, ChevronRight, BarChart2,
+  CalendarDays, Repeat, GraduationCap, BookOpen, Users, Megaphone,
+  ShoppingCart, RefreshCcw, Target, Mail, Ticket, UserCheck,
 } from "lucide-react";
-import { AggregatedCampaign } from "@/types/campaign";
+import { AggregatedCampaign, ProductCategory } from "@/types/campaign";
 import { formatCurrency, formatNumber, formatPercent } from "@/utils/metrics";
 
 interface CampaignAnalysisProps {
   campaigns: AggregatedCampaign[];
+  selectedCategory?: ProductCategory | null;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -236,9 +239,146 @@ function Paginator({
   );
 }
 
+// ─── Roadmap data ─────────────────────────────────────────────────────────────
+
+interface RoadmapStep {
+  icon: React.ElementType;
+  label: string;
+  description: string;
+  tips?: string[];
+}
+
+const ROADMAPS: Record<ProductCategory, { title: string; subtitle: string; color: string; steps: RoadmapStep[] }> = {
+  eventos: {
+    title: "Roadmap de Evento",
+    subtitle: "Sequência recomendada para maximizar vendas de ingressos",
+    color: "#ec4899",
+    steps: [
+      { icon: CalendarDays, label: "Defina o evento",     description: "Data, local, capacidade e lotes de preço.",     tips: ["Crie urgência com lote 1 limitado", "Data âncora para retargeting"] },
+      { icon: Globe,        label: "Monte a landing page", description: "LP com contador, provas sociais e FAQ completo.", tips: ["Acima da dobra: título + data + CTA", "Vídeo de venda aumenta conversão em 30%"] },
+      { icon: Megaphone,    label: "Topo de funil",        description: "Vídeo de awareness e lookalike de compradores anteriores.", tips: ["CTR alvo: ≥ 1%", "Frequência max. 3,5 antes de trocar criativo"] },
+      { icon: Ticket,       label: "Abertura de vendas",   description: "E-mail + anúncio de remarketing para leads quentes.",   tips: ["Envie e-mail D0 da abertura + D+2", "Use contador regressivo no criativo"] },
+      { icon: UserCheck,    label: "Retargeting agressivo", description: "Alcance quem visitou a LP mas não comprou.",           tips: ["Janela de 3 e 7 dias", "Ofereça facilidade de pagamento"] },
+      { icon: CheckCircle2, label: "Reta final",           description: "Último lote + gatilho de escassez real.",               tips: ["Aumente budget 20% nos últimos 5 dias", "Mostre vagas restantes no criativo"] },
+    ],
+  },
+  perpetuo: {
+    title: "Roadmap Perpétuo",
+    subtitle: "Funil de aquisição contínua e redução de churn",
+    color: "#f59e0b",
+    steps: [
+      { icon: Target,      label: "Construa o ativo",     description: "Lead magnet relevante (e-book, quiz, mini-curso).",  tips: ["Resolva 1 dor específica do ICP", "Taxa de captura alvo: ≥ 30%"] },
+      { icon: Mail,        label: "Sequência de nutrição", description: "7–10 e-mails automáticos antes de pitchar.",         tips: ["E-mail 1: entrega + boas-vindas", "E-mail 5: case de sucesso + CTA"] },
+      { icon: Megaphone,   label: "Tráfego de entrada",    description: "Meta Ads para landing de captura de leads.",         tips: ["CPL alvo: < 20% do ticket", "Lookalike de compradores anteriores"] },
+      { icon: ShoppingCart, label: "Conversão",           description: "VSL ou webinário gravado + página de vendas.",        tips: ["Taxa de conv. alvo: ≥ 1% de leads", "Order bump aumenta ticket médio"] },
+      { icon: Repeat,      label: "Recorrência e upsell", description: "Oferte upgrades e planos anuais pós-compra.",         tips: ["Oferta de aniversário no mês 3", "LTV / CAC > 3 é saudável"] },
+      { icon: RefreshCcw,  label: "Redução de churn",     description: "Onboarding ativo + comunidade + suporte rápido.",     tips: ["Contacte inativos no dia 14", "NPS mensal detecta risco cedo"] },
+    ],
+  },
+  pos: {
+    title: "Roadmap Pós-Graduação",
+    subtitle: "Ciclo de captação para cursos de longa duração",
+    color: "#6366f1",
+    steps: [
+      { icon: GraduationCap, label: "Posicionamento",     description: "Defina o diferencial do curso vs. concorrência.",    tips: ["Foque em resultado profissional claro", "Ex.: 'Aprovado em concurso em 6 meses'"] },
+      { icon: Users,         label: "Público-alvo",        description: "Segmente por cargo, área e nível de experiência.",   tips: ["LinkedIn Ads para decisão B2B", "Meta Ads para profissionais 25–45"] },
+      { icon: Globe,         label: "Funil longo",          description: "Blog, webinário gratuito ou masterclass de entrada.", tips: ["Webinário converte 3× mais que LP fria", "Grave uma vez, veicula sempre"] },
+      { icon: Mail,          label: "Nutrição extended",   description: "Sequência de 15–21 dias para leads frios.",           tips: ["Depoimentos de ex-alunos funcionam bem", "Case + ROI do certificado"] },
+      { icon: Megaphone,     label: "Janela de matrícula", description: "Campanha de urgência com desconto + bônus.",          tips: ["Abra 2× por ano (semestral)", "Remarketing 7 dias antes do fechamento"] },
+      { icon: CheckCircle2,  label: "Retenção e NPS",      description: "Suporte, comunidade e indicações de alunos.",         tips: ["Aluno satisfeito indica 2,3 pessoas", "Oferte desconto de renovação no mês 10"] },
+    ],
+  },
+  livros: {
+    title: "Roadmap de Livros",
+    subtitle: "Estratégia de vendas e posicionamento de autor",
+    color: "#0891b2",
+    steps: [
+      { icon: BookOpen,    label: "Posicionamento de autor", description: "Bio forte + foto profissional + redes unificadas.", tips: ["Instagram + LinkedIn são os principais", "Depoimentos de leitores como prova social"] },
+      { icon: Globe,       label: "Landing page do livro",   description: "LP com sinopse, índice e trecho gratuito.",          tips: ["Ofereça cap. 1 grátis em troca de e-mail", "Nota média visível (Amazon/Goodreads)"] },
+      { icon: Megaphone,   label: "Campanha de lançamento",  description: "Vídeo do autor explicando o problema que o livro resolve.", tips: ["Meta Ads: interesse em livros do nicho", "CTR alvo ≥ 0.8%"] },
+      { icon: ShoppingCart, label: "Funil de conversão",    description: "Remarketing de leitores do trecho + e-mail.",         tips: ["Oferta de kit ou assinatura é upsell natural", "Preço âncora: e-book vs. físico"] },
+      { icon: Users,       label: "Prova social",            description: "Colete reviews e depoimentos nos primeiros 30 dias.", tips: ["Envie exemplar para influencers do nicho", "Amazon reviews aumentam conversão orgânica"] },
+      { icon: RefreshCcw,  label: "Perpetuação",             description: "Manter anúncios evergreen após lançamento.",          tips: ["ROI tende a melhorar após mês 2", "Lance edição digital para novo público"] },
+    ],
+  },
+  ebooks: {
+    title: "Roadmap de E-book",
+    subtitle: "Venda direta e captura de leads com e-book",
+    color: "#10b981",
+    steps: [
+      { icon: BookOpen,    label: "Produto irresistível",    description: "E-book que resolve uma dor específica e urgente.",   tips: ["Título com número + resultado: '7 passos para...'", "Design profissional aumenta percepção de valor"] },
+      { icon: Globe,       label: "Landing page simples",    description: "LP focada em 1 CTA, sem distrações.",                tips: ["Headline: dor → solução → prova", "Abaixo da dobra: depoimentos + FAQ"] },
+      { icon: Megaphone,   label: "Tráfego de entrada",      description: "Meta Ads com criativo do problema resolvido.",        tips: ["Imagem do produto física aumenta CTR", "Teste 3 hooks diferentes na primeira semana"] },
+      { icon: Mail,        label: "Sequência pós-compra",    description: "E-mail de entrega + upsell de produto maior.",        tips: ["Upsell oferecido em 24h pós-compra converte mais", "Ofereça suporte ou comunidade como bônus"] },
+      { icon: ShoppingCart, label: "Escala",                "description": "Aumente budget nas versões de criativo que convertem.", tips: ["Regra: escale 20% a cada 3 dias", "Duplique conjunto de anúncio, não edite"] },
+      { icon: RefreshCcw,  label: "Otimização contínua",    description: "A/B de headline e CTA a cada 30 dias.",               tips: ["Troque criativo ao ver CPL subir > 20%", "Revise LP a cada trimestre"] },
+    ],
+  },
+};
+
+function CategoryRoadmap({ category }: { category: ProductCategory }) {
+  const [open, setOpen] = useState(true);
+  const rm = ROADMAPS[category];
+  if (!rm) return null;
+
+  return (
+    <article className="rounded-xl border shadow-sm" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2">
+          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: rm.color }} />
+          <p className="text-xs font-bold" style={{ color: "var(--dm-text-primary)" }}>{rm.title}</p>
+          <p className="text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>— {rm.subtitle}</p>
+        </div>
+        <ChevronRight
+          size={14}
+          style={{ color: "var(--dm-text-tertiary)", transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.2s" }}
+        />
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4">
+          <div className="relative ml-4 border-l-2 pl-6 space-y-5" style={{ borderColor: "var(--dm-border-subtle)" }}>
+            {rm.steps.map((step, i) => (
+              <div key={i} className="relative">
+                {/* Circle on the timeline */}
+                <div
+                  className="absolute -left-[29px] flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-white text-[10px] font-black"
+                  style={{ backgroundColor: rm.color, boxShadow: "0 0 0 3px var(--dm-bg-surface)" }}
+                >
+                  {i + 1}
+                </div>
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <step.icon size={13} style={{ color: rm.color, flexShrink: 0 }} />
+                    <p className="text-xs font-semibold" style={{ color: "var(--dm-text-primary)" }}>{step.label}</p>
+                  </div>
+                  <p className="text-[11px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>{step.description}</p>
+                  {step.tips && step.tips.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {step.tips.map((tip, ti) => (
+                        <li key={ti} className="flex items-start gap-1.5 text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
+                          <span className="mt-1 h-1 w-1 flex-shrink-0 rounded-full" style={{ backgroundColor: rm.color }} />
+                          {tip}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </article>
+  );
+}
+
 // ─── TAB: Overview ────────────────────────────────────────────────────────────
 
-function TabOverview({ campaigns }: { campaigns: AggregatedCampaign[] }) {
+function TabOverview({ campaigns, selectedCategory }: { campaigns: AggregatedCampaign[]; selectedCategory?: ProductCategory | null }) {
   const top10 = useMemo(
     () => [...campaigns].sort((a, b) => b.investment - a.investment).slice(0, 10),
     [campaigns],
@@ -246,9 +386,13 @@ function TabOverview({ campaigns }: { campaigns: AggregatedCampaign[] }) {
   const maxInv = Math.max(...top10.map((c) => c.investment), 1);
 
   return (
-    <div className="space-y-4 pt-4">
-      <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>Top 10 por Investimento</p>
+    <div className="space-y-6 pt-4">
+      {/* Category roadmap */}
+      {selectedCategory && <CategoryRoadmap category={selectedCategory} />}
+
+      {/* Top 10 */}
       <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>Top 10 por Investimento</p>
         {top10.map((c) => {
           const roasColor = c.roas >= 3 ? "#059669" : c.roas >= 1.5 ? "var(--dm-brand-500)" : c.roas >= 1 ? "#d97706" : "#dc2626";
           const barColor  = c.roas >= 3 ? "#059669" : c.roas >= 1.5 ? "var(--dm-brand-500)" : c.roas >= 1 ? "#f59e0b" : "#ef4444";
@@ -608,7 +752,7 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CampaignAnalysis({ campaigns }: CampaignAnalysisProps) {
+export function CampaignAnalysis({ campaigns, selectedCategory }: CampaignAnalysisProps) {
   const [subTab, setSubTab] = useState<SubTab>("overview");
 
   const tasks    = useMemo(() => generateTasks(campaigns), [campaigns]);
@@ -691,7 +835,7 @@ export function CampaignAnalysis({ campaigns }: CampaignAnalysisProps) {
           <SubTabBar active={subTab} onChange={setSubTab} tabs={TABS} />
         </div>
         <div className="px-5 pb-5">
-          {subTab === "overview"  && <TabOverview  campaigns={campaigns} />}
+          {subTab === "overview"  && <TabOverview  campaigns={campaigns} selectedCategory={selectedCategory} />}
           {subTab === "critical"  && <TabCritical  campaigns={campaigns} />}
           {subTab === "positive"  && <TabPositive  campaigns={campaigns} />}
           {subTab === "tasks"     && <TabTasks     tasks={tasks} />}
