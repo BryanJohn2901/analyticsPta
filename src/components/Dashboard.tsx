@@ -2434,7 +2434,7 @@ export function Dashboard({
                     savedCampaignsByGroup={campaignsByGroup}
                     savedSelectedCampaigns={selectedCampaignsByGroup}
                     onSaveCampaignSelection={setCampaignSelectionForGroup}
-                    onClearCampaignSelection={clearCampaignSelection}
+                    onClearCampaignSelection={clearCampaignSelectionForGroup}
                     customGroups={customGroups}
                     onAddCustomGroup={addCustomGroup}
                   />
