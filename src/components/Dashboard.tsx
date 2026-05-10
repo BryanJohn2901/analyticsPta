@@ -2,11 +2,13 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Activity, BadgeDollarSign, BarChart2, BookMarked, BookOpen, CalendarDays,
+  Activity, BadgeDollarSign, BarChart2, BookOpen, CalendarDays,
   CheckCircle2, ChevronDown, ChevronUp, CircleDollarSign, Dumbbell, FileText,
   FileUp, Filter, Flag, GraduationCap, Home, ImageIcon, Link2, Loader2, LogOut, Menu, Moon,
   MousePointerClick, Package, Pencil, Plus, Repeat, RotateCcw, SlidersHorizontal, Sun,
   Target, Trash2, TrendingUp, Trophy, Upload, UserRound, Users, Wallet, X, XCircle, Zap,
+  LayoutDashboard, History, LineChart, Sparkles, Database, Dna, Weight, HeartPulse,
+  Medal, PersonStanding, Flame, BookText, MonitorSmartphone, Ticket, Library, VenetianMask
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { CampaignData, ProductCategory } from "@/types/campaign";
@@ -70,12 +72,12 @@ const SORT_LABELS: Record<SortBy, string> = {
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
 const MAIN_TABS: Array<{ id: MainTab; label: string; shortLabel: string; icon: React.ElementType }> = [
-  { id: "overview",  label: "Visão Geral",      shortLabel: "Visão Geral",  icon: TrendingUp },
-  { id: "history",   label: "Histórico",         shortLabel: "Histórico",    icon: Wallet },
-  { id: "analysis",  label: "Análise",           shortLabel: "Análise",      icon: BarChart2 },
-  { id: "creatives", label: "Criativos",         shortLabel: "Criativos",    icon: ImageIcon },
-  { id: "profiles",  label: "Perfil de Anúncio", shortLabel: "Perfil",       icon: Users },
-  { id: "products",  label: "Base de Produtos",  shortLabel: "Produtos",     icon: Package },
+  { id: "overview",  label: "Visão Geral",      shortLabel: "Visão Geral",  icon: LayoutDashboard },
+  { id: "history",   label: "Histórico",         shortLabel: "Histórico",    icon: History },
+  { id: "analysis",  label: "Análise",           shortLabel: "Análise",      icon: LineChart },
+  { id: "creatives", label: "Criativos",         shortLabel: "Criativos",    icon: Sparkles },
+  { id: "profiles",  label: "Perfil de Anúncio", shortLabel: "Perfil",       icon: Target },
+  { id: "products",  label: "Base de Produtos",  shortLabel: "Produtos",     icon: Database },
 ];
 
 // ─── Campaign groups ──────────────────────────────────────────────────────────
@@ -94,36 +96,60 @@ const G_BLUE = {
   selectedBg: "bg-blue-50 dark:bg-blue-900/10", selectedText: "text-blue-600 dark:text-blue-400", selectedBorder: "border-blue-200 dark:border-blue-800",
 };
 
+const G_EMERALD = {
+  iconBg: "bg-emerald-50 dark:bg-emerald-900/20", iconColor: "text-emerald-500 dark:text-emerald-400",
+  activeDot: "bg-emerald-500", activePulse: "bg-emerald-400",
+  selectedBg: "bg-emerald-50 dark:bg-emerald-900/10", selectedText: "text-emerald-600 dark:text-emerald-400", selectedBorder: "border-emerald-200 dark:border-emerald-800",
+};
+
+const G_VIOLET = {
+  iconBg: "bg-violet-50 dark:bg-violet-900/20", iconColor: "text-violet-500 dark:text-violet-400",
+  activeDot: "bg-violet-500", activePulse: "bg-violet-400",
+  selectedBg: "bg-violet-50 dark:bg-violet-900/10", selectedText: "text-violet-600 dark:text-violet-400", selectedBorder: "border-violet-200 dark:border-violet-800",
+};
+
+const G_AMBER = {
+  iconBg: "bg-amber-50 dark:bg-amber-900/20", iconColor: "text-amber-500 dark:text-amber-400",
+  activeDot: "bg-amber-500", activePulse: "bg-amber-400",
+  selectedBg: "bg-amber-50 dark:bg-amber-900/10", selectedText: "text-amber-600 dark:text-amber-400", selectedBorder: "border-amber-200 dark:border-amber-800",
+};
+
+const G_ROSE = {
+  iconBg: "bg-rose-50 dark:bg-rose-900/20", iconColor: "text-rose-500 dark:text-rose-400",
+  activeDot: "bg-rose-500", activePulse: "bg-rose-400",
+  selectedBg: "bg-rose-50 dark:bg-rose-900/10", selectedText: "text-rose-600 dark:text-rose-400", selectedBorder: "border-rose-200 dark:border-rose-800",
+};
+
 const CAMPAIGN_GROUPS: GroupConfig[] = [
   // ── Pós Graduação ──────────────────────────────────────────────────────────
-  { section: "pos", id: "biomecanica",  label: "Biomecânica (BM)",           icon: BookOpen,    ...G_BLUE },
-  { section: "pos", id: "musculacao",   label: "Musculação (MPA)",            icon: Dumbbell,    ...G_BLUE },
-  { section: "pos", id: "fisiologia",   label: "Fisiologia (FE)",             icon: Activity,    ...G_BLUE },
-  { section: "pos", id: "bodybuilding", label: "Bodybuilding (BB)",           icon: Trophy,      ...G_BLUE },
-  { section: "pos", id: "feminino",     label: "Trein. Feminino (SM)",        icon: Users,       ...G_BLUE },
-  { section: "pos", id: "funcional",    label: "Trein. Funcional (TF)",       icon: Zap,         ...G_BLUE },
+  { section: "pos", id: "biomecanica",  label: "Biomecânica (BM)",           icon: Dna,             ...G_BLUE },
+  { section: "pos", id: "musculacao",   label: "Musculação (MPA)",            icon: Weight,          ...G_BLUE },
+  { section: "pos", id: "fisiologia",   label: "Fisiologia (FE)",             icon: HeartPulse,      ...G_BLUE },
+  { section: "pos", id: "bodybuilding", label: "Bodybuilding (BB)",           icon: Medal,           ...G_BLUE },
+  { section: "pos", id: "feminino",     label: "Trein. Feminino (SM)",        icon: PersonStanding,  ...G_BLUE },
+  { section: "pos", id: "funcional",    label: "Trein. Funcional (TF)",       icon: Flame,           ...G_BLUE },
   // ── Livros ─────────────────────────────────────────────────────────────────
-  { section: "livros",   id: "livros",         label: "Livro de Biomecânica", icon: BookMarked,  ...G_BLUE },
-  { section: "livros",   id: "livroMarketing", label: "Livro de Marketing",   icon: BookMarked,  ...G_BLUE },
+  { section: "livros",   id: "livros",         label: "Livro de Biomecânica", icon: BookText,        ...G_EMERALD },
+  { section: "livros",   id: "livroMarketing", label: "Livro de Marketing",   icon: Library,         ...G_EMERALD },
   // ── Ebooks ─────────────────────────────────────────────────────────────────
-  { section: "ebooks",   id: "ebookJoelho",    label: "Ebook Bio Joelho",     icon: FileText,    ...G_BLUE },
-  { section: "ebooks",   id: "ebookColuna",    label: "Ebook Bio Coluna",     icon: FileText,    ...G_BLUE },
+  { section: "ebooks",   id: "ebookJoelho",    label: "Ebook Bio Joelho",     icon: MonitorSmartphone, ...G_VIOLET },
+  { section: "ebooks",   id: "ebookColuna",    label: "Ebook Bio Coluna",     icon: MonitorSmartphone, ...G_VIOLET },
   // ── Perpétuo ───────────────────────────────────────────────────────────────
-  { section: "perpetuo", id: "perpetuo",       label: "Notável Play",         icon: Repeat,      ...G_BLUE },
+  { section: "perpetuo", id: "perpetuo",       label: "Notável Play",         icon: RotateCcw,       ...G_AMBER },
   // ── Eventos ────────────────────────────────────────────────────────────────
-  { section: "eventos",  id: "bs",           label: "Biomechanic Specialist", icon: CalendarDays, ...G_BLUE },
-  { section: "eventos",  id: "mentoria",     label: "Mentoria Scala",         icon: CalendarDays, ...G_BLUE },
-  { section: "eventos",  id: "next",         label: "Next",                   icon: CalendarDays, ...G_BLUE },
-  { section: "eventos",  id: "powertrainer", label: "Power Trainer",          icon: CalendarDays, ...G_BLUE },
+  { section: "eventos",  id: "bs",           label: "Biomechanic Specialist", icon: Ticket,          ...G_ROSE },
+  { section: "eventos",  id: "mentoria",     label: "Mentoria Scala",         icon: Ticket,          ...G_ROSE },
+  { section: "eventos",  id: "next",         label: "Next",                   icon: Ticket,          ...G_ROSE },
+  { section: "eventos",  id: "powertrainer", label: "Power Trainer",          icon: Ticket,          ...G_ROSE },
 ];
 
 // Default styles for custom-created groups (keyed by section)
 const SECTION_DEFAULTS: Record<GroupSection, Omit<GroupConfig, "id" | "label" | "section">> = {
   pos:      { icon: GraduationCap, ...G_BLUE },
-  livros:   { icon: BookMarked,    ...G_BLUE },
-  ebooks:   { icon: FileText,      ...G_BLUE },
-  perpetuo: { icon: Repeat,        ...G_BLUE },
-  eventos:  { icon: CalendarDays,  ...G_BLUE },
+  livros:   { icon: BookText,      ...G_EMERALD },
+  ebooks:   { icon: MonitorSmartphone, ...G_VIOLET },
+  perpetuo: { icon: RotateCcw,     ...G_AMBER },
+  eventos:  { icon: Ticket,        ...G_ROSE },
 };
 
 const SECTION_LABELS: Record<GroupSection, string> = {
@@ -2155,7 +2181,7 @@ export function Dashboard({
 
       {/* ── Left sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-[240px] flex-col border-r bg-[var(--dm-bg-sidebar)] border-[var(--dm-border-default)] transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto ${
+        className={`glass-panel fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-[240px] flex-col border-r border-[var(--dm-border-default)] transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto ${
           showMobileNav ? "translate-x-0 shadow-2xl" : "-translate-x-full"
         } lg:flex lg:w-[220px] lg:flex-shrink-0`}
       >
@@ -2197,7 +2223,7 @@ export function Dashboard({
       <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* Top header */}
-        <header className="flex h-14 flex-shrink-0 items-center justify-between border-b border-[var(--dm-border-default)] bg-[var(--dm-bg-surface)] px-3 sm:px-4 md:px-6">
+        <header className="glass-panel relative z-10 flex h-14 flex-shrink-0 items-center justify-between border-b border-[var(--dm-border-default)] px-3 sm:px-4 md:px-6">
           <div className="flex items-center gap-3">
             {/* Hamburger (mobile) */}
             <button
@@ -2408,7 +2434,7 @@ export function Dashboard({
                     savedCampaignsByGroup={campaignsByGroup}
                     savedSelectedCampaigns={selectedCampaignsByGroup}
                     onSaveCampaignSelection={setCampaignSelectionForGroup}
-                    onClearCampaignSelection={clearCampaignSelectionForGroup}
+                    onClearCampaignSelection={clearCampaignSelection}
                     customGroups={customGroups}
                     onAddCustomGroup={addCustomGroup}
                   />
@@ -2716,14 +2742,14 @@ export function Dashboard({
 
       {/* ── Right sidebar — desktop ── */}
       {showRightPanel && (
-        <aside className="hidden w-[260px] flex-shrink-0 border-l border-[var(--dm-border-default)] bg-[var(--dm-bg-sidebar)] lg:flex lg:flex-col">
+        <aside className="glass-panel relative z-20 hidden w-[260px] flex-shrink-0 border-l border-[var(--dm-border-default)] lg:flex lg:flex-col">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}
 
       {/* ── Right panel — mobile drawer ── */}
       {showRightPanel && showMobilePanel && (
-        <aside className="fixed inset-y-0 right-0 z-50 flex w-[86vw] max-w-[320px] flex-col border-l border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-800 lg:hidden">
+        <aside className="glass-panel fixed inset-y-0 right-0 z-50 flex w-[86vw] max-w-[320px] flex-col border-l border-[var(--dm-border-default)] shadow-2xl lg:hidden">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}
