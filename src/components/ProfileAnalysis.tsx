@@ -955,7 +955,7 @@ function ProfileDetailView({
     <div className="space-y-4">
       {/* Header */}
       <div
-        className="overflow-hidden rounded-xl border shadow-sm"
+        className="rounded-xl border shadow-sm"
         style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
       >
         <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">

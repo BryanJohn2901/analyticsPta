@@ -3,7 +3,7 @@
 import { TEMPLATE_LIST } from "@/lib/templates";
 import type { TemplateId } from "@/lib/templates/types";
 import { ChevronDown, Settings2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Props {
   current: TemplateId;
@@ -17,6 +17,16 @@ export function TemplateSelector({ current, onChange, variant = "dropdown", onOp
   const ref = useRef<HTMLDivElement>(null);
 
   const currentTpl = TEMPLATE_LIST.find((t) => t.id === current) ?? TEMPLATE_LIST[0];
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
   if (variant === "modal") {
     return (
@@ -80,23 +90,29 @@ export function TemplateSelector({ current, onChange, variant = "dropdown", onOp
         </button>
 
         {open && (
-          <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
-            {TEMPLATE_LIST.map((tpl) => (
-              <button
-                key={tpl.id}
-                type="button"
-                onClick={() => { onChange(tpl.id); setOpen(false); }}
-                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition hover:bg-slate-50 dark:hover:bg-slate-700 ${
-                  tpl.id === current ? "font-semibold text-indigo-700 dark:text-indigo-400" : "text-slate-700 dark:text-slate-300"
-                }`}
-              >
-                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: tpl.color }} />
-                <span className="flex-1">{tpl.label}</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                  {tpl.description.split(" ").slice(0, 2).join(" ")}…
-                </span>
-              </button>
-            ))}
+          <div className="absolute left-0 top-full z-50 mt-1 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
+            <div className="py-1">
+              {TEMPLATE_LIST.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  onClick={() => { onChange(tpl.id); setOpen(false); if (tpl.id === "personalizado" && onOpenBuilder) onOpenBuilder(); }}
+                  className={`flex w-full items-start gap-3 px-3 py-2.5 text-left text-xs transition hover:bg-slate-50 dark:hover:bg-slate-700/60 ${
+                    tpl.id === current ? "bg-indigo-50/60 dark:bg-indigo-900/20" : ""
+                  }`}
+                >
+                  <span className="mt-0.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: tpl.color }} />
+                  <div className="min-w-0 flex-1">
+                    <p className={`font-semibold leading-tight ${tpl.id === current ? "text-indigo-700 dark:text-indigo-400" : "text-slate-800 dark:text-slate-200"}`}>
+                      {tpl.label}
+                    </p>
+                    <p className="mt-0.5 text-[10px] leading-snug text-slate-400 dark:text-slate-500">
+                      {tpl.description}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

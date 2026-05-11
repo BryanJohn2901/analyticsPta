@@ -50,7 +50,7 @@ export function KpiCard({
 
   return (
     <article
-      className="group relative overflow-hidden rounded-xl border bg-white shadow-sm transition hover:shadow-md dark:bg-[var(--dm-bg-surface)]"
+      className="group relative overflow-hidden rounded-xl border bg-white/80 dark:bg-[#161616]/80 glass-panel shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
       style={{ borderColor: "var(--dm-border-default)" }}
     >
       <div className="p-5">
@@ -63,7 +63,7 @@ export function KpiCard({
         </div>
 
         {/* Value */}
-        <p className="text-2xl font-bold tracking-tight" style={{ color: "var(--dm-text-primary)" }}>{value}</p>
+        <p className="text-2xl font-bold tracking-tight font-[family-name:var(--font-outfit)]" style={{ color: "var(--dm-text-primary)" }}>{value}</p>
 
         {/* Trend + subtitle */}
         <div className="mt-2 flex items-center gap-2">

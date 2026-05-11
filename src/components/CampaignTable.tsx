@@ -22,12 +22,12 @@ const ITEMS_PER_PAGE = 10;
 
 function RoasBadge({ value }: { value: number }) {
   const cls =
-    value >= 3   ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-    : value >= 1.5 ? "bg-blue-50 text-blue-700 ring-blue-200"
-    : value >= 1   ? "bg-amber-50 text-amber-700 ring-amber-200"
-    : "bg-red-50 text-red-600 ring-red-200";
+    value >= 3   ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400 ring-emerald-500/20"
+    : value >= 1.5 ? "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 ring-blue-500/20"
+    : value >= 1   ? "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 ring-amber-500/20"
+    : "bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400 ring-red-500/20";
   return (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ring-1 ${cls}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ${cls}`} style={{ fontFamily: "var(--font-display)" }}>
       {value.toFixed(2)}x
     </span>
   );
@@ -35,12 +35,12 @@ function RoasBadge({ value }: { value: number }) {
 
 function CtrBadge({ value }: { value: number }) {
   const cls =
-    value >= 3   ? "bg-emerald-50 text-emerald-700"
-    : value >= 1.5 ? "bg-blue-50 text-blue-700"
-    : value >= 0.5 ? "bg-slate-100 text-slate-600"
-    : "bg-red-50 text-red-500";
+    value >= 3   ? "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400"
+    : value >= 1.5 ? "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400"
+    : value >= 0.5 ? "bg-slate-500/10 text-slate-600 dark:bg-slate-500/20 dark:text-slate-400"
+    : "bg-red-500/10 text-red-600 dark:bg-red-500/20 dark:text-red-400";
   return (
-    <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-semibold ${cls}`}>
+    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-bold ${cls}`} style={{ fontFamily: "var(--font-display)" }}>
       {formatPercent(value)}
     </span>
   );
@@ -95,9 +95,9 @@ function SingleCampaignView({ campaigns }: { campaigns: CampaignData[] }) {
   };
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <article className="glass-panel overflow-hidden rounded-3xl shadow-lg">
       {/* Header */}
-      <div className="border-b border-slate-100 px-5 py-4 dark:border-slate-700">
+      <div className="border-b border-slate-200/50 px-6 py-5 dark:border-slate-700/50">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Evolução Diária</p>
@@ -178,7 +178,7 @@ function SingleCampaignView({ campaigns }: { campaigns: CampaignData[] }) {
       <div className="overflow-x-auto">
         <table className="min-w-[720px] text-sm">
           <thead>
-            <tr className="bg-slate-50 text-left dark:bg-slate-700/50">
+            <tr className="bg-slate-100/50 text-left dark:bg-slate-800/50">
               {[
                 { label: "Data",         cls: "w-28" },
                 { label: "Investimento", cls: "text-right" },
@@ -189,37 +189,37 @@ function SingleCampaignView({ campaigns }: { campaigns: CampaignData[] }) {
                 { label: "CPC",          cls: "text-right" },
                 { label: "ROAS",         cls: "text-center" },
               ].map(({ label, cls }) => (
-                <th key={label} className={`border-b border-slate-100 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:border-slate-700 dark:text-slate-500 ${cls}`}>
+                <th key={label} className={`border-b border-slate-200/50 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 ${cls}`}>
                   {label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+          <tbody className="divide-y divide-slate-100/50 dark:divide-slate-700/50">
             {visibleRows.map((row, i) => (
-              <tr key={row.id} className={`transition hover:bg-slate-50/80 dark:hover:bg-slate-700/50 ${i % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-slate-50/30 dark:bg-slate-700/20"}`}>
-                <td className="whitespace-nowrap px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-300">
+              <tr key={row.id} className={`transition-all hover:bg-white/50 dark:hover:bg-slate-800/50`}>
+                <td className="whitespace-nowrap px-5 py-3 text-[13px] font-semibold text-slate-700 dark:text-slate-300">
                   {formatDatePtBr(row.date)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-bold text-slate-800 dark:text-slate-200">
+                <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] font-bold text-slate-800 dark:text-slate-200" style={{ fontFamily: "var(--font-display)" }}>
                   {formatCurrency(row.investment)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] font-bold text-emerald-600 dark:text-emerald-400" style={{ fontFamily: "var(--font-display)" }}>
                   {formatCurrency(row.revenue)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right text-xs text-slate-600 dark:text-slate-400">
+                <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] text-slate-600 dark:text-slate-400" style={{ fontFamily: "var(--font-display)" }}>
                   {formatNumber(row.clicks)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right text-xs font-semibold text-blue-700 dark:text-blue-400">
+                <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] font-semibold text-blue-600 dark:text-blue-400" style={{ fontFamily: "var(--font-display)" }}>
                   {formatNumber(row.conversions)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-center">
+                <td className="whitespace-nowrap px-5 py-3 text-center">
                   <CtrBadge value={row.ctr} />
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right text-xs text-slate-600 dark:text-slate-400">
+                <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] text-slate-600 dark:text-slate-400" style={{ fontFamily: "var(--font-display)" }}>
                   {formatCurrency(row.cpc)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-center">
+                <td className="whitespace-nowrap px-5 py-3 text-center">
                   <RoasBadge value={row.roas} />
                 </td>
               </tr>
@@ -229,7 +229,7 @@ function SingleCampaignView({ campaigns }: { campaigns: CampaignData[] }) {
       </div>
 
       {/* Footer */}
-      <div className="flex flex-col items-start justify-between gap-2 border-t border-slate-100 bg-slate-50/60 px-5 py-3 sm:flex-row sm:items-center dark:border-slate-700 dark:bg-slate-700/30">
+      <div className="flex flex-col items-start justify-between gap-2 border-t border-slate-200/50 bg-slate-100/30 px-6 py-4 sm:flex-row sm:items-center dark:border-slate-700/50 dark:bg-slate-800/30">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           Total — {sorted.length} dias
         </p>
@@ -278,9 +278,9 @@ function MultiCampaignView({ campaigns }: { campaigns: CampaignData[] }) {
   const lastIdx  = Math.min(currentPage * ITEMS_PER_PAGE, campaigns.length);
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <article className="glass-panel overflow-hidden rounded-3xl shadow-lg">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5 sm:py-4 dark:border-slate-700">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/50 px-5 py-4 sm:px-6 sm:py-5 dark:border-slate-700/50">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Performance por Campanha</h3>
           <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
@@ -306,7 +306,7 @@ function MultiCampaignView({ campaigns }: { campaigns: CampaignData[] }) {
       <div className="overflow-x-auto">
         <table className="min-w-[980px] text-sm">
           <thead>
-            <tr className="bg-slate-50 text-left dark:bg-slate-700/50">
+            <tr className="bg-slate-100/50 text-left dark:bg-slate-800/50">
               {[
                 { label: "Data",         cls: "w-24" },
                 { label: "Campanha",     cls: "min-w-[180px]" },
@@ -319,29 +319,29 @@ function MultiCampaignView({ campaigns }: { campaigns: CampaignData[] }) {
                 { label: "CPA",          cls: "text-right" },
                 { label: "ROAS",         cls: "text-center" },
               ].map(({ label, cls }) => (
-                <th key={label} className={`border-b border-slate-100 px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:border-slate-700 dark:text-slate-500 ${cls ?? ""}`}>
+                <th key={label} className={`border-b border-slate-200/50 px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 ${cls ?? ""}`}>
                   {label}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50 dark:divide-slate-700">
+          <tbody className="divide-y divide-slate-100/50 dark:divide-slate-700/50">
             {visibleRows.map((row, i) => (
-              <tr key={row.id} className={`transition hover:bg-slate-50/80 dark:hover:bg-slate-700/50 ${i % 2 === 0 ? "bg-white dark:bg-slate-800" : "bg-slate-50/30 dark:bg-slate-700/20"}`}>
-                <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-400 dark:text-slate-500">{formatDatePtBr(row.date)}</td>
-                <td className="px-4 py-3">
-                  <span className="block max-w-[200px] truncate text-xs font-semibold text-slate-800 dark:text-slate-200" title={row.campaignName}>
+              <tr key={row.id} className={`transition-all hover:bg-white/50 dark:hover:bg-slate-800/50`}>
+                <td className="whitespace-nowrap px-5 py-3.5 text-[13px] text-slate-500 dark:text-slate-400">{formatDatePtBr(row.date)}</td>
+                <td className="px-5 py-3.5">
+                  <span className="block max-w-[200px] truncate text-[13px] font-semibold text-slate-800 dark:text-slate-200" title={row.campaignName}>
                     {row.campaignName}
                   </span>
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-700 dark:text-slate-300">{formatCurrency(row.investment)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">{formatCurrency(row.revenue)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600 dark:text-slate-400">{formatNumber(row.clicks)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs font-semibold text-blue-700 dark:text-blue-400">{formatNumber(row.conversions)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-center"><CtrBadge value={row.ctr} /></td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600 dark:text-slate-400">{formatCurrency(row.cpc)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-xs text-slate-600 dark:text-slate-400">{formatCurrency(row.cpa)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-center"><RoasBadge value={row.roas} /></td>
+                <td className="whitespace-nowrap px-5 py-3.5 text-right text-[13px] font-bold text-slate-700 dark:text-slate-300" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.investment)}</td>
+                <td className="whitespace-nowrap px-5 py-3.5 text-right text-[13px] font-bold text-emerald-600 dark:text-emerald-400" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.revenue)}</td>
+                <td className="whitespace-nowrap px-5 py-3.5 text-right text-[13px] text-slate-600 dark:text-slate-400" style={{ fontFamily: "var(--font-display)" }}>{formatNumber(row.clicks)}</td>
+                <td className="whitespace-nowrap px-5 py-3.5 text-right text-[13px] font-semibold text-blue-600 dark:text-blue-400" style={{ fontFamily: "var(--font-display)" }}>{formatNumber(row.conversions)}</td>
+                <td className="whitespace-nowrap px-5 py-3.5 text-center"><CtrBadge value={row.ctr} /></td>
+                <td className="whitespace-nowrap px-5 py-3.5 text-right text-[13px] text-slate-600 dark:text-slate-400" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.cpc)}</td>
+                <td className="whitespace-nowrap px-5 py-3.5 text-right text-[13px] text-slate-600 dark:text-slate-400" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.cpa)}</td>
+                <td className="whitespace-nowrap px-5 py-3.5 text-center"><RoasBadge value={row.roas} /></td>
               </tr>
             ))}
           </tbody>
@@ -350,7 +350,7 @@ function MultiCampaignView({ campaigns }: { campaigns: CampaignData[] }) {
 
       {/* Footer total row */}
       {campaigns.length > 0 && (
-        <div className="flex flex-col items-start justify-between gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3 sm:flex-row sm:items-center sm:px-5 dark:border-slate-700 dark:bg-slate-700/30">
+        <div className="flex flex-col items-start justify-between gap-2 border-t border-slate-200/50 bg-slate-100/30 px-5 py-4 sm:flex-row sm:items-center sm:px-6 dark:border-slate-700/50 dark:bg-slate-800/30">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
             Total período ({campaigns.length} registros)
           </p>

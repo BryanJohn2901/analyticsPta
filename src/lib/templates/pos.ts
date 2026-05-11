@@ -16,8 +16,8 @@ export const posTemplate: Template = {
   funnel: [
     { id: "impressions", label: "Impressões",      bg: "#EEF2FF" },
     { id: "clicks",      label: "Cliques no link", bg: "#E0E7FF", rateFromPrev: "CTR" },
-    { id: "leads",       label: "Leads",           bg: "#FEF9C3", rateFromPrev: "Tx captura" },
-    { id: "sales",       label: "Vendas",          bg: "#D1FAE5", rateFromPrev: "Tx conversão" },
+    { id: "leads",       label: "Leads",           bg: "#FEF9C3", rateFromPrev: "Tx. Captura" },
+    { id: "sales",       label: "Vendas",          bg: "#D1FAE5", rateFromPrev: "Tx. Conversão" },
   ],
   table: {
     title: "Vendas por Campanha",

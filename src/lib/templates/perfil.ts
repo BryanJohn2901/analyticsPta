@@ -17,8 +17,8 @@ export const perfilTemplate: Template = {
     { id: "reach",          label: "Alcance",           bg: "#D1FAE5" },
     { id: "impressions",    label: "Impressões",        bg: "#A7F3D0" },
     { id: "clicks",         label: "Cliques no link",   bg: "#6EE7B7", rateFromPrev: "CTR" },
-    { id: "profile_visits", label: "Visitas ao perfil", bg: "#34D399", rateFromPrev: "Tx visita" },
-    { id: "new_followers",  label: "Novos seguidores",  bg: "#10B981", rateFromPrev: "Tx follow" },
+    { id: "profile_visits", label: "Visitas ao perfil", bg: "#34D399", rateFromPrev: "Tx. Visita" },
+    { id: "new_followers",  label: "Novos seguidores",  bg: "#10B981", rateFromPrev: "Tx. Follow" },
   ],
   table: {
     title: "Performance por Conjunto Criativo",

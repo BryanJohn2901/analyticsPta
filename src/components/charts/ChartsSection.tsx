@@ -20,9 +20,18 @@ interface ChartsSectionProps {
 }
 
 const PIE_COLORS = [
-  "#2563eb", "#7c3aed", "#0891b2", "#059669",
-  "#d97706", "#dc2626", "#db2777", "#0d9488",
-  "#6366f1", "#84cc16", "#f97316", "#14b8a6",
+  "#3b82f6", // Blue (primary)
+  "#8b5cf6", // Violet (secondary)
+  "#10b981", // Emerald (success)
+  "#f59e0b", // Amber (warning)
+  "#ef4444", // Red (danger)
+  "#ec4899", // Pink
+  "#06b6d4", // Cyan
+  "#84cc16", // Lime
+  "#14b8a6", // Teal
+  "#6366f1", // Indigo
+  "#f97316", // Orange
+  "#d946ef", // Fuchsia
 ];
 const MAX_PIE_ITEMS = 10;
 
@@ -36,10 +45,12 @@ function useChartTheme() {
     tickFill:    dark ? "#64748b" : "#94a3b8",
     tooltipStyle: {
       contentStyle: {
-        borderRadius: 12,
-        border: `1px solid ${dark ? "#334155" : "#e2e8f0"}`,
-        background: dark ? "#1e293b" : "#ffffff",
-        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+        borderRadius: 16,
+        border: `1px solid ${dark ? "rgba(255,255,255,0.1)" : "rgba(255,255,255,0.4)"}`,
+        background: dark ? "rgba(15, 23, 42, 0.7)" : "rgba(255, 255, 255, 0.6)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.12)",
         fontSize: 12,
         padding: "8px 12px",
         color: dark ? "#f1f5f9" : "#0f172a",
@@ -113,7 +124,7 @@ function ChartCard({
   action?: React.ReactNode;
 }) {
   return (
-    <article className="flex flex-col rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+    <article className="glass-panel flex flex-col rounded-3xl p-4 sm:p-5 shadow-lg">
       <div className="mb-4 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-start">
         <div>
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{title}</h3>
@@ -189,8 +200,8 @@ export function ChartsSection({
       <ComposedChart data={dailyTrend} margin={{ top: 4, right: 52, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id="gradInvest" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#d97706" stopOpacity={0.25} />
-            <stop offset="100%" stopColor="#d97706" stopOpacity={0} />
+            <stop offset="0%"   stopColor="#f59e0b" stopOpacity={0.3} />
+            <stop offset="100%" stopColor="#f59e0b" stopOpacity={0.05} />
           </linearGradient>
         </defs>
         <CartesianGrid {...GRID_PROPS} />
@@ -202,8 +213,8 @@ export function ChartsSection({
           labelFormatter={(v) => formatDatePtBr(String(v))}
           formatter={(v, name) => name === "Investimento" ? [formatCurrency(Number(v)), name] : [formatNumber(Number(v)), name]}
         />
-        <Area yAxisId="inv" type="monotone" dataKey="investment" name="Investimento" stroke="#d97706" strokeWidth={2} fill="url(#gradInvest)" />
-        <Line yAxisId="clicks" type="monotone" dataKey="clicks" name="Cliques" stroke="#3b82f6" strokeWidth={1.5} dot={false} strokeDasharray="4 2" />
+        <Area yAxisId="inv" type="monotone" dataKey="investment" name="Investimento" stroke="#f59e0b" strokeWidth={3} fill="url(#gradInvest)" />
+        <Line yAxisId="clicks" type="monotone" dataKey="clicks" name="Cliques" stroke="#3b82f6" strokeWidth={2} dot={false} strokeDasharray="4 4" />
       </ComposedChart>
     </ResponsiveContainer>
   ) : trendMode === "area" ? (
@@ -211,20 +222,20 @@ export function ChartsSection({
       <AreaChart data={dailyTrend} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
         <defs>
           <linearGradient id="gradClicks" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#2563eb" stopOpacity={0.2} />
-            <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+            <stop offset="0%"   stopColor="#3b82f6" stopOpacity={0.3} />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
           </linearGradient>
           <linearGradient id="gradConv" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#059669" stopOpacity={0.2} />
-            <stop offset="100%" stopColor="#059669" stopOpacity={0} />
+            <stop offset="0%"   stopColor="#10b981" stopOpacity={0.3} />
+            <stop offset="100%" stopColor="#10b981" stopOpacity={0.05} />
           </linearGradient>
         </defs>
         <CartesianGrid {...GRID_PROPS} />
         <XAxis dataKey="date" {...AXIS_STYLE} tickFormatter={shortDate} interval={interval} angle={0} textAnchor="middle" height={24} />
         <YAxis {...AXIS_STYLE} tickFormatter={(v) => formatNumber(Number(v))} width={48} />
         <Tooltip {...tooltipStyle} labelFormatter={(v) => formatDatePtBr(String(v))} formatter={(v, name) => [formatNumber(Number(v)), name]} />
-        <Area type="monotone" dataKey="clicks"      name="Cliques"    stroke="#2563eb" strokeWidth={2} fill="url(#gradClicks)" />
-        <Area type="monotone" dataKey="conversions" name="Conversões" stroke="#059669" strokeWidth={2} fill="url(#gradConv)" />
+        <Area type="monotone" dataKey="clicks"      name="Cliques"    stroke="#3b82f6" strokeWidth={3} fill="url(#gradClicks)" />
+        <Area type="monotone" dataKey="conversions" name="Conversões" stroke="#10b981" strokeWidth={3} fill="url(#gradConv)" />
       </AreaChart>
     </ResponsiveContainer>
   ) : (

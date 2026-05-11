@@ -37,114 +37,105 @@ export function TabLanding({
   children,
 }: TabLandingProps) {
   return (
-    <div className="mx-auto max-w-2xl space-y-6 py-6" style={{ animation: "dm-fade-up 0.28s ease both" }}>
+    <div className="relative mx-auto max-w-4xl overflow-hidden rounded-[2rem] p-1 sm:p-2" style={{ animation: "dm-fade-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) both" }}>
+      {/* Background Glow */}
+      <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-blue-500/20 blur-[100px]" />
+      <div className="absolute -bottom-32 -right-32 h-96 w-96 rounded-full bg-emerald-500/10 blur-[100px]" />
 
-      {/* ── Hero ── */}
-      <div
-        className="rounded-xl border p-6 text-center sm:p-8"
-        style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
-      >
-        <div
-          className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl"
-          style={{ backgroundColor: "var(--dm-brand-50)" }}
-        >
-          <Icon size={28} style={{ color: "var(--dm-brand-500)" }} />
-        </div>
-        <h1 className="text-xl font-bold sm:text-2xl" style={{ color: "var(--dm-text-primary)" }}>
-          {title}
-        </h1>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
-          {subtitle}
-        </p>
-      </div>
-
-      {/* ── Features ── */}
-      <div className="grid gap-3 sm:grid-cols-3">
-        {features.map((f) => (
-          <div
-            key={f.label}
-            className="flex flex-col gap-3 rounded-xl border p-4"
-            style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
-          >
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-lg"
-              style={{ backgroundColor: "var(--dm-bg-elevated)" }}
-            >
-              <f.icon size={16} style={{ color: "var(--dm-brand-500)" }} />
-            </div>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>{f.label}</p>
-              <p className="mt-0.5 text-[12px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
-                {f.description}
-              </p>
-            </div>
+      <div className="glass-panel relative flex flex-col gap-8 rounded-[1.75rem] p-6 sm:p-12">
+        {/* ── Hero ── */}
+        <div className="text-center">
+          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-gradient-to-br from-blue-500 to-blue-700 text-white shadow-xl shadow-blue-500/30">
+            <Icon size={40} strokeWidth={1.5} />
           </div>
-        ))}
-      </div>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl" style={{ fontFamily: "var(--font-display)", color: "var(--dm-text-primary)" }}>
+            {title}
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-[16px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
+            {subtitle}
+          </p>
+        </div>
 
-      {/* ── Steps ── */}
-      <div
-        className="rounded-xl border p-5"
-        style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
-      >
-        <p className="mb-4 text-[11px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
-          Como funciona
-        </p>
-        <div className="flex flex-col gap-0 sm:flex-row sm:gap-0">
-          {steps.map((step, i) => (
-            <React.Fragment key={step.label}>
-              <div className="flex flex-1 flex-col gap-1.5 sm:items-center sm:text-center">
-                <div
-                  className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold text-white sm:mx-auto"
-                  style={{ backgroundColor: "var(--dm-brand-500)" }}
-                >
-                  {i + 1}
-                </div>
-                <p className="text-[13px] font-semibold" style={{ color: "var(--dm-text-primary)" }}>{step.label}</p>
-                <p className="text-[12px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
-                  {step.description}
+        {/* ── Features ── */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          {features.map((f, idx) => (
+            <div
+              key={f.label}
+              className="group flex flex-col gap-4 rounded-2xl border p-5 transition-all hover:-translate-y-1 hover:shadow-xl dark:bg-slate-800/50"
+              style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)", animationDelay: `${idx * 100}ms`, animation: "dm-fade-up 0.4s both" }}
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600 transition-colors group-hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:group-hover:bg-blue-500/20">
+                <f.icon size={22} />
+              </div>
+              <div>
+                <p className="text-[16px] font-bold" style={{ color: "var(--dm-text-primary)" }}>{f.label}</p>
+                <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
+                  {f.description}
                 </p>
               </div>
-              {i < steps.length - 1 && (
-                <div className="flex items-center justify-center px-3 py-2 sm:py-0">
-                  <ArrowRight size={14} style={{ color: "var(--dm-text-tertiary)" }} />
-                </div>
-              )}
-            </React.Fragment>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* ── Optional children slot (e.g. import cards) ── */}
-      {children}
+        {/* ── Steps ── */}
+        <div className="rounded-2xl border bg-slate-50/50 p-6 dark:bg-slate-800/30" style={{ borderColor: "var(--dm-border-default)" }}>
+          <p className="mb-6 text-center text-[12px] font-bold uppercase tracking-widest sm:text-left" style={{ color: "var(--dm-text-tertiary)" }}>
+            Como funciona
+          </p>
+          <div className="flex flex-col gap-6 sm:flex-row sm:gap-0">
+            {steps.map((step, i) => (
+              <React.Fragment key={step.label}>
+                <div className="flex flex-1 flex-col gap-3 sm:items-center sm:text-center">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-700 dark:bg-slate-700 dark:text-slate-300 sm:mx-auto">
+                    {i + 1}
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-bold" style={{ color: "var(--dm-text-primary)" }}>{step.label}</p>
+                    <p className="mt-1 text-sm leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
+                      {step.description}
+                    </p>
+                  </div>
+                </div>
+                {i < steps.length - 1 && (
+                  <div className="hidden items-center justify-center px-4 sm:flex">
+                    <ArrowRight size={20} className="text-slate-300 dark:text-slate-600" />
+                  </div>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
 
-      {/* ── CTA buttons (rendered only if no children, or as footer when children present) ── */}
-      {!children && (
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={cta.onClick}
-            className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
-            style={{ backgroundColor: "var(--dm-brand-500)" }}
-          >
-            {cta.label}
-          </button>
-          {ctaSecondary && (
+        {/* ── Optional children slot (e.g. import cards) ── */}
+        {children}
+
+        {/* ── CTA buttons (rendered only if no children, or as footer when children present) ── */}
+        {!children && (
+          <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
             <button
               type="button"
-              onClick={ctaSecondary.onClick}
-              className="flex items-center gap-2 rounded-lg border px-5 py-2.5 text-sm font-semibold transition hover:opacity-80"
-              style={{
-                borderColor: "var(--dm-border-default)",
-                color: "var(--dm-text-secondary)",
-                backgroundColor: "var(--dm-bg-surface)",
-              }}
+              onClick={cta.onClick}
+              className="flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-3.5 text-[16px] font-bold text-white shadow-lg shadow-blue-500/25 transition-all hover:-translate-y-0.5 hover:bg-blue-700 hover:shadow-blue-500/40"
             >
-              {ctaSecondary.label}
+              {cta.label}
             </button>
-          )}
-        </div>
-      )}
+            {ctaSecondary && (
+              <button
+                type="button"
+                onClick={ctaSecondary.onClick}
+                className="flex items-center gap-2 rounded-xl border px-8 py-3.5 text-[16px] font-bold transition-all hover:-translate-y-0.5 hover:shadow-md"
+                style={{
+                  borderColor: "var(--dm-border-default)",
+                  color: "var(--dm-text-primary)",
+                  backgroundColor: "var(--dm-bg-surface)",
+                }}
+              >
+                {ctaSecondary.label}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

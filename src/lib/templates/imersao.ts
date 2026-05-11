@@ -17,9 +17,9 @@ export const imersaoTemplate: Template = {
     { id: "reach",       label: "Alcance",                bg: "#ECFEFF" },
     { id: "impressions", label: "Impressões",             bg: "#CFFAFE" },
     { id: "clicks",      label: "Cliques no link",        bg: "#A5F3FC", rateFromPrev: "CTR" },
-    { id: "page_views",  label: "Visualização de página", bg: "#67E8F9", rateFromPrev: "Tx visita" },
-    { id: "leads",       label: "Lead",                   bg: "#FEF9C3", rateFromPrev: "Tx captura" },
-    { id: "tickets",     label: "Vendas (ingressos)",     bg: "#D1FAE5", rateFromPrev: "Tx conversão" },
+    { id: "page_views",  label: "Visualização de página", bg: "#67E8F9", rateFromPrev: "Tx. Visita" },
+    { id: "leads",       label: "Lead",                   bg: "#FEF9C3", rateFromPrev: "Tx. Captura" },
+    { id: "tickets",     label: "Vendas (ingressos)",     bg: "#D1FAE5", rateFromPrev: "Tx. Conversão" },
   ],
   table: {
     title: "Performance por Conjunto Criativo",

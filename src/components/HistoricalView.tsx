@@ -408,8 +408,7 @@ interface StatCardProps {
 function StatCard({ label, value, sub, icon: Icon }: StatCardProps) {
   return (
     <article
-      className="rounded-xl border p-5 shadow-sm"
-      style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+      className="glass-panel rounded-3xl p-5 shadow-lg"
     >
       <div className="flex items-start justify-between">
         <div>
@@ -701,7 +700,7 @@ export function HistoricalView() {
         </div>
 
         {/* ── Dashboard header ── */}
-        <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-4 sm:px-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <div className="glass-panel flex flex-wrap items-start justify-between gap-4 rounded-[2rem] px-5 py-5 sm:px-6 shadow-lg">
           <div>
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Histórico de Lançamentos</h2>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
@@ -818,7 +817,7 @@ export function HistoricalView() {
         {hasData && chartData.length > 0 && (
           <div className="grid gap-5 xl:grid-cols-5">
             {/* Monthly trend — takes 3 cols */}
-            <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3 dark:border-slate-700 dark:bg-slate-800">
+            <article className="glass-panel rounded-[2rem] p-5 shadow-lg xl:col-span-3">
               <h3 className="mb-4 text-sm font-semibold text-slate-800 dark:text-slate-200">Evolução Mensal</h3>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
