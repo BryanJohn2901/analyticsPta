@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import {
   Check,
+  CloudUpload,
   Download,
   ExternalLink,
   ImageIcon,
@@ -17,6 +18,10 @@ import { AggregatedCampaign } from "@/types/campaign";
 import { useCreativeStore, CreativeData, EMPTY_CREATIVE } from "@/hooks/useCreativeStore";
 import { fetchMetaCreatives, loadMetaCredentials } from "@/utils/metaApi";
 import { formatCurrency, formatPercent } from "@/utils/metrics";
+import {
+  fetchSupabaseCreatives,
+  saveCreativeToSupabase,
+} from "@/utils/supabaseCreatives";
 
 interface BestCreativesProps {
   campaigns: AggregatedCampaign[];
@@ -29,10 +34,13 @@ interface CreativeCardProps {
   campaign: AggregatedCampaign;
   creative: CreativeData;
   isEditing: boolean;
+  isSaving: boolean;
+  isSupabaseSaved: boolean;
   onEditOpen: () => void;
   onSave: (data: CreativeData) => void;
   onCancel: () => void;
   onToggleStar: () => void;
+  onSaveToSupabase: () => void;
 }
 
 function downloadBlob(url: string, filename: string) {
@@ -51,7 +59,7 @@ function downloadBlob(url: string, filename: string) {
     });
 }
 
-function CreativeCard({ campaign: c, creative, isEditing, onEditOpen, onSave, onCancel, onToggleStar }: CreativeCardProps) {
+function CreativeCard({ campaign: c, creative, isEditing, isSaving, isSupabaseSaved, onEditOpen, onSave, onCancel, onToggleStar, onSaveToSupabase }: CreativeCardProps) {
   const [draft, setDraft] = useState<CreativeData>(creative);
 
   const handleOpen = () => {
@@ -123,6 +131,24 @@ function CreativeCard({ campaign: c, creative, isEditing, onEditOpen, onSave, on
               title="Baixar imagem"
             >
               <Download size={13} className="text-slate-500 dark:text-slate-400" />
+            </button>
+          )}
+          {/* Save to Supabase Storage */}
+          {hasMedia && (
+            <button
+              type="button"
+              onClick={onSaveToSupabase}
+              disabled={isSaving || isSupabaseSaved}
+              className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/90 shadow backdrop-blur-sm hover:bg-white disabled:cursor-default dark:bg-slate-800/90 dark:hover:bg-slate-800"
+              title={isSupabaseSaved ? "Salvo no Supabase" : "Salvar no Supabase"}
+            >
+              {isSaving ? (
+                <Loader2 size={13} className="animate-spin text-blue-500" />
+              ) : isSupabaseSaved ? (
+                <Check size={13} className="text-emerald-500" />
+              ) : (
+                <CloudUpload size={13} className="text-slate-500 dark:text-slate-400" />
+              )}
             </button>
           )}
           {hasLink && (
@@ -302,6 +328,9 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
   const { store, saveCreative } = useCreativeStore();
   const [editingCampaign, setEditingCampaign] = useState<string | null>(null);
   const [fetchingCreatives, setFetchingCreatives] = useState(false);
+  // campaign_name → true when successfully saved to Supabase Storage
+  const [supabaseSaved, setSupabaseSaved] = useState<Record<string, boolean>>({});
+  const [savingCampaign, setSavingCampaign] = useState<string | null>(null);
   const storeRef = useRef(store);
   storeRef.current = store;
 
@@ -313,6 +342,27 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
       starredAt: !existing.starred ? new Date().toISOString() : undefined,
     });
   };
+
+  // Load previously saved creatives from Supabase on mount
+  useEffect(() => {
+    fetchSupabaseCreatives().then((rows) => {
+      for (const row of rows) {
+        if (!row.storage_url) continue;
+        const existing = storeRef.current[row.campaign_name];
+        // Prefer Supabase URL over Meta CDN (won't expire)
+        saveCreative(row.campaign_name, {
+          mediaUrl: row.storage_url,
+          adLink:   existing?.adLink || row.ad_link,
+          notes:    existing?.notes  || row.notes,
+          starred:  existing?.starred ?? row.starred,
+          starredAt: existing?.starredAt ?? row.starred_at ?? undefined,
+        });
+        setSupabaseSaved((prev) => ({ ...prev, [row.campaign_name]: true }));
+      }
+    }).catch(() => {});
+  // Only on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!adAccountId) return;
@@ -338,6 +388,27 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
   // adAccountId change triggers a fresh fetch; saveCreative is stable
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [adAccountId]);
+
+  const handleSaveToSupabase = async (campaignName: string) => {
+    const creative = storeRef.current[campaignName];
+    if (!creative?.mediaUrl) return;
+    setSavingCampaign(campaignName);
+    try {
+      const storageUrl = await saveCreativeToSupabase(
+        creative.mediaUrl,
+        campaignName,
+        adAccountId ?? "",
+        creative.adLink,
+      );
+      // Update local store with the permanent Supabase URL
+      saveCreative(campaignName, { ...creative, mediaUrl: storageUrl });
+      setSupabaseSaved((prev) => ({ ...prev, [campaignName]: true }));
+    } catch {
+      // Silently ignore — user can retry
+    } finally {
+      setSavingCampaign(null);
+    }
+  };
 
   const byCtr = useMemo(
     () =>
@@ -431,6 +502,8 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
                 campaign={c}
                 creative={creative}
                 isEditing={editingCampaign === c.campaignName}
+                isSaving={savingCampaign === c.campaignName}
+                isSupabaseSaved={supabaseSaved[c.campaignName] ?? false}
                 onEditOpen={() => setEditingCampaign(c.campaignName)}
                 onSave={(data) => {
                   saveCreative(c.campaignName, data);
@@ -438,6 +511,7 @@ export function BestCreatives({ campaigns, adAccountId }: BestCreativesProps) {
                 }}
                 onCancel={() => setEditingCampaign(null)}
                 onToggleStar={() => toggleStar(c.campaignName)}
+                onSaveToSupabase={() => void handleSaveToSupabase(c.campaignName)}
               />
             );
           })}

@@ -441,13 +441,14 @@ function ImportPopover({
   const [loading, setLoading]             = useState<"url" | "csv" | null>(null);
   const [accessToken, setAccessToken]     = useState(() => loadMetaCredentials().accessToken);
 
-  // Rows: only groups that already have a saved account appear on open;
-  // user adds/removes rows freely with the + / × buttons.
-  const [accountRows, setAccountRows]     = useState<AccountRow[]>(() =>
-    Object.entries(campaignConfigs)
+  // Single account mode: only one row allowed at a time.
+  const [accountRows, setAccountRows]     = useState<AccountRow[]>(() => {
+    const first = Object.entries(campaignConfigs)
       .filter(([, cfg]) => cfg?.adAccountId?.trim())
-      .map(([groupId, cfg]) => ({ rowId: groupId, groupId, accountId: cfg.adAccountId })),
-  );
+      .slice(0, 1)
+      .map(([groupId, cfg]) => ({ rowId: groupId, groupId, accountId: cfg.adAccountId }));
+    return first.length > 0 ? first : [{ rowId: "primary", groupId: CAMPAIGN_GROUPS[0]?.id ?? "primary", accountId: "" }];
+  });
 
   // Derived lookup — compatible with all handlers that key by groupId
   const adAccountIds = Object.fromEntries(accountRows.map((r) => [r.groupId, r.accountId]));
@@ -747,7 +748,7 @@ function ImportPopover({
         <div className="flex-shrink-0 border-b p-5 pb-4" style={{ borderColor: "var(--dm-border-default)" }}>
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>Importar dados</p>
+              <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>Conectar Meta ADS</p>
               <p className="text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>Conecte sua fonte de dados</p>
             </div>
             {inline ? (
@@ -910,313 +911,94 @@ function ImportPopover({
               </p>
             </div>)}
 
-            {/* ── Ad account rows ──────────────────────────────────────────── */}
-            {showAccountsSection && <div>
-              <div className="mb-1 flex items-center justify-between">
+            {/* ── Single Ad Account ─────────────────────────────────────── */}
+            {showAccountsSection && (() => {
+              const row = accountRows[0];
+              if (!row) return null;
+              const accountId     = row.accountId.trim();
+              const liveCampaigns = accountId ? (campaignsByAccount[accountId] ?? []) : [];
+              const savedCamps    = savedCampaignsByGroup[row.groupId] ?? [];
+              const campaigns: (MetaCampaign | CampaignSummary)[] = liveCampaigns.length > 0 ? liveCampaigns : savedCamps;
+              const isRestored    = liveCampaigns.length === 0 && savedCamps.length > 0;
+              const isExpanded    = expandedGroup === row.groupId;
+              const status        = isRestored && verifyStatus[row.groupId] === undefined ? "ok" : (verifyStatus[row.groupId] ?? "idle");
+              const errMsg        = verifyError[row.groupId];
+              const selected      = selectedCampaigns[row.groupId] ?? campaigns.map((c) => c.id);
+              const allSelected   = selected.length === campaigns.length;
+              return (
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                    Ad Accounts configurados
-                  </label>
-                  {accountRows.length > 0 && (
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                      {accountRows.length} conta{accountRows.length > 1 ? "s" : ""} salva{accountRows.length > 1 ? "s" : ""} — edite ou remova conforme necessário
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {accountRows.some((r) => r.accountId.trim()) && (
-                    <button
-                      type="button"
-                      onClick={() => void handleVerifyAll()}
-                      disabled={!accessToken}
-                      className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-600 transition hover:border-blue-300 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:text-blue-400"
-                    >
-                      <Activity size={10} /> Verificar todas
-                    </button>
-                  )}
-                  {accountRows.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setAccountRows([])}
-                      className="flex items-center gap-1 rounded-md border border-red-200 bg-white px-2 py-1 text-[10px] font-semibold text-red-500 transition hover:border-red-400 hover:bg-red-50 dark:border-red-800 dark:bg-slate-700 dark:text-red-400 dark:hover:bg-red-900/20"
-                    >
-                      <X size={10} /> Limpar tudo
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Empty state */}
-              {accountRows.length === 0 && (
-                <div className="rounded-xl border-2 border-dashed border-slate-200 p-5 text-center dark:border-slate-600">
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                    Nenhuma conta configurada.<br />
-                    Clique em <strong className="text-slate-600 dark:text-slate-300">+ Adicionar campanha</strong> para começar.
-                  </p>
-                </div>
-              )}
-
-              {/* Row list */}
-              {accountRows.length > 0 && (
-                <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-                  {accountRows.map((row) => {
-                    const g          = allGroupsInPopover.find((x) => x.id === row.groupId) ?? CAMPAIGN_GROUPS[0];
-                    const accountId  = row.accountId.trim();
-                    // Use live-fetched campaigns first; fall back to saved data from previous session
-                    const liveCampaigns  = accountId ? (campaignsByAccount[accountId] ?? []) : [];
-                    const savedCamps     = savedCampaignsByGroup[row.groupId] ?? [];
-                    const campaigns: (MetaCampaign | CampaignSummary)[] = liveCampaigns.length > 0 ? liveCampaigns : savedCamps;
-                    const isRestored = liveCampaigns.length === 0 && savedCamps.length > 0;
-                    const isExpanded = expandedGroup === row.groupId;
-                    const status     = isRestored && verifyStatus[row.groupId] === undefined ? "ok" : (verifyStatus[row.groupId] ?? "idle");
-                    const errMsg     = verifyError[row.groupId];
-                    const selected   = selectedCampaigns[row.groupId] ?? campaigns.map((c) => c.id);
-                    const allSelected = selected.length === campaigns.length;
-
-                    return (
-                      <div key={row.rowId} className="border-b border-slate-100 last:border-b-0 dark:border-slate-700">
-                        {/* Main row — two lines for better readability */}
-                        <div className="px-3 py-2.5 space-y-2">
-                          {/* Line 1: group + remove button */}
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={row.groupId}
-                              onChange={(e) => handleChangeRowGroup(row.rowId, e.target.value)}
-                              className="h-8 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs text-slate-800 outline-none focus:border-blue-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
-                            >
-                              {(["pos","livros","ebooks","perpetuo","eventos"] as GroupSection[]).map((sec) => (
-                                <optgroup key={sec} label={SECTION_LABELS[sec]}>
-                                  {allGroupsInPopover.filter((grp) => grp.section === sec).map((grp) => {
-                                    const usedByOther = accountRows.some((r) => r.rowId !== row.rowId && r.groupId === grp.id);
-                                    return (
-                                      <option key={grp.id} value={grp.id} disabled={usedByOther}>
-                                        {grp.label}
-                                      </option>
-                                    );
-                                  })}
-                                </optgroup>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveRow(row.rowId)}
-                              title="Remover conta"
-                              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:border-red-300 hover:bg-red-50 hover:text-red-500 dark:border-slate-600 dark:hover:border-red-700 dark:hover:bg-red-900/20 dark:hover:text-red-400"
-                            >
-                              <X size={13} />
-                            </button>
-                          </div>
-
-                          {/* Line 2: account input + verify badge */}
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="relative min-w-0 flex-1"
-                              ref={(el) => { if (el) inputWrapperRefs.current.set(row.rowId, el); else inputWrapperRefs.current.delete(row.rowId); }}
-                            >
-                              <input
-                                value={row.accountId}
-                                onChange={(e) => handleChangeRowAccount(row.rowId, e.target.value)}
-                                placeholder="act_123456789"
-                                className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-3 pr-7 text-xs text-slate-800 placeholder-slate-300 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-600"
-                              />
-                              {metaAccounts.length > 0 && (
-                                <button
-                                  type="button"
-                                  title="Ver contas disponíveis"
-                                  onClick={() => openAccountDropdown(row.rowId)}
-                                  className="absolute right-1 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
-                                >
-                                  <ChevronDown size={12} className={`transition-transform ${openDropdownRow === row.rowId ? "rotate-180" : ""}`} />
-                                </button>
-                              )}
-                            </div>
-
-                          {/* Verify status badge */}
-                          {status === "loading" && (
-                            <Loader2 size={13} className="flex-shrink-0 animate-spin text-blue-500" />
-                          )}
-                          {status === "ok" && campaigns.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => void handleVerifyGroup(row.groupId)}
-                              title={`${campaigns.length} campanhas${isRestored ? " (salvas)" : ""} — clique para ${isExpanded ? "fechar" : "filtrar"}`}
-                              className={`flex flex-shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold transition ${
-                                isRestored
-                                  ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400"
-                                  : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400"
-                              }`}
-                            >
-                              <CheckCircle2 size={10} />
-                              {selected.length}/{campaigns.length}
-                              {isExpanded ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
-                            </button>
-                          )}
-                          {status === "error" && (
-                            <span title={errMsg} className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-bold text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                              <XCircle size={10} /> Erro
-                            </span>
-                          )}
-                          {status === "idle" && accountId && (
-                            <button
-                              type="button"
-                              onClick={() => void handleVerifyGroup(row.groupId)}
-                              className="flex flex-shrink-0 items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400"
-                            >
-                              <Activity size={9} /> Verificar
-                            </button>
-                          )}
-
-                          </div>{/* end Line 2 */}
-                        </div>{/* end space-y-2 */}
-
-                        {/* Inline error */}
-                        {status === "error" && errMsg && (
-                          <p className="px-3 pb-1.5 text-[9px] text-red-500 dark:text-red-400">{errMsg}</p>
-                        )}
-
-                        {/* Campaign picker (expanded) */}
-                        {isExpanded && campaigns.length > 0 && (
-                          <div className="mx-2 mb-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/50">
-                            <div className="flex items-center justify-between border-b border-slate-200 px-2 py-1 dark:border-slate-600">
-                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                                Campanhas ({selected.length}/{campaigns.length})
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleSelectAllCampaigns(row.groupId, campaigns, !allSelected)}
-                                className="text-[9px] font-semibold text-blue-500 transition hover:text-blue-700 dark:text-blue-400"
-                              >
-                                {allSelected ? "Desmarcar todas" : "Marcar todas"}
-                              </button>
-                            </div>
-                            <div className="max-h-36 overflow-y-auto p-1">
-                              {campaigns.map((camp) => {
-                                const checked = selected.includes(camp.id);
-                                return (
-                                  <label key={camp.id} className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 hover:bg-white dark:hover:bg-slate-600">
-                                    <input
-                                      type="checkbox"
-                                      checked={checked}
-                                      onChange={() => handleToggleCampaign(row.groupId, camp.id, campaigns)}
-                                      className="h-3 w-3 flex-shrink-0 rounded accent-blue-600"
-                                    />
-                                    <span className="flex-1 truncate text-[10px] text-slate-700 dark:text-slate-300" title={camp.name}>
-                                      {camp.name}
-                                    </span>
-                                    <span className={`flex-shrink-0 text-[9px] font-bold ${camp.status === "ACTIVE" ? "text-emerald-500" : "text-amber-400"}`} title={camp.status}>
-                                      {camp.status === "ACTIVE" ? "●" : "◐"}
-                                    </span>
-                                  </label>
-                                );
-                              })}
-                            </div>
-                          </div>
+                  <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">Ad Account ID</label>
+                  <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+                    <div className="flex items-center gap-2 px-3 py-2.5">
+                      <div
+                        className="relative min-w-0 flex-1"
+                        ref={(el) => { if (el) inputWrapperRefs.current.set(row.rowId, el); else inputWrapperRefs.current.delete(row.rowId); }}
+                      >
+                        <input
+                          value={row.accountId}
+                          onChange={(e) => handleChangeRowAccount(row.rowId, e.target.value)}
+                          placeholder="act_123456789"
+                          className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-3 pr-7 text-xs text-slate-800 placeholder-slate-300 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-600"
+                        />
+                        {metaAccounts.length > 0 && (
+                          <button type="button" title="Ver contas disponíveis" onClick={() => openAccountDropdown(row.rowId)}
+                            className="absolute right-1 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300">
+                            <ChevronDown size={12} className={`transition-transform ${openDropdownRow === row.rowId ? "rotate-180" : ""}`} />
+                          </button>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Add campaign — multi-step wizard */}
-              {accountRows.length < allGroupsInPopover.length && wizardStep === "idle" && (
-                <button type="button" onClick={() => setWizardStep("section")}
-                  className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-slate-200 py-2.5 text-[11px] font-semibold text-slate-500 transition hover:border-blue-400 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:text-slate-400 dark:hover:border-blue-500 dark:hover:bg-blue-900/10 dark:hover:text-blue-400">
-                  <Plus size={13} /> Adicionar campanha
-                </button>
-              )}
-
-              {/* Step 1 — choose section */}
-              {wizardStep === "section" && (
-                <div className="mt-2 overflow-hidden rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-800 dark:bg-blue-900/10">
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                    Tipo de produto:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(["pos","livros","ebooks","perpetuo","eventos"] as GroupSection[]).map((sec) => (
-                      <button key={sec} type="button" onClick={() => { setWizardSection(sec); setWizardStep("group"); }}
-                        className="rounded-lg border border-blue-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-blue-700 transition hover:border-blue-400 hover:bg-blue-50 dark:border-blue-700 dark:bg-slate-700 dark:text-blue-300 dark:hover:bg-slate-600">
-                        {SECTION_LABELS[sec]}
-                      </button>
-                    ))}
-                  </div>
-                  <button type="button" onClick={cancelWizard}
-                    className="mt-2 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
-                    ✕ Cancelar
-                  </button>
-                </div>
-              )}
-
-              {/* Step 2 — choose existing or create new */}
-              {wizardStep === "group" && wizardSection && (
-                <div className="mt-2 overflow-hidden rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-800 dark:bg-blue-900/10">
-                  <button type="button" onClick={() => setWizardStep("section")}
-                    className="mb-2 flex items-center gap-1 text-[10px] text-blue-500 hover:text-blue-700 dark:text-blue-400">
-                    ← {SECTION_LABELS[wizardSection]}
-                  </button>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
-                    Selecione ou crie:
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {wizardGroupsForSection.map((g) => {
-                      const isUsed = usedGroupIds.has(g.id);
-                      return (
-                        <button key={g.id} type="button" disabled={isUsed}
-                          onClick={() => handleWizardSelectGroup(g.id)}
-                          className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition ${
-                            isUsed
-                              ? "border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed dark:border-slate-700 dark:bg-slate-700 dark:text-slate-600"
-                              : "border-blue-200 bg-white text-blue-700 hover:border-blue-400 hover:bg-blue-50 dark:border-blue-700 dark:bg-slate-700 dark:text-blue-300"
-                          }`}>
-                          {g.label}{isUsed ? " ✓" : ""}
+                      {status === "loading" && <Loader2 size={13} className="flex-shrink-0 animate-spin text-blue-500" />}
+                      {status === "ok" && campaigns.length > 0 && (
+                        <button type="button" onClick={() => void handleVerifyGroup(row.groupId)}
+                          title={`${campaigns.length} campanhas${isRestored ? " (salvas)" : ""} — clique para ${isExpanded ? "fechar" : "filtrar"}`}
+                          className={`flex flex-shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold transition ${isRestored ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400"}`}>
+                          <CheckCircle2 size={10} />{selected.length}/{campaigns.length}
+                          {isExpanded ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
                         </button>
-                      );
-                    })}
-                    <button type="button" onClick={() => setWizardStep("new-name")}
-                      className="rounded-lg border border-dashed border-emerald-400 bg-emerald-50 px-2.5 py-1.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
-                      <Plus size={10} className="mr-0.5 inline" /> Criar novo
-                    </button>
+                      )}
+                      {status === "error" && (
+                        <span title={errMsg} className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-bold text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                          <XCircle size={10} /> Erro
+                        </span>
+                      )}
+                      {status === "idle" && accountId && (
+                        <button type="button" onClick={() => void handleVerifyGroup(row.groupId)}
+                          className="flex flex-shrink-0 items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400">
+                          <Activity size={9} /> Verificar
+                        </button>
+                      )}
+                    </div>
+                    {status === "error" && errMsg && (
+                      <p className="px-3 pb-1.5 text-[9px] text-red-500 dark:text-red-400">{errMsg}</p>
+                    )}
+                    {isExpanded && campaigns.length > 0 && (
+                      <div className="mx-2 mb-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/50">
+                        <div className="flex items-center justify-between border-b border-slate-200 px-2 py-1 dark:border-slate-600">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Campanhas ({selected.length}/{campaigns.length})</span>
+                          <button type="button" onClick={() => handleSelectAllCampaigns(row.groupId, campaigns, !allSelected)}
+                            className="text-[9px] font-semibold text-blue-500 transition hover:text-blue-700 dark:text-blue-400">
+                            {allSelected ? "Desmarcar todas" : "Marcar todas"}
+                          </button>
+                        </div>
+                        <div className="max-h-36 overflow-y-auto p-1">
+                          {campaigns.map((camp) => (
+                            <label key={camp.id} className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 hover:bg-white dark:hover:bg-slate-600">
+                              <input type="checkbox" checked={selected.includes(camp.id)}
+                                onChange={() => handleToggleCampaign(row.groupId, camp.id, campaigns)}
+                                className="h-3 w-3 flex-shrink-0 rounded accent-blue-600" />
+                              <span className="flex-1 truncate text-[10px] text-slate-700 dark:text-slate-300" title={camp.name}>{camp.name}</span>
+                              <span className={`flex-shrink-0 text-[9px] font-bold ${camp.status === "ACTIVE" ? "text-emerald-500" : "text-amber-400"}`}>
+                                {camp.status === "ACTIVE" ? "●" : "◐"}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <button type="button" onClick={cancelWizard}
-                    className="mt-2 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
-                    ✕ Cancelar
-                  </button>
                 </div>
-              )}
-
-              {/* Step 3 — new name input */}
-              {wizardStep === "new-name" && wizardSection && (
-                <div className="mt-2 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-800 dark:bg-emerald-900/10">
-                  <button type="button" onClick={() => setWizardStep("group")}
-                    className="mb-2 flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-800 dark:text-emerald-400">
-                    ← {SECTION_LABELS[wizardSection]}
-                  </button>
-                  <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
-                    Nome do novo produto:
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={wizardNewName}
-                      onChange={(e) => setWizardNewName(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleWizardCreateNew()}
-                      placeholder={`Ex: Pós em ${SECTION_LABELS[wizardSection]}…`}
-                      autoFocus
-                      className="h-8 flex-1 rounded-lg border border-emerald-200 bg-white px-2 text-xs text-slate-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:border-emerald-700 dark:bg-slate-700 dark:text-slate-200"
-                    />
-                    <button type="button" onClick={handleWizardCreateNew}
-                      disabled={!wizardNewName.trim()}
-                      className="flex h-8 items-center gap-1 rounded-lg bg-emerald-600 px-3 text-[11px] font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50">
-                      Criar
-                    </button>
-                  </div>
-                  <button type="button" onClick={cancelWizard}
-                    className="mt-2 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
-                    ✕ Cancelar
-                  </button>
-                </div>
-              )}
-            </div>}
+              );
+            })()}
 
             <button
               type="submit"
@@ -2371,11 +2153,9 @@ export function Dashboard({
                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
               >
-                <FileUp size={13} />
-                <span className="hidden sm:inline">
-                  {dataSource ? "Trocar fonte" : "Importar dados"}
-                </span>
-                <span className="sm:hidden">Importar</span>
+                <Zap size={13} />
+                <span className="hidden sm:inline">Conectar Meta ADS</span>
+                <span className="sm:hidden">Conectar</span>
               </button>
               {showImport && (
                 <ImportPopover
