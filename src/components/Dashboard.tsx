@@ -54,6 +54,7 @@ interface DashboardProps {
   onImportCsv: (file: File) => Promise<void>;
   onImportUrl: (url: string) => Promise<void>;
   onImportMeta?: (accounts: Record<string, string>, dateFrom: string, dateTo: string, campaignFilter?: Record<string, string[]>) => Promise<void>;
+  onRefresh?: () => Promise<void>;
   onClearData?: () => Promise<void>;
   onSignOut: () => Promise<void>;
   onUpdateProfile: (name: string) => Promise<void>;
@@ -1719,6 +1720,7 @@ export function Dashboard({
   onImportCsv,
   onImportUrl,
   onImportMeta,
+  onRefresh,
   onClearData,
   onSignOut,
   onUpdateProfile,
@@ -2328,6 +2330,19 @@ export function Dashboard({
                   <span className="hidden sm:block">{syncStatus.result.synced} sync</span>
                 </div>
               ) : null
+            )}
+
+            {/* Manual refresh button — visible when source is Meta */}
+            {dataSource?.type === "meta" && onRefresh && (
+              <button
+                onClick={() => void onRefresh()}
+                disabled={syncStatus?.syncing}
+                title="Atualizar dados do Meta Ads agora"
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-brand hover:bg-brand/5 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-brand dark:hover:bg-brand/10 dark:hover:text-brand"
+              >
+                <RotateCcw size={13} className={syncStatus?.syncing ? "animate-spin" : ""} />
+                <span className="hidden sm:inline">Atualizar</span>
+              </button>
             )}
 
             {/* Goals button */}

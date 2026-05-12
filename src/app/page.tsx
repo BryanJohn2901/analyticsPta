@@ -440,6 +440,7 @@ export default function Home() {
       onImportCsv={handleCsvUpload}
       onImportUrl={handleGenerateDashboard}
       onImportMeta={handleMetaImport}
+      onRefresh={handleMetaAutoSync}
       onClearData={handleClearData}
       onSignOut={handleSignOut}
       onUpdateProfile={handleUpdateProfile}
