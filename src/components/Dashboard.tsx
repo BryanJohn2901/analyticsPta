@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ALL_METRIC_IDS, METRIC_LABELS, useMetricVisibility } from "@/hooks/useMetricVisibility";
 import {
   Activity, BadgeDollarSign, BarChart2, BookOpen, CalendarDays,
   CheckCircle2, ChevronDown, ChevronUp, CircleDollarSign, Dumbbell, FileText,
@@ -1741,30 +1742,9 @@ export function Dashboard({
     try { v ? localStorage.setItem("pta_date_to_v1", v) : localStorage.removeItem("pta_date_to_v1"); } catch {}
   };
 
-  // ── KPI visibility toggle (persisted to localStorage) ─────────────────────
-  const ALL_KPI_IDS = ["investment","revenue","conversions","roi","cpa","ctr","cpc","cpm","clicks","impressions"] as const;
-  type KpiId = typeof ALL_KPI_IDS[number];
-  const KPI_LABELS: Record<KpiId, string> = {
-    investment: "Total Investido", revenue: "Receita Total", conversions: "Conversões",
-    roi: "ROI", cpa: "CPA Médio", ctr: "CTR Médio", cpc: "CPC Médio",
-    cpm: "CPM Médio", clicks: "Cliques", impressions: "Impressões",
-  };
-  const [hiddenKpis, setHiddenKpis] = useState<Set<KpiId>>(() => {
-    try {
-      const raw = localStorage.getItem("pta_hidden_kpis_v1");
-      return raw ? new Set(JSON.parse(raw) as KpiId[]) : new Set<KpiId>();
-    } catch { return new Set<KpiId>(); }
-  });
+  // ── Metric visibility — shared across all tabs ────────────────────────────
+  const { hidden: hiddenMetrics, toggle: toggleMetric, showAll: showAllMetrics, isVisible: isMetricVisible } = useMetricVisibility();
   const [showKpiPanel, setShowKpiPanel] = useState(false);
-  const toggleKpi = (id: KpiId) => {
-    setHiddenKpis((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      try { localStorage.setItem("pta_hidden_kpis_v1", JSON.stringify([...next])); } catch {}
-      return next;
-    });
-  };
-  const kpiVisible = (id: KpiId) => !hiddenKpis.has(id);
   const [searchCampaign, setSearchCampaign] = useState("");
   const [showImport, setShowImport]         = useState(false);
   const [importInitialTab, setImportInitialTab] = useState<ImportTab>("meta");
@@ -2539,31 +2519,34 @@ export function Dashboard({
                     </button>
                     {showKpiPanel && (
                       <div
-                        className="absolute right-0 top-full z-30 mt-1 w-52 rounded-xl border p-3 shadow-lg"
+                        className="absolute right-0 top-full z-30 mt-1 w-56 rounded-xl border p-3 shadow-lg"
                         style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
                       >
-                        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
-                          Mostrar / ocultar
+                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+                          Métricas — todas as páginas
+                        </p>
+                        <p className="mb-2 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+                          Afeta cards, tabelas e análises
                         </p>
                         <div className="space-y-1">
-                          {ALL_KPI_IDS.map((id) => (
+                          {ALL_METRIC_IDS.map((id) => (
                             <label key={id} className="flex cursor-pointer items-center gap-2 rounded-md px-1 py-0.5 hover:bg-[var(--dm-bg-elevated)]">
                               <input
                                 type="checkbox"
-                                checked={kpiVisible(id)}
-                                onChange={() => toggleKpi(id)}
+                                checked={isMetricVisible(id)}
+                                onChange={() => toggleMetric(id)}
                                 className="h-3.5 w-3.5 accent-blue-500"
                               />
-                              <span className="text-xs" style={{ color: "var(--dm-text-secondary)" }}>{KPI_LABELS[id]}</span>
+                              <span className="text-xs" style={{ color: "var(--dm-text-secondary)" }}>{METRIC_LABELS[id]}</span>
                             </label>
                           ))}
                         </div>
                         <button
                           type="button"
-                          onClick={() => { setHiddenKpis(new Set()); try { localStorage.removeItem("pta_hidden_kpis_v1"); } catch {} }}
+                          onClick={showAllMetrics}
                           className="mt-2 w-full rounded-md py-1 text-[10px] font-semibold text-blue-500 hover:underline"
                         >
-                          Mostrar todos
+                          Mostrar todas
                         </button>
                       </div>
                     )}
@@ -2573,7 +2556,7 @@ export function Dashboard({
                 {/* All KPI cards in one adaptive grid */}
                 {(() => {
                   const visibleCards = [
-                    kpiVisible("investment") && (
+                    isMetricVisible("investment") && (
                       <KpiCard key="investment"
                         title="Total Investido"  value={formatCurrency(totals.totalInvestment)}
                         subtitle={`CTR médio: ${formatPercent(totals.averageCtr)}`}
@@ -2582,16 +2565,23 @@ export function Dashboard({
                         goalPct={goals.investment != null ? (totals.totalInvestment / goals.investment) * 100 : null}
                       />
                     ),
-                    kpiVisible("revenue") && (
+                    isMetricVisible("revenue") && (
                       <KpiCard key="revenue"
                         title="Receita Total" value={formatCurrency(totals.totalRevenue)}
                         subtitle={`ROAS: ${totals.roas.toFixed(2)}x`}
                         icon={CircleDollarSign} accentColor="blue"
-                        goalValue={goals.roas} goalLabel={goals.roas != null ? `ROAS ${goals.roas.toFixed(1)}x` : undefined}
+                      />
+                    ),
+                    isMetricVisible("roas") && (
+                      <KpiCard key="roas"
+                        title="ROAS" value={`${totals.roas.toFixed(2)}x`}
+                        subtitle="Retorno sobre verba de anúncio"
+                        icon={TrendingUp} accentColor="blue"
+                        goalValue={goals.roas} goalLabel={goals.roas != null ? `${goals.roas.toFixed(1)}x` : undefined}
                         goalPct={goals.roas != null ? (totals.roas / goals.roas) * 100 : null}
                       />
                     ),
-                    kpiVisible("conversions") && (
+                    isMetricVisible("conversions") && (
                       <KpiCard key="conversions"
                         title="Conversões" value={formatNumber(totals.totalConversions)}
                         subtitle={`Tx.: ${formatPercent(totals.averageConversionRate)}`}
@@ -2600,7 +2590,7 @@ export function Dashboard({
                         goalPct={goals.conversions != null ? (totals.totalConversions / goals.conversions) * 100 : null}
                       />
                     ),
-                    kpiVisible("roi") && (
+                    isMetricVisible("roi") && (
                       <KpiCard key="roi"
                         title="ROI" value={formatPercent(totals.roi)}
                         subtitle="Retorno sobre investimento"
@@ -2609,7 +2599,7 @@ export function Dashboard({
                         goalPct={goals.roi != null ? (totals.roi / goals.roi) * 100 : null}
                       />
                     ),
-                    kpiVisible("cpa") && (
+                    isMetricVisible("cpa") && (
                       <KpiCard key="cpa"
                         title="CPA Médio" value={formatCurrency(totals.averageCpa)}
                         subtitle="Custo por aquisição"
@@ -2619,7 +2609,7 @@ export function Dashboard({
                         goalInvert
                       />
                     ),
-                    kpiVisible("ctr") && (
+                    isMetricVisible("ctr") && (
                       <KpiCard key="ctr"
                         title="CTR Médio" value={formatPercent(totals.averageCtr)}
                         subtitle="Taxa de cliques"
@@ -2628,7 +2618,7 @@ export function Dashboard({
                         goalPct={goals.ctr != null ? (totals.averageCtr / goals.ctr) * 100 : null}
                       />
                     ),
-                    kpiVisible("cpc") && (
+                    isMetricVisible("cpc") && (
                       <KpiCard key="cpc"
                         title="CPC Médio" value={formatCurrency(totals.averageCpc)}
                         subtitle="Custo por clique"
@@ -2638,7 +2628,7 @@ export function Dashboard({
                         goalInvert
                       />
                     ),
-                    kpiVisible("cpm") && (
+                    isMetricVisible("cpm") && (
                       <KpiCard key="cpm"
                         title="CPM Médio" value={formatCurrency(totals.averageCpm)}
                         subtitle="Custo por mil impressões"
@@ -2648,14 +2638,14 @@ export function Dashboard({
                         goalInvert
                       />
                     ),
-                    kpiVisible("clicks") && (
+                    isMetricVisible("clicks") && (
                       <KpiCard key="clicks"
                         title="Cliques" value={formatNumber(totals.totalClicks)}
                         subtitle={`${formatNumber(totals.totalImpressions)} impressões`}
                         icon={MousePointerClick} accentColor="blue"
                       />
                     ),
-                    kpiVisible("impressions") && (
+                    isMetricVisible("impressions") && (
                       <KpiCard key="impressions"
                         title="Impressões" value={formatNumber(totals.totalImpressions)}
                         subtitle="Total de visualizações"
@@ -2670,7 +2660,7 @@ export function Dashboard({
                     </div>
                   ) : (
                     <div className="flex items-center justify-center rounded-xl border py-6" style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-tertiary)" }}>
-                      <p className="text-xs">Nenhuma métrica visível. <button className="text-blue-500 underline" onClick={() => { setHiddenKpis(new Set()); try { localStorage.removeItem("pta_hidden_kpis_v1"); } catch {} }}>Mostrar todas</button></p>
+                      <p className="text-xs">Nenhuma métrica visível. <button className="text-blue-500 underline" onClick={showAllMetrics}>Mostrar todas</button></p>
                     </div>
                   );
                 })()}
@@ -2689,7 +2679,7 @@ export function Dashboard({
                   dateFrom={dateFrom || undefined}
                   dateTo={dateTo || undefined}
                 />
-                <CampaignTable campaigns={sortedCampaigns} />
+                <CampaignTable campaigns={sortedCampaigns} isMetricVisible={isMetricVisible} />
               </div>
             )
           )}
@@ -2715,7 +2705,7 @@ export function Dashboard({
                 cta={{ label: "Importar dados agora", onClick: () => openImport("meta") }}
               />
             ) : (
-              <CampaignAnalysis campaigns={aggregated} selectedCategory={selectedCategory} />
+              <CampaignAnalysis campaigns={aggregated} selectedCategory={selectedCategory} isMetricVisible={isMetricVisible} />
             )
           )}
 

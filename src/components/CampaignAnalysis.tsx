@@ -14,6 +14,7 @@ import { formatCurrency, formatNumber, formatPercent } from "@/utils/metrics";
 interface CampaignAnalysisProps {
   campaigns: AggregatedCampaign[];
   selectedCategory?: ProductCategory | null;
+  isMetricVisible?: (id: string) => boolean;
 }
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -556,35 +557,26 @@ function TopList({ title, subtitle, icon: Icon, items, metricLabel, metricValue,
   );
 }
 
-function TabPositive({ campaigns }: { campaigns: AggregatedCampaign[] }) {
+function TabPositive({ campaigns, isMetricVisible = () => true }: { campaigns: AggregatedCampaign[]; isMetricVisible?: (id: string) => boolean }) {
   const topRoas = useMemo(() => [...campaigns].filter((c) => c.roas >= 2 && c.investment > 50).sort((a, b) => b.roas - a.roas).slice(0, 5), [campaigns]);
   const topRev  = useMemo(() => [...campaigns].filter((c) => c.revenue > 0).sort((a, b) => b.revenue - a.revenue).slice(0, 5), [campaigns]);
   const topCtr  = useMemo(() => [...campaigns].filter((c) => c.ctr >= 1 && c.impressions > 500).sort((a, b) => b.ctr - a.ctr).slice(0, 5), [campaigns]);
   const topConv = useMemo(() => [...campaigns].filter((c) => c.conversionRate >= 2 && c.clicks > 50).sort((a, b) => b.conversionRate - a.conversionRate).slice(0, 5), [campaigns]);
-  const hasAny  = topRoas.length > 0 || topRev.length > 0 || topCtr.length > 0 || topConv.length > 0;
 
-  if (!hasAny) return (
+  const lists = [
+    isMetricVisible("roas")        && topRoas.length > 0 && <TopList key="roas" title="Melhor ROAS" subtitle="Maior retorno sobre investimento (≥ 2x)" icon={TrendingUp} items={topRoas} metricLabel="ROAS" metricValue={(c) => `${c.roas.toFixed(2)}x`} color="text-emerald-700" bg="bg-emerald-50" />,
+    isMetricVisible("revenue")     && topRev.length  > 0 && <TopList key="rev"  title="Maior Receita" subtitle="Campanhas com maior faturamento" icon={Award} items={topRev} metricLabel="Receita" metricValue={(c) => formatCurrency(c.revenue)} color="text-emerald-700" bg="bg-emerald-50" />,
+    isMetricVisible("ctr")         && topCtr.length  > 0 && <TopList key="ctr"  title="Melhor CTR" subtitle="Alta taxa de cliques — criativo engaja (≥ 1%)" icon={Zap} items={topCtr} metricLabel="CTR" metricValue={(c) => formatPercent(c.ctr)} color="text-blue-700" bg="bg-blue-50" />,
+    isMetricVisible("conversions") && topConv.length > 0 && <TopList key="conv" title="Melhor Conversão" subtitle="Cliques que viram compras (≥ 2%)" icon={Star} items={topConv} metricLabel="Conv." metricValue={(c) => formatPercent(c.conversionRate)} color="text-violet-700" bg="bg-violet-50" />,
+  ].filter(Boolean);
+
+  if (lists.length === 0) return (
     <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-8 text-center">
-      <p className="text-sm text-slate-400">Nenhum destaque positivo nos filtros atuais. Tente ampliar o período.</p>
+      <p className="text-sm text-slate-400">Nenhum destaque positivo nos filtros atuais. Tente ampliar o período ou ajustar as métricas visíveis.</p>
     </div>
   );
 
-  return (
-    <div className="grid gap-3 pt-4 sm:grid-cols-2">
-      <TopList title="Melhor ROAS" subtitle="Maior retorno sobre investimento (≥ 2x)"
-        icon={TrendingUp} items={topRoas} metricLabel="ROAS" metricValue={(c) => `${c.roas.toFixed(2)}x`}
-        color="text-emerald-700" bg="bg-emerald-50" />
-      <TopList title="Maior Receita" subtitle="Campanhas com maior faturamento"
-        icon={Award} items={topRev} metricLabel="Receita" metricValue={(c) => formatCurrency(c.revenue)}
-        color="text-emerald-700" bg="bg-emerald-50" />
-      <TopList title="Melhor CTR" subtitle="Alta taxa de cliques — criativo engaja (≥ 1%)"
-        icon={Zap} items={topCtr} metricLabel="CTR" metricValue={(c) => formatPercent(c.ctr)}
-        color="text-blue-700" bg="bg-blue-50" />
-      <TopList title="Melhor Conversão" subtitle="Cliques que viram compras (≥ 2%)"
-        icon={Star} items={topConv} metricLabel="Conv." metricValue={(c) => formatPercent(c.conversionRate)}
-        color="text-violet-700" bg="bg-violet-50" />
-    </div>
-  );
+  return <div className="grid gap-3 pt-4 sm:grid-cols-2">{lists}</div>;
 }
 
 // ─── TAB: Tasks ──────────────────────────────────────────────────────────────
@@ -752,7 +744,7 @@ function TabTasks({ tasks }: { tasks: TaskSuggestion[] }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function CampaignAnalysis({ campaigns, selectedCategory }: CampaignAnalysisProps) {
+export function CampaignAnalysis({ campaigns, selectedCategory, isMetricVisible }: CampaignAnalysisProps) {
   const [subTab, setSubTab] = useState<SubTab>("overview");
 
   const tasks    = useMemo(() => generateTasks(campaigns), [campaigns]);
@@ -837,7 +829,7 @@ export function CampaignAnalysis({ campaigns, selectedCategory }: CampaignAnalys
         <div className="px-5 pb-5">
           {subTab === "overview"  && <TabOverview  campaigns={campaigns} selectedCategory={selectedCategory} />}
           {subTab === "critical"  && <TabCritical  campaigns={campaigns} />}
-          {subTab === "positive"  && <TabPositive  campaigns={campaigns} />}
+          {subTab === "positive"  && <TabPositive  campaigns={campaigns} isMetricVisible={isMetricVisible} />}
           {subTab === "tasks"     && <TabTasks     tasks={tasks} />}
         </div>
       </div>
