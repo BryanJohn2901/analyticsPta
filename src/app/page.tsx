@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "@/hooks/useToast";
 import { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { Dashboard } from "@/components/Dashboard";
 import { AuthScreen } from "@/components/AuthScreen";
@@ -36,7 +37,6 @@ export interface DataSource {
 
 export default function Home() {
   const [campaigns, setCampaigns]       = useState<CampaignData[]>([]);
-  const [error, setError]               = useState<string | null>(null);
   const [authError, setAuthError]       = useState<string | null>(null);
   const [session, setSession]           = useState<Session | null>(null);
   const [realtimeActive, setRealtimeActive] = useState(false);
@@ -140,11 +140,10 @@ export default function Home() {
   };
 
   const handleSignOut = async (): Promise<void> => {
-    setError(null);
     if (!supabaseClient) return;
     const { error: signOutError } = await supabaseClient.auth.signOut();
     if (signOutError) {
-      setError(`Erro ao sair: ${signOutError.message}`);
+      toast.error(`Erro ao sair: ${signOutError.message}`);
       return;
     }
     disconnectRealtime();
@@ -154,7 +153,6 @@ export default function Home() {
   };
 
   const handleClearData = async (): Promise<void> => {
-    setError(null);
     if (!supabaseClient) return;
 
     const { error: metricsError } = await supabaseClient
@@ -163,7 +161,7 @@ export default function Home() {
       .neq("id", "00000000-0000-0000-0000-000000000000");
 
     if (metricsError) {
-      setError(`Erro ao limpar campanhas: ${metricsError.message}`);
+      toast.error(`Erro ao limpar campanhas: ${metricsError.message}`);
       return;
     }
 
@@ -173,7 +171,7 @@ export default function Home() {
       .eq("id", true);
 
     if (sourceError) {
-      setError(`Erro ao limpar fonte de dados: ${sourceError.message}`);
+      toast.error(`Erro ao limpar fonte de dados: ${sourceError.message}`);
       return;
     }
 
@@ -182,9 +180,8 @@ export default function Home() {
   };
 
   const handleGenerateDashboard = async (sheetUrl: string): Promise<void> => {
-    setError(null);
     if (!sheetUrl.includes("docs.google.com/spreadsheets")) {
-      setError("Informe uma URL válida de Google Sheets.");
+      toast.error("Informe uma URL válida de Google Sheets.");
       return;
     }
     try {
@@ -195,14 +192,13 @@ export default function Home() {
       await loadSharedDataSource();
       if (!realtimeActive) await handleConnectRealtime();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível carregar os dados da planilha.");
+      toast.error(e instanceof Error ? e.message : "Não foi possível carregar os dados da planilha.");
     }
   };
 
   const handleCsvUpload = async (file: File): Promise<void> => {
-    setError(null);
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Envie um arquivo no formato CSV.");
+      toast.error("Envie um arquivo no formato CSV.");
       return;
     }
     try {
@@ -213,7 +209,7 @@ export default function Home() {
       await loadSharedDataSource();
       if (!realtimeActive) await handleConnectRealtime();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível processar o CSV.");
+      toast.error(e instanceof Error ? e.message : "Não foi possível processar o CSV.");
     }
   };
 
@@ -231,8 +227,6 @@ export default function Home() {
     dateTo: string,
     campaignFilter?: Record<string, string[]>,
   ): Promise<void> => {
-    setError(null);
-
     const configured = Object.entries(accounts).filter(([, id]) => id.trim() !== "");
     if (configured.length === 0) {
       throw new Error("Configure pelo menos uma conta de anúncio antes de importar.");
@@ -318,13 +312,12 @@ export default function Home() {
   };
 
   const handleUpdateProfile = async (name: string): Promise<void> => {
-    setError(null);
     if (!supabaseClient) return;
     const { error: updateError } = await supabaseClient.auth.updateUser({
       data: { full_name: name },
     });
     if (updateError) {
-      setError(`Falha ao atualizar perfil: ${updateError.message}`);
+      toast.error(`Falha ao atualizar perfil: ${updateError.message}`);
       return;
     }
     const { data } = await supabaseClient.auth.getSession();
@@ -341,7 +334,7 @@ export default function Home() {
       sourceChannelRef.current = subscribeSharedDataSource(loadSharedDataSource);
       setRealtimeActive(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
+      toast.error(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
     }
   };
 
@@ -376,6 +369,10 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (syncStatus.error) toast.error(syncStatus.error);
+  }, [syncStatus.error]);
+
+  useEffect(() => {
     if (!session?.user.id || !isSupabaseConfigured) {
       closeRealtimeChannels();
       return;
@@ -396,7 +393,7 @@ export default function Home() {
           void handleMetaAutoSync();
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
+        toast.error(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
       }
     })();
   }, [session?.user.id]);
@@ -417,7 +414,6 @@ export default function Home() {
   return (
     <Dashboard
       campaigns={campaigns}
-      error={error ?? syncStatus.error ?? null}
       dataSource={dataSource}
       syncStatus={syncStatus}
       currentUser={{

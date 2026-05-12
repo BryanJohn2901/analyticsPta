@@ -36,6 +36,7 @@ import { ProfileAnalysis } from "@/components/ProfileAnalysis";
 import { ProductBase } from "@/components/products/ProductBase";
 import { DashMonsterLogo } from "@/components/DashMonsterLogo";
 import { TabLanding } from "@/components/TabLanding";
+import { toast } from "@/hooks/useToast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,7 +47,6 @@ interface DataSource {
 
 interface DashboardProps {
   campaigns: CampaignData[];
-  error?: string | null;
   dataSource?: DataSource | null;
   syncStatus?: { syncing: boolean; result?: MetaSyncResult; error?: string };
   currentUser: { name: string; email: string };
@@ -452,7 +452,6 @@ function ImportPopover({
   const [metaSaved, setMetaSaved]         = useState(false);
   const [fetchingAccounts, setFetchingAccounts] = useState(false);
   const [metaAccounts, setMetaAccounts]   = useState<MetaAdAccount[]>([]);
-  const [accountsError, setAccountsError] = useState<string | null>(null);
   const [openDropdownRow, setOpenDropdownRow] = useState<string | null>(null);
   const [dropdownRect, setDropdownRect]   = useState<{ top: number; left: number; width: number } | null>(null);
   const inputWrapperRefs                  = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -461,7 +460,6 @@ function ImportPopover({
   // Show the full accounts section only after "Conectar" or if accounts were previously saved
   const showAccountsSection = metaAccounts.length > 0 || accountRows.some((r) => r.accountId.trim());
   const [importingMeta, setImportingMeta] = useState(false);
-  const [metaImportError, setMetaImportError] = useState<string | null>(null);
   const fileRef                           = useRef<HTMLInputElement>(null);
 
   // Open account dropdown anchored to the input wrapper via fixed positioning
@@ -542,7 +540,6 @@ function ImportPopover({
 
   const handleSaveMeta = async (e: FormEvent) => {
     e.preventDefault();
-    setMetaImportError(null);
 
     // 1. Persist credentials + account configs
     saveMetaCredentials({ accessToken });
@@ -587,7 +584,7 @@ function ImportPopover({
         });
         onClose(); // close popover on success
       } catch (err) {
-        setMetaImportError(err instanceof Error ? err.message : "Falha ao buscar dados da Meta.");
+        toast.error(err instanceof Error ? err.message : "Falha ao buscar dados da Meta.");
         setImportingMeta(false);
       }
     } else {
@@ -597,14 +594,13 @@ function ImportPopover({
   };
 
   const handleFetchAccounts = async () => {
-    setAccountsError(null);
     setFetchingAccounts(true);
     try {
       const accounts = await fetchMetaAdAccounts(accessToken);
       setMetaAccounts(accounts);
-      if (accounts.length === 0) setAccountsError("Nenhuma conta encontrada para este token.");
+      if (accounts.length === 0) toast.warning("Nenhuma conta encontrada para este token.");
     } catch (e) {
-      setAccountsError(e instanceof Error ? e.message : "Falha ao buscar contas.");
+      toast.error(e instanceof Error ? e.message : "Falha ao buscar contas.");
       setMetaAccounts([]);
     } finally {
       setFetchingAccounts(false);
@@ -839,7 +835,7 @@ function ImportPopover({
                 <input
                   type="password"
                   value={accessToken}
-                  onChange={(e) => { setAccessToken(e.target.value); setMetaAccounts([]); setAccountsError(null); }}
+                  onChange={(e) => { setAccessToken(e.target.value); setMetaAccounts([]); }}
                   placeholder="EAAxxxxx…"
                   className={`${inputCls} flex-1`}
                 />
@@ -864,14 +860,6 @@ function ImportPopover({
                 </span>
               </p>
             </div>
-
-            {/* Error from account fetch */}
-            {accountsError && (
-              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-                <X size={12} className="mt-0.5 flex-shrink-0" />
-                {accountsError}
-              </div>
-            )}
 
             {/* Accounts found banner */}
             {metaAccounts.length > 0 && (
@@ -1226,14 +1214,6 @@ function ImportPopover({
                 </div>
               )}
             </div>}
-
-            {/* Import error */}
-            {metaImportError && (
-              <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
-                <X size={12} className="mt-0.5 flex-shrink-0" />
-                {metaImportError}
-              </div>
-            )}
 
             <button
               type="submit"
@@ -1732,7 +1712,6 @@ function CampaignPanel({
 
 export function Dashboard({
   campaigns,
-  error,
   dataSource,
   syncStatus,
   currentUser,
@@ -2423,13 +2402,6 @@ export function Dashboard({
             </div>
           </div>
         </header>
-
-        {/* Error banner */}
-        {error && (
-          <div className="mx-4 mt-4 flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 md:mx-6">
-            <span className="font-bold">Erro:</span> {error}
-          </div>
-        )}
 
         {/* Main scrollable content */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
