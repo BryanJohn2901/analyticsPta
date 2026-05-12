@@ -36,6 +36,7 @@ import { ProfileAnalysis } from "@/components/ProfileAnalysis";
 import { ProductBase } from "@/components/products/ProductBase";
 import { DashMonsterLogo } from "@/components/DashMonsterLogo";
 import { TabLanding } from "@/components/TabLanding";
+import { PixelFunnelSection } from "@/components/PixelFunnelSection";
 import { toast } from "@/hooks/useToast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -2668,6 +2669,11 @@ export function Dashboard({
                 />
 
                 <ChartsSection dailyTrend={dailyTrend} campaignComparison={campaignComparison} budgetDistribution={budgetDistribution} />
+                <PixelFunnelSection
+                  adAccountId={selectedGroup !== "all" ? campaignConfigs[selectedGroup]?.adAccountId : undefined}
+                  dateFrom={dateFrom || undefined}
+                  dateTo={dateTo || undefined}
+                />
                 <CampaignTable campaigns={sortedCampaigns} />
               </div>
             )
