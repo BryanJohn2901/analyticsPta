@@ -28,7 +28,6 @@ import { KpiCard } from "@/components/KpiCard";
 import { FunnelCard } from "@/components/FunnelCard";
 import { ChartsSection } from "@/components/charts/ChartsSection";
 import { CampaignTable } from "@/components/CampaignTable";
-import { PixelFunnelSection } from "@/components/PixelFunnelSection";
 import { useGoalsStore, type Goals } from "@/hooks/useGoalsStore";
 import { CampaignAnalysis } from "@/components/CampaignAnalysis";
 import { HistoricalView } from "@/components/HistoricalView";
@@ -2697,7 +2696,6 @@ export function Dashboard({
                 />
 
                 <ChartsSection dailyTrend={dailyTrend} campaignComparison={campaignComparison} budgetDistribution={budgetDistribution} />
-                <PixelFunnelSection dateFrom={dateFrom || undefined} dateTo={dateTo || undefined} />
                 <CampaignTable campaigns={sortedCampaigns} />
               </div>
             )
