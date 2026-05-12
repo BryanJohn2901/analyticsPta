@@ -162,6 +162,49 @@ export const fetchSharedDataSource = async (): Promise<SharedDataSource | null> 
   };
 };
 
+// ─── Meta daily upsert ────────────────────────────────────────────────────────
+
+export interface MetaSyncResult {
+  synced: number;
+  dateFrom: string;
+  dateTo: string;
+}
+
+/**
+ * Upserts Meta Ads daily data into campaign_metrics without touching other rows.
+ * Requires the unique constraint (date, campaign_name, source) — see migration 005.
+ */
+export const upsertMetaCampaigns = async (campaigns: CampaignData[]): Promise<MetaSyncResult> => {
+  if (!supabaseClient) throw new Error("Supabase não configurado.");
+  if (campaigns.length === 0) return { synced: 0, dateFrom: "", dateTo: "" };
+
+  const dates = campaigns.map((c) => c.date).sort();
+
+  const payload = campaigns.map((item) => ({
+    date: item.date,
+    campaign_name: item.campaignName,
+    investment: item.investment,
+    clicks: item.clicks,
+    impressions: item.impressions,
+    conversions: item.conversions,
+    revenue: item.revenue,
+    source: "meta" as const,
+  }));
+
+  const { data, error } = await supabaseClient
+    .from("campaign_metrics")
+    .upsert(payload, { onConflict: "date,campaign_name,source" })
+    .select("id");
+
+  if (error) throw new Error(`Erro ao sincronizar: ${error.message}`);
+
+  return {
+    synced: data?.length ?? 0,
+    dateFrom: dates[0],
+    dateTo: dates[dates.length - 1],
+  };
+};
+
 export const subscribeSharedDataSource = (onChange: () => Promise<void>): RealtimeChannel => {
   if (!supabaseClient) {
     throw new Error("Supabase não configurado.");

@@ -82,10 +82,12 @@ export interface MetaInsight {
   adset_name?:   string;  // present when level="adset" (kept for ProfileAnalysis compatibility)
   impressions:   string | number; // Meta API returns numeric strings
   reach:         string | number;
-  clicks:        string | number;
+  clicks:        string | number; // all clicks (including reactions, shares — do NOT use for link metrics)
+  inline_link_clicks?: string | number; // link clicks only — matches Meta Ads Manager "Cliques no link"
   spend:         string | number; // investment in account currency
   cpm:           string | number;
-  ctr:           string | number; // percentage — e.g. "2.34" means 2.34% → divide by 100 for decimal
+  ctr:           string | number; // all-click CTR percentage — e.g. "2.34" means 2.34%
+  inline_link_click_ctr?: string | number; // link CTR — matches Meta Ads Manager default CTR column
   date_start:    string;
   date_stop:     string;
   actions?:       MetaAction[]; // conversion counts
@@ -170,8 +172,13 @@ export function metaInsightsToCampaignData(
 ): CampaignData[] {
   return insights.map((row) => {
     const investment  = safeNumber(row.spend);
-    const clicks      = safeNumber(row.clicks);
     const impressions = safeNumber(row.impressions);
+
+    // Prefer inline_link_clicks (link clicks only, matches Meta Ads Manager "Cliques").
+    // Fall back to all clicks if inline_link_clicks is absent (e.g. older API responses).
+    const clicks = row.inline_link_clicks != null
+      ? safeNumber(row.inline_link_clicks)
+      : safeNumber(row.clicks);
 
     // Conversions — try most specific purchase types first
     const conversions = pickAction(
@@ -189,8 +196,12 @@ export function metaInsightsToCampaignData(
       "offsite_conversion.fb_pixel_purchase",
     );
 
-    // Meta returns CTR as percentage string ("2.34" = 2.34%) — convert to decimal
-    const ctr = safeNumber(row.ctr) / 100;
+    // Use Meta's link CTR if available; fall back to all-click CTR converted to decimal.
+    // Both are stored as percentage strings ("2.34" = 2.34%).
+    const ctrPct = row.inline_link_click_ctr != null
+      ? safeNumber(row.inline_link_click_ctr)
+      : safeNumber(row.ctr);
+    const ctr = ctrPct / 100;
 
     return {
       id:             `meta-${adAccountId}-${row.date_start}-${row.campaign_id}`,

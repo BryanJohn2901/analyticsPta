@@ -17,16 +17,18 @@ import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
 import {
   fetchMetaAdAccounts, fetchMetaCampaigns, loadMetaCredentials, saveMetaCredentials,
 } from "@/utils/metaApi";
+import type { MetaSyncResult } from "@/utils/supabaseCampaigns";
 import type { MetaAdAccount, MetaCampaign } from "@/utils/metaApi";
 import { CategoryGate, CATEGORY_LABEL, CATEGORY_ICON, CATEGORY_DOT } from "@/components/CategoryGate";
 import {
   aggregateByCampaign, aggregateTotals, buildBudgetDistribution,
-  buildCampaignComparison, buildDailyTrend, formatCurrency, formatNumber, formatPercent,
+  buildCampaignComparison, buildDailyTrend, formatCurrency, formatDatePtBr, formatNumber, formatPercent,
 } from "@/utils/metrics";
 import { KpiCard } from "@/components/KpiCard";
 import { FunnelCard } from "@/components/FunnelCard";
 import { ChartsSection } from "@/components/charts/ChartsSection";
 import { CampaignTable } from "@/components/CampaignTable";
+import { PixelFunnelSection } from "@/components/PixelFunnelSection";
 import { useGoalsStore, type Goals } from "@/hooks/useGoalsStore";
 import { CampaignAnalysis } from "@/components/CampaignAnalysis";
 import { HistoricalView } from "@/components/HistoricalView";
@@ -47,6 +49,7 @@ interface DashboardProps {
   campaigns: CampaignData[];
   error?: string | null;
   dataSource?: DataSource | null;
+  syncStatus?: { syncing: boolean; result?: MetaSyncResult; error?: string };
   currentUser: { name: string; email: string };
   onImportCsv: (file: File) => Promise<void>;
   onImportUrl: (url: string) => Promise<void>;
@@ -911,8 +914,8 @@ function ImportPopover({
               </div>
               <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
                 {datePreset === "max"
-                  ? `De ${dateRange.from} até hoje (máx. ~3 anos)`
-                  : `De ${dateRange.from} até ${dateRange.to}`
+                  ? `De ${formatDatePtBr(dateRange.from)} até hoje (máx. ~3 anos)`
+                  : `De ${formatDatePtBr(dateRange.from)} até ${formatDatePtBr(dateRange.to)}`
                 }
               </p>
             </div>)}
@@ -1732,6 +1735,7 @@ export function Dashboard({
   campaigns,
   error,
   dataSource,
+  syncStatus,
   currentUser,
   onImportCsv,
   onImportUrl,
@@ -2326,6 +2330,27 @@ export function Dashboard({
               </div>
             )}
 
+            {/* Meta sync status indicator */}
+            {dataSource?.type === "meta" && syncStatus && (
+              syncStatus.syncing ? (
+                <div className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium"
+                  style={{ borderColor: "var(--dm-border)", color: "var(--dm-text-secondary)", backgroundColor: "var(--dm-surface)" }}
+                >
+                  <Loader2 size={11} className="animate-spin flex-shrink-0" />
+                  <span className="hidden sm:block">Sincronizando…</span>
+                </div>
+              ) : syncStatus.result ? (
+                <div
+                  className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium"
+                  title={`${syncStatus.result.synced} registros sincronizados · ${formatDatePtBr(syncStatus.result.dateFrom)} → ${formatDatePtBr(syncStatus.result.dateTo)}`}
+                  style={{ borderColor: "var(--dm-success-border)", color: "var(--dm-success-text)", backgroundColor: "var(--dm-success-bg)" }}
+                >
+                  <CheckCircle2 size={11} className="flex-shrink-0" />
+                  <span className="hidden sm:block">{syncStatus.result.synced} sync</span>
+                </div>
+              ) : null
+            )}
+
             {/* Goals button */}
             <div className="relative">
               <button
@@ -2672,6 +2697,7 @@ export function Dashboard({
                 />
 
                 <ChartsSection dailyTrend={dailyTrend} campaignComparison={campaignComparison} budgetDistribution={budgetDistribution} />
+                <PixelFunnelSection dateFrom={dateFrom || undefined} dateTo={dateTo || undefined} />
                 <CampaignTable campaigns={sortedCampaigns} />
               </div>
             )

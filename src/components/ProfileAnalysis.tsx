@@ -87,7 +87,10 @@ function toAdsetRows(data: MetaInsight[]): AdsetRow[] {
     };
     cur.impressions += safeNumber(d.impressions);
     cur.reach       += safeNumber(d.reach);
-    cur.clicks      += safeNumber(d.clicks);
+    // Prefer inline_link_clicks (matches Meta Ads Manager "Cliques" column)
+    cur.clicks      += d.inline_link_clicks != null
+      ? safeNumber(d.inline_link_clicks)
+      : safeNumber(d.clicks);
     cur.spend       += safeNumber(d.spend);
     cur.purchases   += getActionValue(d.actions, "purchase");
     cur.leads       += getActionValue(d.actions, "lead")
