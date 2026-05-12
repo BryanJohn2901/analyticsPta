@@ -1,5 +1,4 @@
 import type { CampaignData } from "@/types/campaign";
-import { safeNumber } from "@/lib/format";
 
 const CREDS_KEY = "pta_meta_creds_v1";
 
@@ -149,6 +148,17 @@ export async function fetchMetaCreatives(
 
 // ─── Transformation ──────────────────────────────────────────────────────────
 
+/**
+ * Parses a numeric value from the Meta API (always US format: "1234.56").
+ * Must NOT use parseBR — parseBR strips dots as thousands separators,
+ * which destroys the decimal point and inflates values 100x.
+ */
+function parseMetaNum(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 /** Finds the numeric value of a specific action_type in a Meta actions array. */
 function pickAction(actions: MetaAction[] | undefined, ...types: string[]): number {
   if (!actions) return 0;
@@ -171,14 +181,14 @@ export function metaInsightsToCampaignData(
   adAccountId: string,
 ): CampaignData[] {
   return insights.map((row) => {
-    const investment  = safeNumber(row.spend);
-    const impressions = safeNumber(row.impressions);
+    const investment  = parseMetaNum(row.spend);
+    const impressions = parseMetaNum(row.impressions);
 
     // Prefer inline_link_clicks (link clicks only, matches Meta Ads Manager "Cliques").
     // Fall back to all clicks if inline_link_clicks is absent (e.g. older API responses).
     const clicks = row.inline_link_clicks != null
-      ? safeNumber(row.inline_link_clicks)
-      : safeNumber(row.clicks);
+      ? parseMetaNum(row.inline_link_clicks)
+      : parseMetaNum(row.clicks);
 
     // Conversions — try most specific purchase types first
     const conversions = pickAction(
@@ -199,8 +209,8 @@ export function metaInsightsToCampaignData(
     // Use Meta's link CTR if available; fall back to all-click CTR converted to decimal.
     // Both are stored as percentage strings ("2.34" = 2.34%).
     const ctrPct = row.inline_link_click_ctr != null
-      ? safeNumber(row.inline_link_click_ctr)
-      : safeNumber(row.ctr);
+      ? parseMetaNum(row.inline_link_click_ctr)
+      : parseMetaNum(row.ctr);
     const ctr = ctrPct / 100;
 
     return {
@@ -213,10 +223,10 @@ export function metaInsightsToCampaignData(
       conversions,
       revenue,
       ctr,
-      cpc:            clicks     > 0 ? investment  / clicks     : 0,
-      cpa:            conversions > 0 ? investment  / conversions : 0,
-      roas:           investment  > 0 ? revenue     / investment  : 0,
-      conversionRate: clicks     > 0 ? conversions / clicks     : 0,
+      cpc:            clicks      > 0 ? investment   / clicks      : 0,
+      cpa:            conversions > 0 ? investment   / conversions : 0,
+      roas:           investment  > 0 ? revenue      / investment  : 0,
+      conversionRate: clicks      > 0 ? (conversions / clicks) * 100 : 0,
     };
   });
 }

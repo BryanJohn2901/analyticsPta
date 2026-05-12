@@ -92,7 +92,9 @@ export default function Home() {
     const dateTo   = new Date();
     const dateFrom = new Date(dateTo);
     dateFrom.setDate(dateFrom.getDate() - 7);
-    const fmt = (d: Date) => d.toISOString().slice(0, 10);
+    // Use local date — toISOString() returns UTC, which past 21h (UTC-3) gives "tomorrow".
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     setSyncStatus({ syncing: true });
 
@@ -377,6 +379,9 @@ export default function Home() {
       closeRealtimeChannels();
       return;
     }
+
+    let syncIntervalId: ReturnType<typeof setInterval> | null = null;
+
     void (async () => {
       try {
         await loadSupabaseData();
@@ -392,10 +397,22 @@ export default function Home() {
         if (source?.type === "meta") {
           void handleMetaAutoSync();
         }
+
+        // Keep syncing every 60 minutes while the tab is open
+        syncIntervalId = setInterval(() => {
+          void (async () => {
+            const currentSource = await fetchSharedDataSource();
+            if (currentSource?.type === "meta") void handleMetaAutoSync();
+          })();
+        }, 60 * 60 * 1000);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
       }
     })();
+
+    return () => {
+      if (syncIntervalId !== null) clearInterval(syncIntervalId);
+    };
   }, [session?.user.id]);
 
   const devBypass = process.env.NODE_ENV === "development" && !isSupabaseConfigured;
