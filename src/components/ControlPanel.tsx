@@ -7,6 +7,7 @@ import {
   Zap, User, Activity, CheckCircle2, XCircle, Link2, Eye, EyeOff,
   RefreshCw, Save, RotateCcw, Sun, Moon, Database,
 } from "lucide-react";
+import { classifyCampaign } from "@/utils/campaignClassifier";
 import type { UserCategory, UserAccountEntry } from "@/types/userConfig";
 import { FIXED_CATEGORIES, MAX_CUSTOM_CATEGORIES } from "@/types/userConfig";
 import {
@@ -412,7 +413,9 @@ function CategorySection({
           {showAdd && localRecord && (
             <AddEntryForm
               categoryId={localRecord.id}
-              suggestions={campaignSuggestions}
+              suggestions={(campaignSuggestions ?? []).filter(
+                n => classifyCampaign(n) === slug
+              )}
               onSaved={entry => { onEntrySaved(entry); setShowAdd(false); }}
               onCancel={() => setShowAdd(false)}
             />
