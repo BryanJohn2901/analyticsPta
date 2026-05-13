@@ -35,19 +35,18 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=SUA_ANON_PUBLIC_KEY
 
 O app converte internamente para o usuario seed no Supabase.
 
-## Deploy na Vercel (simples)
+## Deploy na Vercel
 
-1. Na Vercel, clique em **Add New > Project**.
-2. Importe este repositório.
-3. Mantenha as configurações padrão:
-   - Framework Preset: `Next.js`
-   - Build Command: `npm run build`
-   - Output: padrão do Next.js
-4. Em **Environment Variables**, adicione:
+1. No Supabase, aplique as migrações em `supabase/migrations/` (por ordem numérica) no SQL Editor ou via CLI.
+2. Na Vercel: **Add New > Project**, importe o repositório.
+3. Deixe o preset **Next.js** (build `npm run build`, install com `npm ci` se existir `package-lock.json`).
+4. **Node:** o repositório define `engines.node` e `.nvmrc` (22+); a Vercel usa isso automaticamente.
+5. Em **Settings > Environment Variables** (Production e Preview), copie de `.env.example`:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-5. Clique em **Deploy**.
-6. Sempre que mudar env, use **Redeploy**.
+   - Opcionais: `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_AUTH_MIDDLEWARE_TIMEOUT_MS`
+6. **Deploy**. Após alterar env ou migrações no Supabase, faça **Redeploy**.
+7. Antes de subir código: `npm run build` local deve concluir sem erros de TypeScript.
 
 ## Observações
 

@@ -13,6 +13,11 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { CampaignData, ProductCategory } from "@/types/campaign";
+import {
+  PTA_PAINEL_SAVE_NAV_EVENT,
+  mapPainelInternalFilterToDashboardGroupId,
+  type PainelSaveNavDetail,
+} from "@/utils/painelDashboardNavigation";
 import { CampaignConfig, CampaignSummary, CustomGroup, GroupSection, useCampaignStore } from "@/hooks/useCampaignStore";
 import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
 import {
@@ -60,6 +65,16 @@ interface DashboardProps {
   onSignOut: () => Promise<void>;
   onUpdateProfile: (name: string) => Promise<void>;
   onOpenControlPanel?: () => void;
+}
+
+function formatDataSourcePill(ds: DataSource | null | undefined): { title: string; subtitle?: string } | null {
+  if (!ds) return null;
+  const titles: Record<DataSource["type"], string> = {
+    meta: "Meta Ads",
+    csv: "CSV",
+    google_sheets: "Google Sheets",
+  };
+  return { title: titles[ds.type], subtitle: ds.label };
 }
 
 type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles" | "products";
@@ -591,6 +606,7 @@ function ImportPopover({
         onClose(); // close popover on success
       } catch (err) {
         toast.error(err instanceof Error ? err.message : "Falha ao buscar dados da Meta.");
+      } finally {
         setImportingMeta(false);
       }
     } else {
@@ -975,14 +991,19 @@ function CampaignPanel({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex h-12 flex-shrink-0 items-center justify-between border-b px-4" style={{ borderColor: "var(--dm-border-default)" }}>
+      {/* Header — curso vs filtros */}
+      <div className="flex min-h-12 flex-shrink-0 flex-col justify-center gap-0.5 border-b px-4 py-2" style={{ borderColor: "var(--dm-border-default)" }}>
         <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
-          {showCourseGroups ? "Cursos" : "Filtros"}
+          {showCourseGroups ? "Cursos e campanhas" : "Refinar resultados"}
+        </p>
+        <p className="text-[10px] leading-snug" style={{ color: "var(--dm-text-tertiary)" }}>
+          {showCourseGroups
+            ? "Escolha um curso à esquerda; turmas e campanhas aparecem ao expandir."
+            : "Use período e busca abaixo; os gráficos atualizam ao aplicar."}
         </p>
         {activeCount > 0 && showCourseGroups && (
-          <span className="rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}>
-            {activeCount} ativa{activeCount !== 1 ? "s" : ""}
+          <span className="mt-1 w-fit rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}>
+            {activeCount} curso{activeCount !== 1 ? "s" : ""} em destaque
           </span>
         )}
       </div>
@@ -1203,7 +1224,7 @@ function CampaignPanel({
         {/* Filter header */}
         <div className="flex items-center justify-between px-4 py-3">
           <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
-            <SlidersHorizontal size={11} /> Filtros
+            <SlidersHorizontal size={11} aria-hidden /> Cortar por tempo e nome
           </p>
           {hasActiveFilters && (
             <button
@@ -1363,6 +1384,7 @@ export function Dashboard({
   // ── Metric visibility — shared across all tabs ────────────────────────────
   const { hidden: hiddenMetrics, toggle: toggleMetric, showAll: showAllMetrics, isVisible: isMetricVisible } = useMetricVisibility();
   const [showKpiPanel, setShowKpiPanel] = useState(false);
+  const [pickCategoryOpen, setPickCategoryOpen] = useState(false);
   const [searchCampaign, setSearchCampaign] = useState("");
   const [showImport, setShowImport]         = useState(false);
   const [importInitialTab, setImportInitialTab] = useState<ImportTab>("meta");
@@ -1399,6 +1421,7 @@ export function Dashboard({
   // Also auto-clears stale saved IDs that no longer exist in the current campaignsByGroup,
   // preventing the "ghost filter" bug where an old selection silently shows nothing.
   useEffect(() => {
+    const normId = (x: string) => String(x).trim();
     if (selectedGroup === "all") {
       setCheckedCampaignIds([]);
       return;
@@ -1408,12 +1431,21 @@ export function Dashboard({
       setCheckedCampaignIds([]);
       return;
     }
-    const currentGroupIds = (campaignsByGroup[selectedGroup] ?? []).map((c) => c.id);
+    const savedNorm = saved.map(normId);
+    const summaries = campaignsByGroup[selectedGroup] ?? [];
+    const currentGroupIds = summaries.map((c) => normId(c.id)).filter(Boolean);
     if (currentGroupIds.length > 0) {
-      // Only keep saved IDs that still exist in the current campaign list
-      const valid = saved.filter((id) => currentGroupIds.includes(id));
-      if (valid.length !== saved.length) {
-        // Some IDs are stale — update the persisted store to the valid subset
+      const idSet = new Set(currentGroupIds);
+      const valid = savedNorm.filter((id) => idSet.has(id));
+      if (valid.length === 0) {
+        // Guardava IDs que não batem com a lista (ex.: tipos JSON diferentes) —
+        // gravar [] deixava o filtro explícito ativo e escondia todos os dados.
+        clearCampaignSelectionForGroup(selectedGroup);
+        setCheckedCampaignIds([]);
+        toast.info("Mostramos todas as campanhas deste grupo: os IDs guardados não coincidiam com a lista atual.");
+        return;
+      }
+      if (valid.length !== savedNorm.length) {
         setCampaignSelectionForGroup(selectedGroup, valid);
         setCheckedCampaignIds(valid);
       } else {
@@ -1421,10 +1453,64 @@ export function Dashboard({
       }
     } else {
       // Campaign list not loaded yet — keep saved IDs as-is until list arrives
-      setCheckedCampaignIds(saved);
+      setCheckedCampaignIds(savedNorm);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroup, selectedCampaignsByGroup, campaignsByGroup]);
+
+  // Após salvar conta no Painel: foca categoria, grupo, conta Meta e campanhas escolhidas.
+  useEffect(() => {
+    const onApply = (ev: Event) => {
+      const custom = ev as CustomEvent<PainelSaveNavDetail>;
+      const d = custom.detail;
+      if (!d?.entry?.adAccountId?.trim()) return;
+
+      const { entry, categorySlug, isCustom } = d;
+      const summaries: CampaignSummary[] = entry.campaigns.map((c) => ({
+        id: c.id,
+        name: c.name,
+        status: c.status,
+      }));
+      const subset =
+        entry.selectedCampaignIds.length > 0 &&
+        entry.selectedCampaignIds.length < entry.campaigns.length;
+
+      setMainTab("overview");
+
+      if (isCustom) {
+        const gid = `painel-${entry.id}`;
+        addCustomGroup({ id: gid, label: entry.label.trim() || "Conta", section: categorySlug });
+        setSelectedCategory(categorySlug);
+        setSelectedGroup(gid);
+        setCampaignConfig(gid, { adAccountId: entry.adAccountId });
+        setCampaignsForGroup(gid, summaries);
+        if (subset) setCampaignSelectionForGroup(gid, entry.selectedCampaignIds);
+        else clearCampaignSelectionForGroup(gid);
+        return;
+      }
+
+      const slug = categorySlug as ProductCategory;
+      const groupId = mapPainelInternalFilterToDashboardGroupId(categorySlug, entry.internalFilter);
+      setSelectedCategory(slug);
+      setSelectedGroup(groupId);
+      setCampaignConfig(groupId, { adAccountId: entry.adAccountId });
+      setCampaignsForGroup(groupId, summaries);
+      if (subset) setCampaignSelectionForGroup(groupId, entry.selectedCampaignIds);
+      else clearCampaignSelectionForGroup(groupId);
+    };
+
+    window.addEventListener(PTA_PAINEL_SAVE_NAV_EVENT, onApply);
+    return () => window.removeEventListener(PTA_PAINEL_SAVE_NAV_EVENT, onApply);
+  }, [
+    addCustomGroup,
+    setSelectedCategory,
+    setSelectedGroup,
+    setCampaignConfig,
+    setCampaignsForGroup,
+    setCampaignSelectionForGroup,
+    clearCampaignSelectionForGroup,
+    setMainTab,
+  ]);
 
   // Persist sidebar checkbox changes back to the store so they survive remounts.
   const handleCheckedCampaignIds = useCallback((ids: string[]) => {
@@ -1607,6 +1693,33 @@ export function Dashboard({
   const currentTab         = MAIN_TABS.find((t) => t.id === mainTab)!;
   const hasActiveFilters   = !!(dateFrom || dateTo || searchCampaign || selectedGroup !== "all" || selectedCampaign !== "all" || isFilterExplicit);
 
+  const dataSourcePill = useMemo(() => formatDataSourcePill(dataSource), [dataSource]);
+
+  const lastSyncHint = useMemo(() => {
+    const r = syncStatus?.result;
+    if (!r?.synced || !r.dateFrom || !r.dateTo) return null;
+    return `${r.synced} registo(s) · ${formatDatePtBr(r.dateFrom)} — ${formatDatePtBr(r.dateTo)}`;
+  }, [syncStatus?.result]);
+
+  const overviewSelectionSummary = useMemo(() => {
+    if (!selectedCategory) return null;
+    const catKey = selectedCategory as ProductCategory;
+    const catName = CATEGORY_LABEL[catKey] ?? String(selectedCategory);
+    const groupName =
+      selectedGroup === "all"
+        ? "Todos os grupos desta categoria"
+        : (allGroups.find((g) => g.id === selectedGroup)?.label ?? selectedGroup);
+    const period =
+      dateFrom && dateTo
+        ? `${formatDatePtBr(dateFrom)} — ${formatDatePtBr(dateTo)}`
+        : dateFrom
+          ? `A partir de ${formatDatePtBr(dateFrom)}`
+          : dateTo
+            ? `Até ${formatDatePtBr(dateTo)}`
+            : "Todo o período disponível";
+    return { catName, groupName, period };
+  }, [selectedCategory, selectedGroup, allGroups, dateFrom, dateTo]);
+
   // Whether the current tab needs a category to be meaningful
   const needsCategory = mainTab !== "history" && mainTab !== "profiles" && mainTab !== "products";
 
@@ -1632,7 +1745,10 @@ export function Dashboard({
 
   const navContent = (
     <nav className="flex-1 overflow-y-auto px-3 py-4">
-      <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>Menu</p>
+      <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>Navegação</p>
+      <p className="mb-3 px-2 text-[10px] leading-snug" style={{ color: "var(--dm-text-tertiary)" }}>
+        Relatórios e bases — escolha a área principal
+      </p>
       <ul className="space-y-0.5">
         {MAIN_TABS.map(({ id, label, icon: Icon }) => (
           <li key={id}>
@@ -1720,7 +1836,7 @@ export function Dashboard({
         <div className="flex h-14 items-center justify-between border-b px-5" style={{ borderColor: "var(--dm-border-default)" }}>
           <button
             type="button"
-            onClick={() => { setMainTab("overview"); setSelectedCategory(null); setShowMobileNav(false); }}
+            onClick={() => { setMainTab("overview"); setShowMobileNav(false); }}
             className="flex items-center gap-2.5 transition hover:opacity-80"
             title="Voltar ao início"
           >
@@ -1737,15 +1853,32 @@ export function Dashboard({
 
         {navContent}
 
-        {/* Footer */}
-        <div className="border-t px-5 py-4" style={{ borderColor: "var(--dm-border-default)" }}>
-          <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${campaigns.length > 0 ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
-            <span className={`h-1.5 w-1.5 rounded-full ${campaigns.length > 0 ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-500"}`} />
-            <p className={`text-[11px] font-medium ${campaigns.length > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
-              {campaigns.length > 0
-                ? `${campaigns.length} registros carregados`
-                : "Nenhum dado importado"}
-            </p>
+        {/* Footer — estado dos dados */}
+        <div className="border-t px-4 py-4" style={{ borderColor: "var(--dm-border-default)" }}>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>Dados carregados</p>
+          <div className={`rounded-xl border px-3 py-2.5 ${campaigns.length > 0 ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-950/30" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50"}`}>
+            <div className="flex items-start gap-2">
+              <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${campaigns.length > 0 ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`} />
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className={`text-xs font-semibold leading-tight ${campaigns.length > 0 ? "text-emerald-900 dark:text-emerald-200" : "text-slate-600 dark:text-slate-400"}`}>
+                  {campaigns.length > 0
+                    ? `${campaigns.length.toLocaleString("pt-BR")} linhas na base`
+                    : "Ainda sem dados na base"}
+                </p>
+                {dataSourcePill ? (
+                  <p className="text-[10px] leading-snug" style={{ color: "var(--dm-text-secondary)" }}>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{dataSourcePill.title}</span>
+                    {dataSourcePill.subtitle ? (
+                      <span className="mt-0.5 block truncate opacity-90" title={dataSourcePill.subtitle}>{dataSourcePill.subtitle}</span>
+                    ) : null}
+                  </p>
+                ) : (
+                  <p className="text-[10px] leading-snug" style={{ color: "var(--dm-text-tertiary)" }}>
+                    Conecte Meta, Sheets ou CSV pelo topo ou pelo Painel de Controle (⚙️).
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </aside>
@@ -1753,152 +1886,211 @@ export function Dashboard({
       {/* ── Center ── */}
       <div className="flex flex-1 flex-col overflow-hidden">
 
-        {/* Top header */}
-        <header className="glass-panel relative z-10 flex h-14 flex-shrink-0 items-center justify-between border-b border-[var(--dm-border-default)] px-3 sm:px-4 md:px-6">
-          <div className="flex items-center gap-3">
-            {/* Hamburger (mobile) */}
-            <button
-              onClick={() => setShowMobileNav(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700 lg:hidden"
-            >
-              <Menu size={18} />
-            </button>
-
-            {/* Breadcrumb + category chip */}
-            <div className="flex flex-wrap items-center gap-1.5 text-sm">
+        {/* Top header — contexto em cima, acções agrupadas */}
+        <header className="glass-panel relative z-10 flex-shrink-0 border-b border-[var(--dm-border-default)]">
+          <div className="flex min-h-[3.25rem] flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-2 md:px-6">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
               <button
+                onClick={() => setShowMobileNav(true)}
+                className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700 lg:hidden"
                 type="button"
-                onClick={() => { setMainTab("overview"); setSelectedCategory(null); }}
-                className="flex items-center gap-1 text-slate-400 transition hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
-                title="Voltar ao início"
+                aria-label="Abrir menu"
               >
-                <Home size={13} />
-                <span className="hidden md:inline">Dashboard</span>
+                <Menu size={18} />
               </button>
-              <span className="text-slate-300 dark:text-slate-600">/</span>
-              <span className="font-semibold text-slate-800 dark:text-slate-100">{currentTab.label}</span>
 
-              {/* Category chip — click to change */}
-              {selectedCategory && needsCategory && (() => {
-                const cat = selectedCategory as ProductCategory;
-                const CatIcon = CATEGORY_ICON[cat] ?? Flag;
-                const dot     = CATEGORY_DOT[cat] ?? "var(--dm-brand-500)";
-                return (
+              <div className="min-w-0 flex flex-wrap items-center gap-1.5 text-sm">
+                <button
+                  type="button"
+                  onClick={() => { setMainTab("overview"); }}
+                  className="flex items-center gap-1 text-slate-400 transition hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+                  title="Ir para Visão geral"
+                >
+                  <Home size={13} />
+                  <span className="hidden md:inline">Início</span>
+                </button>
+                <span className="text-slate-300 dark:text-slate-600" aria-hidden>/</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-100">{currentTab.label}</span>
+
+                {needsCategory && campaigns.length > 0 && (
+                  selectedCategory ? (() => {
+                  const cat = selectedCategory as ProductCategory;
+                  const CatIcon = CATEGORY_ICON[cat] ?? Flag;
+                  const dot     = CATEGORY_DOT[cat] ?? "var(--dm-brand-500)";
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory(null)}
+                      title="Escolher outra categoria"
+                      className="ml-0.5 flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                    >
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dot }} />
+                      <CatIcon size={11} aria-hidden />
+                      <span className="hidden sm:inline">{CATEGORY_LABEL[cat] ?? cat}</span>
+                      <span className="sr-only">Trocar categoria</span>
+                      <X size={10} className="text-slate-400 dark:text-slate-500" aria-hidden />
+                    </button>
+                  );
+                })() : (
                   <button
                     type="button"
-                    onClick={() => setSelectedCategory(null)}
-                    title="Trocar categoria"
-                    className="ml-1 flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                    onClick={() => setPickCategoryOpen(true)}
+                    title="Filtrar dados por área de negócio"
+                    className="ml-0.5 rounded-full border border-dashed border-slate-300 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800/80 dark:text-slate-300 dark:hover:bg-slate-800"
                   >
-                    <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dot }} />
-                    <CatIcon size={11} />
-                    <span className="hidden sm:inline">{CATEGORY_LABEL[cat] ?? cat}</span>
-                    <X size={10} className="text-slate-400 dark:text-slate-500" />
+                    Escolher categoria
                   </button>
-                );
-              })()}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Username → opens Control Panel */}
-            <button
-              type="button"
-              onClick={onOpenControlPanel}
-              title="Painel de Controle"
-              className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition hover:opacity-80"
-              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-secondary)" }}
-            >
-              <UserRound size={13} />
-              <span className="hidden max-w-[120px] truncate sm:inline">
-                {currentUser.name.trim() || currentUser.email.split("@")[0] || "Usuário"}
-              </span>
-            </button>
-
-            {/* Mobile campaign panel button */}
-            {showRightPanel && (
-              <button
-                onClick={() => setShowMobilePanel(true)}
-                className="relative flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 lg:hidden"
-              >
-                <Filter size={13} />
-                Filtros
-                {hasActiveFilters && (
-                  <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-brand" />
+                )
                 )}
-              </button>
-            )}
-
-            {/* Goals button */}
-            <div className="relative">
-              <button
-                onClick={() => setShowGoals((v) => !v)}
-                className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
-                  showGoals
-                    ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                }`}
-              >
-                <Flag size={13} />
-                <span className="hidden sm:inline">Metas</span>
-              </button>
-              {showGoals && (
-                <GoalsPanel
-                  goals={goals}
-                  groupLabel={selectedGroup === "all" ? "Global" : (allGroups.find(g => g.id === selectedGroup)?.label ?? selectedGroup)}
-                  onSetGoal={(key, value) => setGoal(goalsGroupKey, key, value)}
-                  onReset={() => resetGoals(goalsGroupKey)}
-                  onClose={() => setShowGoals(false)}
-                />
-              )}
+              </div>
             </div>
 
-            {/* Import button */}
-            <div className="relative">
+            <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-1.5 sm:gap-2">
               <button
-                onClick={() => showImport ? setShowImport(false) : openImport("sheets")}
-                className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
-                  showImport
-                    ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                }`}
+                type="button"
+                onClick={() => onOpenControlPanel?.()}
+                title="Configurações, contas Meta e integrações"
+                className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition hover:opacity-90"
+                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-secondary)" }}
               >
-                <Upload size={13} />
-                <span className="hidden sm:inline">Importar dados</span>
-                <span className="sm:hidden">Importar</span>
+                <UserRound size={13} />
+                <span className="hidden max-w-[120px] truncate sm:inline">
+                  {currentUser.name.trim() || currentUser.email.split("@")[0] || "Conta"}
+                </span>
+                <span className="sm:hidden">Painel</span>
               </button>
-              {showImport && (
-                <ImportPopover
-                  onImportCsv={onImportCsv}
-                  onImportUrl={onImportUrl}
-                  onImportMeta={onImportMeta}
-                  campaignConfigs={campaignConfigs}
-                  onSaveCampaignConfig={setCampaignConfig}
-                  onClose={() => setShowImport(false)}
-                  onCampaignsVerified={setCampaignsForGroup}
-                  savedCampaignsByGroup={campaignsByGroup}
-                  savedSelectedCampaigns={selectedCampaignsByGroup}
-                  onSaveCampaignSelection={setCampaignSelectionForGroup}
-                  onClearCampaignSelection={clearCampaignSelectionForGroup}
-                  customGroups={customGroups}
-                  onAddCustomGroup={addCustomGroup}
-                  initialTab={importInitialTab}
-                  onOpenControlPanel={onOpenControlPanel}
-                />
+
+              {showRightPanel && (
+                <button
+                  type="button"
+                  onClick={() => setShowMobilePanel(true)}
+                  className="relative flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 lg:hidden"
+                >
+                  <Filter size={13} />
+                  Filtros
+                  {hasActiveFilters && (
+                    <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-blue-500" aria-hidden />
+                  )}
+                </button>
               )}
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowGoals((v) => !v)}
+                  className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
+                    showGoals
+                      ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                  }`}
+                >
+                  <Flag size={13} />
+                  <span className="hidden sm:inline">Metas</span>
+                </button>
+                {showGoals && (
+                  <GoalsPanel
+                    goals={goals}
+                    groupLabel={selectedGroup === "all" ? "Global" : (allGroups.find(g => g.id === selectedGroup)?.label ?? selectedGroup)}
+                    onSetGoal={(key, value) => setGoal(goalsGroupKey, key, value)}
+                    onReset={() => resetGoals(goalsGroupKey)}
+                    onClose={() => setShowGoals(false)}
+                  />
+                )}
+              </div>
+
+              <span className="hidden h-6 w-px self-center bg-slate-200 dark:bg-slate-600 sm:inline" aria-hidden />
+
+              {dataSource?.type === "meta" && onRefresh && (
+                <button
+                  type="button"
+                  title="Atualizar números com a Meta (últimos dias)"
+                  onClick={() => void onRefresh()}
+                  disabled={syncStatus?.syncing}
+                  className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-semibold transition ${
+                    syncStatus?.syncing
+                      ? "cursor-wait border-slate-200 bg-slate-50 text-slate-400 dark:border-slate-700 dark:bg-slate-800"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-900/30"
+                  }`}
+                >
+                  <RotateCcw size={13} className={syncStatus?.syncing ? "animate-spin" : ""} />
+                  <span className="hidden sm:inline">Atualizar Meta</span>
+                </button>
+              )}
+
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => showImport ? setShowImport(false) : openImport("sheets")}
+                  className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
+                    showImport
+                      ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                      : "border-blue-600 bg-blue-600 text-white shadow-sm hover:bg-blue-700 dark:border-blue-500 dark:bg-blue-500 dark:hover:bg-blue-600"
+                  }`}
+                >
+                  <Upload size={13} />
+                  <span className="hidden sm:inline">Importar</span>
+                  <span className="sm:hidden">+ Dados</span>
+                </button>
+                {showImport && (
+                  <ImportPopover
+                    onImportCsv={onImportCsv}
+                    onImportUrl={onImportUrl}
+                    onImportMeta={onImportMeta}
+                    campaignConfigs={campaignConfigs}
+                    onSaveCampaignConfig={setCampaignConfig}
+                    onClose={() => setShowImport(false)}
+                    onCampaignsVerified={setCampaignsForGroup}
+                    savedCampaignsByGroup={campaignsByGroup}
+                    savedSelectedCampaigns={selectedCampaignsByGroup}
+                    onSaveCampaignSelection={setCampaignSelectionForGroup}
+                    onClearCampaignSelection={clearCampaignSelectionForGroup}
+                    customGroups={customGroups}
+                    onAddCustomGroup={addCustomGroup}
+                    initialTab={importInitialTab}
+                    onOpenControlPanel={onOpenControlPanel}
+                  />
+                )}
+              </div>
             </div>
           </div>
+
+          {(dataSourcePill || lastSyncHint || syncStatus?.syncing) && (
+            <div
+              className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t px-3 py-2 text-[11px] md:px-6"
+              style={{ borderColor: "var(--dm-border-subtle)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
+            >
+              {syncStatus?.syncing && (
+                <span className="inline-flex items-center gap-1.5 font-medium text-blue-700 dark:text-blue-300">
+                  <Loader2 size={12} className="animate-spin flex-shrink-0" aria-hidden />
+                  A sincronizar com a Meta…
+                </span>
+              )}
+              {dataSourcePill && !syncStatus?.syncing && (
+                <span>
+                  <span className="font-semibold" style={{ color: "var(--dm-text-primary)" }}>Fonte: </span>
+                  {dataSourcePill.title}
+                  {dataSourcePill.subtitle ? (
+                    <span className="ml-1 opacity-90" title={dataSourcePill.subtitle}>
+                      — <span className="line-clamp-1 sm:line-clamp-none">{dataSourcePill.subtitle}</span>
+                    </span>
+                  ) : null}
+                </span>
+              )}
+              {lastSyncHint && !syncStatus?.syncing && (
+                <span className="opacity-95">
+                  <span className="font-semibold" style={{ color: "var(--dm-text-primary)" }}>Última carga Meta: </span>
+                  {lastSyncHint}
+                </span>
+              )}
+            </div>
+          )}
         </header>
 
         {/* Main scrollable content */}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main className="flex-1 overflow-y-auto px-4 py-5 md:px-7 md:py-7">
+          <div className="mx-auto w-full max-w-[1720px]">
 
-          {/* ── Category gate (analysis & creatives only — overview handles its own flow) ── */}
-          {(mainTab === "analysis" || mainTab === "creatives") && !selectedCategory && (
-            <CategoryGate onSelect={setSelectedCategory} />
-          )}
-
-          {/* ── Overview: welcome first → then category gate → then dashboard ── */}
+          {/* ── Overview: sem dados → onboarding; com dados → dashboard (categoria opcional no topo) ── */}
           {mainTab === "overview" && (
             campaigns.length === 0 ? (
               inlineImportTab ? (
@@ -1980,34 +2172,102 @@ export function Dashboard({
                   </div>
                 </TabLanding>
               )
-            ) : !selectedCategory ? (
-              /* ── Step 2: choose category ─────────────────────────────────────── */
-              <CategoryGate onSelect={setSelectedCategory} />
             ) : (
-              /* ── Step 3: full dashboard ──────────────────────────────────────── */
-              <div className="space-y-5">
+              /* ── Dashboard com dados (todas as campanhas até escolher categoria no topo) ── */
+              <div className="space-y-6">
+                {overviewSelectionSummary && (
+                  <section
+                    className="rounded-2xl border px-4 py-4 shadow-sm md:px-5"
+                    style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}
+                    aria-labelledby="overview-context-heading"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <h2 id="overview-context-heading" className="text-base font-bold tracking-tight" style={{ color: "var(--dm-text-primary)" }}>
+                          Resumo da sua vista
+                        </h2>
+                        <p className="mt-1 max-w-2xl text-xs leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
+                          Categoria e curso vêm do topo e da coluna à direita; o período e a busca aplicam-se a todos os cartões abaixo.
+                        </p>
+                      </div>
+                      {hasActiveFilters && (
+                        <button
+                          type="button"
+                          onClick={handleClearFilters}
+                          className="flex-shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                        >
+                          Limpar filtros
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}>
+                        Categoria: {overviewSelectionSummary.catName}
+                      </span>
+                      <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}>
+                        Foco: {overviewSelectionSummary.groupName}
+                      </span>
+                      <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}>
+                        Período: {overviewSelectionSummary.period}
+                      </span>
+                      <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200">
+                        {filteredCampaigns.length} de {categorizedCampaigns.length} campanhas visíveis
+                      </span>
+                    </div>
+                  </section>
+                )}
+
                 {filteredCampaigns.length === 0 && (
-                  <div className="flex items-center gap-3 rounded-xl border px-4 py-3 text-sm" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}>
-                    <Filter size={15} className="flex-shrink-0" />
-                    Nenhuma campanha encontrada com os filtros aplicados.
-                    <button onClick={handleClearFilters} className="ml-auto text-xs font-semibold underline">
-                      Limpar filtros
-                    </button>
+                  <div className="flex flex-col gap-2 rounded-xl border px-4 py-3 text-sm sm:flex-row sm:items-center" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}>
+                    <div className="flex items-start gap-3">
+                      <Filter size={15} className="mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="font-medium" style={{ color: "var(--dm-text-primary)" }}>
+                          Nenhuma campanha encontrada com os filtros aplicados.
+                        </p>
+                        {dataSource?.type === "meta" && onRefresh && (
+                          <p className="mt-1 text-xs" style={{ color: "var(--dm-text-tertiary)" }}>
+                            Se acabou de vincular contas no Painel, use <strong>Atualizar Meta</strong> no topo para puxar os últimos dias de dados.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-shrink-0 gap-2 sm:ml-auto">
+                      {dataSource?.type === "meta" && onRefresh && (
+                        <button
+                          type="button"
+                          onClick={() => void onRefresh()}
+                          disabled={syncStatus?.syncing}
+                          className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100 disabled:opacity-50 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        >
+                          Atualizar Meta
+                        </button>
+                      )}
+                      <button type="button" onClick={handleClearFilters} className="rounded-lg border px-3 py-1.5 text-xs font-semibold underline-offset-2 hover:underline" style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}>
+                        Limpar filtros
+                      </button>
+                    </div>
                   </div>
                 )}
-                {/* KPI header with customize toggle */}
-                <div className="relative flex items-center justify-between">
-                  <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
-                    Métricas
-                  </p>
-                  <div className="relative">
+                {/* KPI block */}
+                <section className="space-y-3" aria-labelledby="kpi-section-title">
+                  <div className="relative flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h2 id="kpi-section-title" className="text-sm font-bold tracking-tight sm:text-base" style={{ color: "var(--dm-text-primary)" }}>
+                        Indicadores principais
+                      </h2>
+                      <p className="mt-0.5 text-[11px] sm:text-xs" style={{ color: "var(--dm-text-secondary)" }}>
+                        Valores agregados das campanhas visíveis na vista atual. Use <strong>Personalizar cartões</strong> para esconder o que não precisa.
+                      </p>
+                    </div>
+                    <div className="relative sm:mb-0.5">
                     <button
                       type="button"
                       onClick={() => setShowKpiPanel((v) => !v)}
-                      className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-semibold transition hover:opacity-80"
+                      className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition hover:opacity-80"
                       style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
                     >
-                      <SlidersHorizontal size={11} /> Personalizar
+                      <SlidersHorizontal size={11} aria-hidden /> Personalizar cartões
                     </button>
                     {showKpiPanel && (
                       <div
@@ -2156,6 +2416,7 @@ export function Dashboard({
                     </div>
                   );
                 })()}
+                </section>
 
                 {/* Funnel */}
                 <FunnelCard
@@ -2178,7 +2439,7 @@ export function Dashboard({
 
           {mainTab === "history"   && <HistoricalView />}
 
-          {mainTab === "analysis" && selectedCategory && (
+          {mainTab === "analysis" && (
             aggregated.length === 0 ? (
               <TabLanding
                 icon={BarChart2}
@@ -2201,7 +2462,7 @@ export function Dashboard({
             )
           )}
 
-          {mainTab === "creatives" && selectedCategory && (
+          {mainTab === "creatives" && (
             aggregated.length === 0 ? (
               <TabLanding
                 icon={ImageIcon}
@@ -2236,12 +2497,13 @@ export function Dashboard({
             />
           )}
 
+          </div>
         </main>
       </div>
 
       {/* ── Right sidebar — desktop ── */}
       {showRightPanel && (
-        <aside className="glass-panel relative z-20 hidden w-[260px] flex-shrink-0 border-l border-[var(--dm-border-default)] lg:flex lg:flex-col">
+        <aside className="glass-panel relative z-20 hidden w-[280px] flex-shrink-0 border-l border-[var(--dm-border-default)] lg:flex lg:flex-col">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}
@@ -2251,6 +2513,41 @@ export function Dashboard({
         <aside className="glass-panel fixed inset-y-0 right-0 z-50 flex w-[86vw] max-w-[320px] flex-col border-l border-[var(--dm-border-default)] shadow-2xl lg:hidden">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
+      )}
+
+      {pickCategoryOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
+          role="presentation"
+          onClick={() => setPickCategoryOpen(false)}
+        >
+          <div
+            className="relative max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-2xl border shadow-2xl"
+            style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pick-category-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex justify-end border-b px-3 py-2" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}>
+              <button
+                type="button"
+                onClick={() => setPickCategoryOpen(false)}
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="Fechar"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div id="pick-category-title" className="sr-only">Escolher área de negócio</div>
+            <CategoryGate
+              onSelect={(c) => {
+                setSelectedCategory(c);
+                setPickCategoryOpen(false);
+              }}
+            />
+          </div>
+        </div>
       )}
 
     </div>

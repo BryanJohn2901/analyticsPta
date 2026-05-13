@@ -6,6 +6,27 @@ const supabaseKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
+/** Evita que o proxy fique à espera indefinida se o Auth do Supabase não responder (DNS, rede, incidente). */
+const AUTH_MIDDLEWARE_MS = Math.min(
+  Math.max(Number(process.env.SUPABASE_AUTH_MIDDLEWARE_TIMEOUT_MS ?? 5000), 1000),
+  30_000,
+);
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const id = setTimeout(() => reject(new Error("supabase auth middleware timeout")), ms);
+    promise
+      .then((v) => {
+        clearTimeout(id);
+        resolve(v);
+      })
+      .catch((e) => {
+        clearTimeout(id);
+        reject(e);
+      });
+  });
+}
+
 export const updateSession = async (request: NextRequest) => {
   if (!supabaseUrl || !supabaseKey) {
     return NextResponse.next({ request: { headers: request.headers } });
@@ -28,7 +49,11 @@ export const updateSession = async (request: NextRequest) => {
     },
   });
 
-  await supabase.auth.getUser();
+  try {
+    await withTimeout(supabase.auth.getUser(), AUTH_MIDDLEWARE_MS);
+  } catch {
+    // Continua sem bloquear a página; o cliente ainda pode restaurar sessão (ex.: localStorage).
+  }
 
   return supabaseResponse;
 };

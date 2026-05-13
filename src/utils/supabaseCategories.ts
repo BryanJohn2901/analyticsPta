@@ -25,14 +25,25 @@ function rowToCategory(row: any): UserCategory {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToEntry(row: any): UserAccountEntry {
+  const rawCamps = row.campaigns ?? [];
+  const campaigns = Array.isArray(rawCamps)
+    ? rawCamps.map((c: { id?: unknown; name?: string; status?: string }) => ({
+        id:     String(c?.id ?? ""),
+        name:   String(c?.name ?? ""),
+        status: String(c?.status ?? ""),
+      }))
+    : [];
+  const rawSel = row.selected_campaign_ids ?? [];
+  const selectedCampaignIds = Array.isArray(rawSel) ? rawSel.map(String) : [];
   return {
     id:                   row.id,
     userId:               row.user_id,
     categoryId:           row.category_id,
     label:                row.label,
     adAccountId:          row.ad_account_id,
-    campaigns:            row.campaigns ?? [],
-    selectedCampaignIds:  row.selected_campaign_ids ?? [],
+    internalFilter:       row.internal_filter ?? null,
+    campaigns,
+    selectedCampaignIds,
     isEnabled:            row.is_enabled,
   };
 }
@@ -108,6 +119,7 @@ export async function upsertUserAccountEntry(entry: {
   categoryId: string;
   label: string;
   adAccountId: string;
+  internalFilter?: string | null;
   campaigns?: Array<{ id: string; name: string; status: string }>;
   selectedCampaignIds?: string[];
   isEnabled?: boolean;
@@ -121,6 +133,7 @@ export async function upsertUserAccountEntry(entry: {
     category_id:           entry.categoryId,
     label:                 entry.label,
     ad_account_id:         entry.adAccountId,
+    internal_filter:       entry.internalFilter ?? null,
     campaigns:             entry.campaigns ?? [],
     selected_campaign_ids: entry.selectedCampaignIds ?? [],
     is_enabled:            entry.isEnabled ?? true,
