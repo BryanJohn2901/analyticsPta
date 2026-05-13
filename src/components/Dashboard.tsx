@@ -6,7 +6,7 @@ import {
   Activity, BadgeDollarSign, BarChart2, BookOpen, CalendarDays,
   CheckCircle2, ChevronDown, ChevronUp, CircleDollarSign, Dumbbell, FileText,
   FileUp, Filter, Flag, GraduationCap, Home, ImageIcon, Link2, Loader2, LogOut, Menu, Moon,
-  MousePointerClick, Package, Pencil, Plus, Repeat, RotateCcw, SlidersHorizontal, Sun,
+  MousePointerClick, Package, Pencil, Plus, Repeat, RotateCcw, Settings2, SlidersHorizontal, Sun,
   Target, Trash2, TrendingUp, Trophy, Upload, UserRound, Users, Wallet, X, XCircle, Zap,
   LayoutDashboard, History, LineChart, Sparkles, Database, Dna, Weight, HeartPulse,
   Medal, PersonStanding, Flame, BookText, MonitorSmartphone, Ticket, Library, VenetianMask
@@ -59,6 +59,7 @@ interface DashboardProps {
   onClearData?: () => Promise<void>;
   onSignOut: () => Promise<void>;
   onUpdateProfile: (name: string) => Promise<void>;
+  onOpenControlPanel?: () => void;
 }
 
 type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles" | "products";
@@ -81,7 +82,7 @@ const MAIN_TABS: Array<{ id: MainTab; label: string; shortLabel: string; icon: R
   { id: "history",   label: "Histórico",         shortLabel: "Histórico",    icon: History },
   { id: "analysis",  label: "Análise",           shortLabel: "Análise",      icon: LineChart },
   { id: "creatives", label: "Criativos",         shortLabel: "Criativos",    icon: Sparkles },
-  { id: "profiles",  label: "Perfil de Anúncio", shortLabel: "Perfil",       icon: Target },
+  { id: "profiles",  label: "Perfil de Anunciantes", shortLabel: "Perfil",    icon: Target },
   { id: "products",  label: "Base de Produtos",  shortLabel: "Produtos",     icon: Database },
 ];
 
@@ -425,6 +426,7 @@ interface ImportPopoverProps {
   onClearCampaignSelection?: (groupId: string) => void;
   customGroups: CustomGroup[];
   onAddCustomGroup: (group: CustomGroup) => void;
+  onOpenControlPanel?: () => void;
 }
 
 // ─── Account row (dynamic "add what you need" UX) ─────────────────────────────
@@ -434,7 +436,7 @@ function ImportPopover({
   onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
   onCampaignsVerified, savedCampaignsByGroup, savedSelectedCampaigns, onSaveCampaignSelection,
   onClearCampaignSelection,
-  customGroups, onAddCustomGroup, initialTab, inline,
+  customGroups, onAddCustomGroup, onOpenControlPanel, initialTab, inline,
 }: ImportPopoverProps & { initialTab?: ImportTab; inline?: boolean }) {
   const [tab, setTab]                     = useState<ImportTab>(initialTab ?? "sheets");
   const [url, setUrl]                     = useState("");
@@ -827,200 +829,33 @@ function ImportPopover({
         )}
 
         {tab === "meta" && (
-          <form onSubmit={handleSaveMeta} className="space-y-4">
-
-
-            {/* Token + fetch button */}
+          <div className="flex flex-col items-center gap-4 py-4 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl"
+              style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+              <Settings2 size={24} style={{ color: "var(--dm-brand-500)" }} />
+            </div>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Access Token
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  value={accessToken}
-                  onChange={(e) => { setAccessToken(e.target.value); setMetaAccounts([]); }}
-                  placeholder="EAAxxxxx…"
-                  className={`${inputCls} flex-1`}
-                />
-                <button
-                  type="button"
-                  disabled={!accessToken || fetchingAccounts}
-                  onClick={handleFetchAccounts}
-                  title="Buscar contas de anúncio disponíveis"
-                  className="flex h-9 flex-shrink-0 items-center gap-1.5 rounded-lg bg-brand px-3 text-xs font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {fetchingAccounts
-                    ? <Loader2 size={12} className="animate-spin" />
-                    : <Zap size={12} />
-                  }
-                  {fetchingAccounts ? "Buscando…" : "Conectar"}
-                </button>
-              </div>
-              <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
-                Obtenha em{" "}
-                <span className="font-medium text-slate-600 dark:text-slate-400">
-                  Meta for Developers → Graph API Explorer
-                </span>
+              <p className="text-sm font-bold" style={{ color: "var(--dm-text-primary)" }}>
+                Configure no Painel de Controle
+              </p>
+              <p className="mt-1.5 text-[12px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
+                As conexões Meta Ads são gerenciadas no Painel de Controle.
+                Vincule contas, organize por categoria e selecione campanhas com facilidade.
               </p>
             </div>
-
-            {/* Accounts found banner */}
-            {metaAccounts.length > 0 && (
-              <div className="flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-medium"
-                style={{ backgroundColor: "var(--dm-success-bg)", borderColor: "var(--dm-success-border)", color: "var(--dm-success-text)" }}
-              >
-                <Activity size={12} className="flex-shrink-0" />
-                {metaAccounts.length} conta{metaAccounts.length > 1 ? "s" : ""} encontrada{metaAccounts.length > 1 ? "s" : ""} — selecione abaixo ou digite manualmente
-              </div>
-            )}
-
-            {/* ── Separator — only show the rest after token connected ──── */}
-            {!showAccountsSection && (
-              <p className="text-center text-[11px] text-slate-400 dark:text-slate-500">
-                Conecte o token acima para configurar período e contas.
-              </p>
-            )}
-
-            {/* Date range preset */}
-            {showAccountsSection && (<div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                Período de dados
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {(["7d", "14d", "30d", "90d", "max"] as DatePreset[]).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => setDatePreset(p)}
-                    className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition ${
-                      datePreset === p
-                        ? "border-brand bg-brand text-white"
-                        : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
-                    }`}
-                  >
-                    {DATE_PRESET_LABELS[p]}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
-                {datePreset === "max"
-                  ? `De ${formatDatePtBr(dateRange.from)} até hoje (máx. ~3 anos)`
-                  : `De ${formatDatePtBr(dateRange.from)} até ${formatDatePtBr(dateRange.to)}`
-                }
-              </p>
-            </div>)}
-
-            {/* ── Single Ad Account ─────────────────────────────────────── */}
-            {showAccountsSection && (() => {
-              const row = accountRows[0];
-              if (!row) return null;
-              const accountId     = row.accountId.trim();
-              const liveCampaigns = accountId ? (campaignsByAccount[accountId] ?? []) : [];
-              const savedCamps    = savedCampaignsByGroup[row.groupId] ?? [];
-              const campaigns: (MetaCampaign | CampaignSummary)[] = liveCampaigns.length > 0 ? liveCampaigns : savedCamps;
-              const isRestored    = liveCampaigns.length === 0 && savedCamps.length > 0;
-              const isExpanded    = expandedGroup === row.groupId;
-              const status        = isRestored && verifyStatus[row.groupId] === undefined ? "ok" : (verifyStatus[row.groupId] ?? "idle");
-              const errMsg        = verifyError[row.groupId];
-              const selected      = selectedCampaigns[row.groupId] ?? campaigns.map((c) => c.id);
-              const allSelected   = selected.length === campaigns.length;
-              return (
-                <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700 dark:text-slate-300">Ad Account ID</label>
-                  <div className="rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-                    <div className="flex items-center gap-2 px-3 py-2.5">
-                      <div
-                        className="relative min-w-0 flex-1"
-                        ref={(el) => { if (el) inputWrapperRefs.current.set(row.rowId, el); else inputWrapperRefs.current.delete(row.rowId); }}
-                      >
-                        <input
-                          value={row.accountId}
-                          onChange={(e) => handleChangeRowAccount(row.rowId, e.target.value)}
-                          placeholder="act_123456789"
-                          className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-3 pr-7 text-xs text-slate-800 placeholder-slate-300 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder-slate-600"
-                        />
-                        {metaAccounts.length > 0 && (
-                          <button type="button" title="Ver contas disponíveis" onClick={() => openAccountDropdown(row.rowId)}
-                            className="absolute right-1 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-slate-300">
-                            <ChevronDown size={12} className={`transition-transform ${openDropdownRow === row.rowId ? "rotate-180" : ""}`} />
-                          </button>
-                        )}
-                      </div>
-                      {status === "loading" && <Loader2 size={13} className="flex-shrink-0 animate-spin text-blue-500" />}
-                      {status === "ok" && campaigns.length > 0 && (
-                        <button type="button" onClick={() => void handleVerifyGroup(row.groupId)}
-                          title={`${campaigns.length} campanhas${isRestored ? " (salvas)" : ""} — clique para ${isExpanded ? "fechar" : "filtrar"}`}
-                          className={`flex flex-shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-bold transition ${isRestored ? "bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400" : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400"}`}>
-                          <CheckCircle2 size={10} />{selected.length}/{campaigns.length}
-                          {isExpanded ? <ChevronUp size={9} /> : <ChevronDown size={9} />}
-                        </button>
-                      )}
-                      {status === "error" && (
-                        <span title={errMsg} className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-red-50 px-1.5 py-0.5 text-[9px] font-bold text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                          <XCircle size={10} /> Erro
-                        </span>
-                      )}
-                      {status === "idle" && accountId && (
-                        <button type="button" onClick={() => void handleVerifyGroup(row.groupId)}
-                          className="flex flex-shrink-0 items-center gap-0.5 rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-400">
-                          <Activity size={9} /> Verificar
-                        </button>
-                      )}
-                    </div>
-                    {status === "error" && errMsg && (
-                      <p className="px-3 pb-1.5 text-[9px] text-red-500 dark:text-red-400">{errMsg}</p>
-                    )}
-                    {isExpanded && campaigns.length > 0 && (
-                      <div className="mx-2 mb-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-600 dark:bg-slate-700/50">
-                        <div className="flex items-center justify-between border-b border-slate-200 px-2 py-1 dark:border-slate-600">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Campanhas ({selected.length}/{campaigns.length})</span>
-                          <button type="button" onClick={() => handleSelectAllCampaigns(row.groupId, campaigns, !allSelected)}
-                            className="text-[9px] font-semibold text-blue-500 transition hover:text-blue-700 dark:text-blue-400">
-                            {allSelected ? "Desmarcar todas" : "Marcar todas"}
-                          </button>
-                        </div>
-                        <div className="max-h-36 overflow-y-auto p-1">
-                          {campaigns.map((camp) => (
-                            <label key={camp.id} className="flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 hover:bg-white dark:hover:bg-slate-600">
-                              <input type="checkbox" checked={selected.includes(camp.id)}
-                                onChange={() => handleToggleCampaign(row.groupId, camp.id, campaigns)}
-                                className="h-3 w-3 flex-shrink-0 rounded accent-blue-600" />
-                              <span className="flex-1 truncate text-[10px] text-slate-700 dark:text-slate-300" title={camp.name}>{camp.name}</span>
-                              <span className={`flex-shrink-0 text-[9px] font-bold ${camp.status === "ACTIVE" ? "text-emerald-500" : "text-amber-400"}`}>
-                                {camp.status === "ACTIVE" ? "●" : "◐"}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-
             <button
-              type="submit"
-              disabled={importingMeta}
-              className={`flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-70 ${
-                metaSaved ? "bg-emerald-600" : "bg-brand hover:bg-brand-hover"
-              }`}
+              type="button"
+              onClick={() => { onOpenControlPanel?.(); onClose(); }}
+              className="flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold text-white transition hover:opacity-90"
+              style={{ backgroundColor: "var(--dm-brand-500)" }}
             >
-              {importingMeta ? (
-                <><Loader2 size={13} className="animate-spin" /> Buscando dados da Meta…</>
-              ) : metaSaved ? (
-                "✓ Salvo!"
-              ) : (
-                <><Zap size={13} /> Salvar e importar dados</>
-              )}
+              <Settings2 size={14} />
+              Abrir Painel de Controle
             </button>
-
-            <p className="text-center text-[10px] text-slate-400 dark:text-slate-500">
-              💡 Use um <span className="font-medium">System User Token</span> para não expirar.{" "}
-              Tokens do Graph API Explorer expiram em ~1h.
+            <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+              Ou use o botão ⚙️ no canto superior direito do dashboard.
             </p>
-          </form>
+          </div>
         )}
         </div>{/* end scrollable */}
       </div>
@@ -1507,6 +1342,7 @@ export function Dashboard({
   onClearData,
   onSignOut,
   onUpdateProfile,
+  onOpenControlPanel,
 }: DashboardProps) {
   const [mainTab, setMainTab]               = useState<MainTab>("overview");
   const [dateFrom, setDateFrom]             = useState<string>(() => {
@@ -1542,8 +1378,6 @@ export function Dashboard({
   const [sortBy, setSortBy] = useState<SortBy>("date-desc");
   const [checkedCampaignIds, setCheckedCampaignIds] = useState<string[]>([]);
   const [showGoals, setShowGoals] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileName, setProfileName] = useState(currentUser.name || "");
 
   const { getGoals, setGoal, resetGoals } = useGoalsStore();
 
@@ -1862,56 +1696,6 @@ export function Dashboard({
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--dm-bg-page)]">
-      {showProfileModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl border p-5 shadow-2xl" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>Editar perfil</h3>
-              <button
-                type="button"
-                onClick={() => setShowProfileModal(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg transition"
-                style={{ color: "var(--dm-text-tertiary)" }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <label className="mb-2 block text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
-              Nome
-            </label>
-            <input
-              type="text"
-              value={profileName}
-              onChange={(event) => setProfileName(event.target.value)}
-              placeholder="Seu nome"
-              className="h-10 w-full rounded-lg border px-3 text-sm outline-none transition"
-              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
-            />
-            <p className="mt-2 text-[11px]" style={{ color: "var(--dm-text-secondary)" }}>{currentUser.email}</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowProfileModal(false)}
-                className="rounded-lg border px-3 py-2 text-xs font-semibold transition"
-                style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  await onUpdateProfile(profileName.trim() || currentUser.name || "Usuario");
-                  setShowProfileModal(false);
-                }}
-                className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-hover"
-              >
-                Salvar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Mobile nav overlay ── */}
       {showMobileNav && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setShowMobileNav(false)}>
@@ -1996,8 +1780,9 @@ export function Dashboard({
 
               {/* Category chip — click to change */}
               {selectedCategory && needsCategory && (() => {
-                const CatIcon = CATEGORY_ICON[selectedCategory];
-                const dot     = CATEGORY_DOT[selectedCategory];
+                const cat = selectedCategory as ProductCategory;
+                const CatIcon = CATEGORY_ICON[cat] ?? Flag;
+                const dot     = CATEGORY_DOT[cat] ?? "var(--dm-brand-500)";
                 return (
                   <button
                     type="button"
@@ -2007,7 +1792,7 @@ export function Dashboard({
                   >
                     <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dot }} />
                     <CatIcon size={11} />
-                    <span className="hidden sm:inline">{CATEGORY_LABEL[selectedCategory]}</span>
+                    <span className="hidden sm:inline">{CATEGORY_LABEL[cat] ?? cat}</span>
                     <X size={10} className="text-slate-400 dark:text-slate-500" />
                   </button>
                 );
@@ -2016,16 +1801,19 @@ export function Dashboard({
           </div>
 
           <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <UserMenu
-              name={currentUser.name}
-              email={currentUser.email}
-              onEditProfile={() => {
-                setProfileName(currentUser.name || "");
-                setShowProfileModal(true);
-              }}
-              onSignOut={onSignOut}
-            />
+            {/* Username → opens Control Panel */}
+            <button
+              type="button"
+              onClick={onOpenControlPanel}
+              title="Painel de Controle"
+              className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition hover:opacity-80"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-secondary)" }}
+            >
+              <UserRound size={13} />
+              <span className="hidden max-w-[120px] truncate sm:inline">
+                {currentUser.name.trim() || currentUser.email.split("@")[0] || "Usuário"}
+              </span>
+            </button>
 
             {/* Mobile campaign panel button */}
             {showRightPanel && (
@@ -2038,72 +1826,6 @@ export function Dashboard({
                 {hasActiveFilters && (
                   <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-brand" />
                 )}
-              </button>
-            )}
-
-            {/* Active data source badge — shown when data is loaded */}
-            {dataSource && (
-              <div className="flex h-8 items-center gap-1.5 rounded-lg border pl-2.5 pr-1 text-xs font-medium"
-                style={{
-                  backgroundColor: "var(--dm-success-bg)",
-                  borderColor: "var(--dm-success-border)",
-                  color: "var(--dm-success-text)",
-                }}
-              >
-                {dataSource.type === "google_sheets"
-                  ? <Link2   size={12} className="flex-shrink-0" />
-                  : dataSource.type === "meta"
-                  ? <Zap     size={12} className="flex-shrink-0" />
-                  : <FileUp  size={12} className="flex-shrink-0" />
-                }
-                <span className="hidden max-w-[140px] truncate sm:block" title={dataSource.label}>
-                  {dataSource.type === "google_sheets"
-                    ? (() => { try { return new URL(dataSource.label).pathname.split("/")[3]?.slice(0, 12) + "…"; } catch { return dataSource.label; } })()
-                    : dataSource.label
-                  }
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onClearData?.()}
-                  title="Desconectar fonte de dados"
-                  className="ml-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-                >
-                  <X size={11} />
-                </button>
-              </div>
-            )}
-
-            {/* Meta sync status indicator */}
-            {dataSource?.type === "meta" && syncStatus && (
-              syncStatus.syncing ? (
-                <div className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium"
-                  style={{ borderColor: "var(--dm-border)", color: "var(--dm-text-secondary)", backgroundColor: "var(--dm-surface)" }}
-                >
-                  <Loader2 size={11} className="animate-spin flex-shrink-0" />
-                  <span className="hidden sm:block">Sincronizando…</span>
-                </div>
-              ) : syncStatus.result ? (
-                <div
-                  className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium"
-                  title={`${syncStatus.result.synced} registros sincronizados · ${formatDatePtBr(syncStatus.result.dateFrom)} → ${formatDatePtBr(syncStatus.result.dateTo)}`}
-                  style={{ borderColor: "var(--dm-success-border)", color: "var(--dm-success-text)", backgroundColor: "var(--dm-success-bg)" }}
-                >
-                  <CheckCircle2 size={11} className="flex-shrink-0" />
-                  <span className="hidden sm:block">{syncStatus.result.synced} sync</span>
-                </div>
-              ) : null
-            )}
-
-            {/* Manual refresh button — visible when source is Meta */}
-            {dataSource?.type === "meta" && onRefresh && (
-              <button
-                onClick={() => void onRefresh()}
-                disabled={syncStatus?.syncing}
-                title="Atualizar dados do Meta Ads agora"
-                className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-brand hover:bg-brand/5 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-brand dark:hover:bg-brand/10 dark:hover:text-brand"
-              >
-                <RotateCcw size={13} className={syncStatus?.syncing ? "animate-spin" : ""} />
-                <span className="hidden sm:inline">Atualizar</span>
               </button>
             )}
 
@@ -2131,31 +1853,19 @@ export function Dashboard({
               )}
             </div>
 
-            {/* Limpar dados — only shown when a source is active */}
-            {dataSource && onClearData && (
-              <button
-                onClick={() => void onClearData()}
-                className="flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-500 transition hover:border-red-400 hover:bg-red-50 dark:border-red-800 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-900/20"
-                title="Zerar os dados importados"
-              >
-                <Trash2 size={13} />
-                <span className="hidden sm:inline">Limpar dados</span>
-              </button>
-            )}
-
             {/* Import button */}
             <div className="relative">
               <button
-                onClick={() => showImport ? setShowImport(false) : openImport("meta")}
+                onClick={() => showImport ? setShowImport(false) : openImport("sheets")}
                 className={`flex h-8 items-center gap-1.5 rounded-lg border px-3 text-xs font-semibold transition ${
                   showImport
                     ? "border-blue-300 bg-blue-50 text-blue-700 dark:border-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                     : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
               >
-                <Zap size={13} />
-                <span className="hidden sm:inline">Conectar Meta ADS</span>
-                <span className="sm:hidden">Conectar</span>
+                <Upload size={13} />
+                <span className="hidden sm:inline">Importar dados</span>
+                <span className="sm:hidden">Importar</span>
               </button>
               {showImport && (
                 <ImportPopover
@@ -2173,6 +1883,7 @@ export function Dashboard({
                   customGroups={customGroups}
                   onAddCustomGroup={addCustomGroup}
                   initialTab={importInitialTab}
+                  onOpenControlPanel={onOpenControlPanel}
                 />
               )}
             </div>
@@ -2209,6 +1920,7 @@ export function Dashboard({
                     onClearCampaignSelection={clearCampaignSelectionForGroup}
                     customGroups={customGroups}
                     onAddCustomGroup={addCustomGroup}
+                    onOpenControlPanel={onOpenControlPanel}
                   />
                 </div>
               ) : (
@@ -2227,7 +1939,7 @@ export function Dashboard({
                     { label: "Escolha campanhas",   description: "Selecione quais campanhas deseja monitorar no painel lateral." },
                     { label: "Analise seus KPIs",   description: "Visualize métricas, funil, gráficos e tendências automaticamente." },
                   ]}
-                  cta={{ label: "Importar dados", onClick: () => setInlineImportTab("meta") }}
+                  cta={{ label: "Importar dados", onClick: () => onOpenControlPanel ? onOpenControlPanel() : setInlineImportTab("sheets") }}
                 >
                   {/* Source picker cards */}
                   <div>
@@ -2236,14 +1948,14 @@ export function Dashboard({
                     </p>
                     <div className="grid gap-3 sm:grid-cols-3">
                       {[
-                        { tab: "meta"   as const, icon: Zap,    label: "Meta Ads",      sub: "Dados em tempo real via API" },
-                        { tab: "sheets" as const, icon: Link2,  label: "Google Sheets",  sub: "Planilha compartilhada"      },
-                        { tab: "csv"    as const, icon: Upload,  label: "Arquivo CSV",   sub: "Relatório exportado"         },
+                        { tab: "meta"   as const, icon: Settings2, label: "Meta Ads",      sub: "Configurar no Painel de Controle" },
+                        { tab: "sheets" as const, icon: Link2,     label: "Google Sheets", sub: "Planilha compartilhada"           },
+                        { tab: "csv"    as const, icon: Upload,    label: "Arquivo CSV",   sub: "Relatório exportado"              },
                       ].map(({ tab, icon: Icon, label, sub }) => (
                         <button
                           key={tab}
                           type="button"
-                          onClick={() => setInlineImportTab(tab)}
+                          onClick={() => tab === "meta" ? onOpenControlPanel?.() : setInlineImportTab(tab)}
                           className="group flex flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 text-center transition hover:shadow-md"
                           style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}
                           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "var(--dm-brand-400)"; }}
@@ -2482,10 +2194,10 @@ export function Dashboard({
                   { label: "Selecione a campanha",  description: "Use o painel lateral para escolher o grupo a analisar." },
                   { label: "Leia o diagnóstico",    description: "Veja o score, alertas e ações recomendadas." },
                 ]}
-                cta={{ label: "Importar dados agora", onClick: () => openImport("meta") }}
+                cta={{ label: "Importar dados agora", onClick: () => onOpenControlPanel ? onOpenControlPanel() : openImport("sheets") }}
               />
             ) : (
-              <CampaignAnalysis campaigns={aggregated} selectedCategory={selectedCategory} isMetricVisible={isMetricVisible} />
+              <CampaignAnalysis campaigns={aggregated} selectedCategory={selectedCategory as ProductCategory | null} isMetricVisible={isMetricVisible} />
             )
           )}
 
@@ -2505,7 +2217,7 @@ export function Dashboard({
                   { label: "Selecione campanhas",   description: "Escolha quais conjuntos de anúncios monitorar." },
                   { label: "Veja o ranking",         description: "Criativos ordenados por performance com thumbnails." },
                 ]}
-                cta={{ label: "Conectar Meta Ads", onClick: () => openImport("meta") }}
+                cta={{ label: "Conectar Meta Ads", onClick: () => onOpenControlPanel ? onOpenControlPanel() : openImport("sheets") }}
                 ctaSecondary={{ label: "Importar CSV", onClick: () => openImport("csv") }}
               />
             ) : (

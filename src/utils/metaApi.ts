@@ -1,5 +1,17 @@
 import type { CampaignData } from "@/types/campaign";
 
+/**
+ * Parses a Meta API numeric string ("400.00", "9000000") correctly.
+ * Meta always uses US decimal format (dot as decimal separator), NOT Brazilian format.
+ * Using parseBR/safeNumber here would strip the decimal dot and inflate values 100x
+ * (e.g. "400.00" → parseBR → "40000" → 40000 instead of 400).
+ */
+function parseMetaNum(v: string | number | undefined | null): number {
+  if (v == null) return 0;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 const CREDS_KEY = "pta_meta_creds_v1";
 
 // ─── Campaigns ────────────────────────────────────────────────────────────────
@@ -148,17 +160,6 @@ export async function fetchMetaCreatives(
 
 // ─── Transformation ──────────────────────────────────────────────────────────
 
-/**
- * Parses a numeric value from the Meta API (always US format: "1234.56").
- * Must NOT use parseBR — parseBR strips dots as thousands separators,
- * which destroys the decimal point and inflates values 100x.
- */
-function parseMetaNum(v: unknown): number {
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-}
-
 /** Finds the numeric value of a specific action_type in a Meta actions array. */
 function pickAction(actions: MetaAction[] | undefined, ...types: string[]): number {
   if (!actions) return 0;
@@ -181,6 +182,8 @@ export function metaInsightsToCampaignData(
   adAccountId: string,
 ): CampaignData[] {
   return insights.map((row) => {
+    // parseMetaNum must be used here — Meta returns US decimal strings ("400.00").
+    // Using parseBR/safeNumber would strip the dot and inflate values 100x.
     const investment  = parseMetaNum(row.spend);
     const impressions = parseMetaNum(row.impressions);
 
@@ -206,8 +209,8 @@ export function metaInsightsToCampaignData(
       "offsite_conversion.fb_pixel_purchase",
     );
 
-    // Use Meta's link CTR if available; fall back to all-click CTR converted to decimal.
-    // Both are stored as percentage strings ("2.34" = 2.34%).
+    // CTR: Meta returns percentage strings ("2.34" = 2.34%).
+    // Convert to decimal (0–1 range) for storage; recalculated as % when read from DB.
     const ctrPct = row.inline_link_click_ctr != null
       ? parseMetaNum(row.inline_link_click_ctr)
       : parseMetaNum(row.ctr);
@@ -223,9 +226,9 @@ export function metaInsightsToCampaignData(
       conversions,
       revenue,
       ctr,
-      cpc:            clicks      > 0 ? investment   / clicks      : 0,
-      cpa:            conversions > 0 ? investment   / conversions : 0,
-      roas:           investment  > 0 ? revenue      / investment  : 0,
+      cpc:            clicks      > 0 ? investment / clicks      : 0,
+      cpa:            conversions > 0 ? investment / conversions : 0,
+      roas:           investment  > 0 ? revenue    / investment  : 0,
       conversionRate: clicks      > 0 ? (conversions / clicks) * 100 : 0,
     };
   });

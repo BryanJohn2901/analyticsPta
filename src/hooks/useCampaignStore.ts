@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ProductCategory } from "@/types/campaign";
 
-const STORAGE_KEY = "pta_campaign_store_v1";
+const STORAGE_KEY = "pta_campaign_store_v2";
 
 export interface CampaignConfig {
   adAccountId: string;
@@ -15,17 +15,17 @@ export interface CampaignSummary {
   status: string;
 }
 
-/** Built-in section IDs + any custom section string. */
+/** Built-in section IDs plus any custom section string. */
 export type GroupSection = "pos" | "livros" | "ebooks" | "perpetuo" | "eventos" | (string & {});
 
 export type ColorKey = "blue" | "emerald" | "violet" | "amber" | "rose" | "pink" | "cyan" | "orange";
 
-/** User-created top-level category (e.g. "Perfis de Instagram"). */
+/** User-created top-level category, such as "Perfis de Instagram". */
 export interface CustomSection {
   id: string;
   label: string;
   description: string;
-  iconName: string;   // lucide icon name
+  iconName: string;
   colorKey: ColorKey;
 }
 
@@ -35,12 +35,14 @@ export interface CustomGroup {
   section: GroupSection;
 }
 
+const MAX_CUSTOM_SECTIONS = 3;
+
 interface StoreState {
   activeCampaigns: Record<string, boolean>;
   selectedGroup: string;
   selectedTurma: string;
   campaignConfigs: Record<string, CampaignConfig>;
-  selectedCategory: ProductCategory | null;
+  selectedCategory: ProductCategory | string | null;
   campaignsByGroup: Record<string, CampaignSummary[]>;
   selectedCampaign: string;
   selectedCampaignsByGroup: Record<string, string[]>;
@@ -68,7 +70,8 @@ const DEFAULT_STATE: StoreState = {
 function loadStore(): StoreState {
   if (typeof window === "undefined") return DEFAULT_STATE;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY)
+      ?? localStorage.getItem("pta_campaign_store_v1");
     if (!raw) return DEFAULT_STATE;
     return { ...DEFAULT_STATE, ...JSON.parse(raw) };
   } catch {
@@ -83,8 +86,6 @@ function persist(state: StoreState): void {
 }
 
 export function useCampaignStore() {
-  // Start with DEFAULT_STATE on both server and client to avoid hydration mismatch.
-  // localStorage is loaded in useEffect (runs only after hydration, client-only).
   const [state, setState] = useState<StoreState>(DEFAULT_STATE);
 
   useEffect(() => {
@@ -129,9 +130,8 @@ export function useCampaignStore() {
     });
   }, []);
 
-  const setSelectedCategory = useCallback((cat: ProductCategory | null) => {
+  const setSelectedCategory = useCallback((cat: ProductCategory | string | null) => {
     setState((prev) => {
-      // Reset group/turma/campaign when switching category so stale filters don't linger
       const next = {
         ...prev,
         selectedCategory: cat,
@@ -196,21 +196,9 @@ export function useCampaignStore() {
 
   const addCustomSection = useCallback((section: CustomSection) => {
     setState((prev) => {
+      if (prev.customSections.length >= MAX_CUSTOM_SECTIONS) return prev;
       if (prev.customSections.some((s) => s.id === section.id)) return prev;
       const next = { ...prev, customSections: [...prev.customSections, section] };
-      persist(next);
-      return next;
-    });
-  }, []);
-
-  const removeCustomSection = useCallback((id: string) => {
-    setState((prev) => {
-      const next = {
-        ...prev,
-        customSections: prev.customSections.filter((s) => s.id !== id),
-        // Also remove all groups belonging to this section
-        customGroups: prev.customGroups.filter((g) => g.section !== id),
-      };
       persist(next);
       return next;
     });
@@ -220,7 +208,26 @@ export function useCampaignStore() {
     setState((prev) => {
       const next = {
         ...prev,
-        customSections: prev.customSections.map((s) => s.id === id ? { ...s, ...data } : s),
+        customSections: prev.customSections.map((s) =>
+          s.id === id ? { ...s, ...data } : s,
+        ),
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const removeCustomSection = useCallback((id: string) => {
+    setState((prev) => {
+      const removedGroups = prev.customGroups.filter((g) => g.section === id).map((g) => g.id);
+      const newConfigs = { ...prev.campaignConfigs };
+      removedGroups.forEach((gId) => delete newConfigs[gId]);
+
+      const next = {
+        ...prev,
+        customSections: prev.customSections.filter((s) => s.id !== id),
+        customGroups: prev.customGroups.filter((g) => g.section !== id),
+        campaignConfigs: newConfigs,
       };
       persist(next);
       return next;
@@ -259,6 +266,7 @@ export function useCampaignStore() {
     enabledSections: state.enabledSections,
     customGroups: state.customGroups,
     customSections: state.customSections,
+    canAddCustomSection: state.customSections.length < MAX_CUSTOM_SECTIONS,
     setSelectedGroup,
     setSelectedTurma,
     toggleActive,
@@ -270,8 +278,8 @@ export function useCampaignStore() {
     addCustomGroup,
     removeCustomGroup,
     addCustomSection,
-    removeCustomSection,
     updateCustomSection,
+    removeCustomSection,
     selectedCampaignsByGroup: state.selectedCampaignsByGroup,
     setCampaignSelectionForGroup,
     clearCampaignSelectionForGroup,
