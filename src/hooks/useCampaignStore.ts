@@ -99,8 +99,17 @@ const PANEL_ENTRY_GROUP_PREFIX = "panel-entry-";
 const PANEL_SECTION_COLORS: ColorKey[] = ["blue", "emerald", "violet", "amber", "rose", "pink", "cyan", "orange"];
 const BUILTIN_SECTIONS = new Set<string>(ALL_SECTIONS);
 
+// Legacy prefix used by the old event handler (renamed to PANEL_ENTRY_GROUP_PREFIX).
+// Keep recognising it so stale localStorage groups get cleaned up.
+const LEGACY_PAINEL_PREFIX = "painel-";
+
 function isPanelManagedGroupId(id: string, previousPanelIds: Set<string>): boolean {
-  return previousPanelIds.has(id) || id.startsWith(PANEL_ENTRY_GROUP_PREFIX) || isCustomInternalFilterId(id);
+  return (
+    previousPanelIds.has(id) ||
+    id.startsWith(PANEL_ENTRY_GROUP_PREFIX) ||
+    id.startsWith(LEGACY_PAINEL_PREFIX) ||
+    isCustomInternalFilterId(id)
+  );
 }
 
 function resolvePanelEntryGroupId(entry: UserAccountEntry, category: UserCategory): string {
@@ -278,6 +287,12 @@ export function useCampaignStore() {
   }, []);
 
   const syncPanelConfig = useCallback((categories: UserCategory[], entries: UserAccountEntry[]) => {
+    // Guard: if no data has loaded yet (initial render before Supabase responds),
+    // skip the sync entirely. Running with empty arrays would clear previously-stored
+    // campaign configs and reset selectedGroup — all persisted to localStorage — before
+    // the real data arrives. The sync will run correctly once Supabase returns data.
+    if (categories.length === 0 && entries.length === 0) return;
+
     setState((prev) => {
       const previousPanelIds = new Set(prev.panelGroupIds);
       const categoryById = new Map(categories.map((cat) => [cat.id, cat]));

@@ -1534,8 +1534,10 @@ export function Dashboard({
       setMainTab("overview");
 
       if (isCustom) {
-        const gid = `painel-${entry.id}`;
-        addCustomGroup({ id: gid, label: entry.label.trim() || "Conta", section: categorySlug });
+        // Use the same prefix as syncPanelConfig so IDs stay consistent.
+        // syncPanelConfig will re-create the customGroup automatically when
+        // accountEntries updates — no need to addCustomGroup here.
+        const gid = `panel-entry-${entry.id}`;
         setSelectedCategory(categorySlug);
         setSelectedGroup(gid);
         setCampaignConfig(gid, { adAccountId: entry.adAccountId });
@@ -1558,7 +1560,6 @@ export function Dashboard({
     window.addEventListener(PTA_PAINEL_SAVE_NAV_EVENT, onApply);
     return () => window.removeEventListener(PTA_PAINEL_SAVE_NAV_EVENT, onApply);
   }, [
-    addCustomGroup,
     setSelectedCategory,
     setSelectedGroup,
     setCampaignConfig,
