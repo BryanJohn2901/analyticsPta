@@ -15,7 +15,19 @@ export interface CampaignSummary {
   status: string;
 }
 
-export type GroupSection = "pos" | "livros" | "ebooks" | "perpetuo" | "eventos";
+/** Built-in section IDs + any custom section string. */
+export type GroupSection = "pos" | "livros" | "ebooks" | "perpetuo" | "eventos" | (string & {});
+
+export type ColorKey = "blue" | "emerald" | "violet" | "amber" | "rose" | "pink" | "cyan" | "orange";
+
+/** User-created top-level category (e.g. "Perfis de Instagram"). */
+export interface CustomSection {
+  id: string;
+  label: string;
+  description: string;
+  iconName: string;   // lucide icon name
+  colorKey: ColorKey;
+}
 
 export interface CustomGroup {
   id: string;
@@ -34,6 +46,7 @@ interface StoreState {
   selectedCampaignsByGroup: Record<string, string[]>;
   enabledSections: ProductCategory[];
   customGroups: CustomGroup[];
+  customSections: CustomSection[];
 }
 
 const ALL_SECTIONS: ProductCategory[] = ["pos", "livros", "ebooks", "perpetuo", "eventos"];
@@ -49,6 +62,7 @@ const DEFAULT_STATE: StoreState = {
   selectedCampaignsByGroup: {},
   enabledSections: ALL_SECTIONS,
   customGroups: [],
+  customSections: [],
 };
 
 function loadStore(): StoreState {
@@ -180,6 +194,39 @@ export function useCampaignStore() {
     });
   }, []);
 
+  const addCustomSection = useCallback((section: CustomSection) => {
+    setState((prev) => {
+      if (prev.customSections.some((s) => s.id === section.id)) return prev;
+      const next = { ...prev, customSections: [...prev.customSections, section] };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const removeCustomSection = useCallback((id: string) => {
+    setState((prev) => {
+      const next = {
+        ...prev,
+        customSections: prev.customSections.filter((s) => s.id !== id),
+        // Also remove all groups belonging to this section
+        customGroups: prev.customGroups.filter((g) => g.section !== id),
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
+  const updateCustomSection = useCallback((id: string, data: Partial<Omit<CustomSection, "id">>) => {
+    setState((prev) => {
+      const next = {
+        ...prev,
+        customSections: prev.customSections.map((s) => s.id === id ? { ...s, ...data } : s),
+      };
+      persist(next);
+      return next;
+    });
+  }, []);
+
   const setCampaignSelectionForGroup = useCallback((groupId: string, ids: string[]) => {
     setState((prev) => {
       const next = {
@@ -211,6 +258,7 @@ export function useCampaignStore() {
     selectedCampaign: state.selectedCampaign,
     enabledSections: state.enabledSections,
     customGroups: state.customGroups,
+    customSections: state.customSections,
     setSelectedGroup,
     setSelectedTurma,
     toggleActive,
@@ -221,6 +269,9 @@ export function useCampaignStore() {
     setEnabledSections,
     addCustomGroup,
     removeCustomGroup,
+    addCustomSection,
+    removeCustomSection,
+    updateCustomSection,
     selectedCampaignsByGroup: state.selectedCampaignsByGroup,
     setCampaignSelectionForGroup,
     clearCampaignSelectionForGroup,

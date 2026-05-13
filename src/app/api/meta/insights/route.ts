@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     "ctr",          // returned as percentage string, e.g. "2.34" = 2.34%
     "date_start",
     "date_stop",
-    "actions",        // contains conversion counts (purchase, lead, etc.)
+    "actions",        // contains conversion counts (purchase, lead, onsite_conversion.follow, etc.)
     "action_values",  // contains conversion revenue values
   ].join(",");
 

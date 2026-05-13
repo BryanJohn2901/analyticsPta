@@ -12,13 +12,13 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { CampaignData, ProductCategory } from "@/types/campaign";
-import { CampaignConfig, CampaignSummary, CustomGroup, GroupSection, useCampaignStore } from "@/hooks/useCampaignStore";
+import { CampaignConfig, CampaignSummary, CustomGroup, CustomSection, ColorKey, GroupSection, useCampaignStore } from "@/hooks/useCampaignStore";
 import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
 import {
   fetchMetaAdAccounts, fetchMetaCampaigns, loadMetaCredentials, saveMetaCredentials,
 } from "@/utils/metaApi";
 import type { MetaAdAccount, MetaCampaign } from "@/utils/metaApi";
-import { CategoryGate, CATEGORY_LABEL, CATEGORY_ICON, CATEGORY_DOT } from "@/components/CategoryGate";
+import { CategoryGate, CATEGORY_LABEL, CATEGORY_ICON, CATEGORY_DOT, ICON_MAP, COLOR_HEX } from "@/components/CategoryGate";
 import {
   aggregateByCampaign, aggregateTotals, buildBudgetDistribution,
   buildCampaignComparison, buildDailyTrend, formatCurrency, formatNumber, formatPercent,
@@ -152,12 +152,48 @@ const SECTION_DEFAULTS: Record<GroupSection, Omit<GroupConfig, "id" | "label" | 
   eventos:  { icon: Ticket,        ...G_ROSE },
 };
 
-const SECTION_LABELS: Record<GroupSection, string> = {
+const SECTION_LABELS_BUILTIN: Record<string, string> = {
   pos:      "Pós Graduação",
   livros:   "Livros",
   ebooks:   "Ebooks",
   perpetuo: "Perpétuo",
   eventos:  "Eventos",
+};
+
+// Legacy alias kept for compatibility (wizard still uses it directly for built-ins)
+const SECTION_LABELS = SECTION_LABELS_BUILTIN;
+
+/** Resolves a section label — built-in OR custom. */
+function getSectionLabel(sectionId: string, customSections: CustomSection[]): string {
+  if (sectionId in SECTION_LABELS_BUILTIN) return SECTION_LABELS_BUILTIN[sectionId];
+  return customSections.find((s) => s.id === sectionId)?.label ?? sectionId;
+}
+
+/** Color config per ColorKey — mirrors the G_* constants for dynamic custom sections. */
+const COLOR_CONFIG_MAP: Record<ColorKey, Omit<GroupConfig, "id" | "label" | "section" | "icon">> = {
+  blue:    G_BLUE,
+  emerald: G_EMERALD,
+  violet:  G_VIOLET,
+  amber:   G_AMBER,
+  rose:    G_ROSE,
+  pink: {
+    iconBg: "bg-pink-50 dark:bg-pink-900/20",    iconColor: "text-pink-500 dark:text-pink-400",
+    activeDot: "bg-pink-500",                     activePulse: "bg-pink-400",
+    selectedBg: "bg-pink-50 dark:bg-pink-900/10", selectedText: "text-pink-600 dark:text-pink-400",
+    selectedBorder: "border-pink-200 dark:border-pink-800",
+  },
+  cyan: {
+    iconBg: "bg-cyan-50 dark:bg-cyan-900/20",    iconColor: "text-cyan-500 dark:text-cyan-400",
+    activeDot: "bg-cyan-500",                     activePulse: "bg-cyan-400",
+    selectedBg: "bg-cyan-50 dark:bg-cyan-900/10", selectedText: "text-cyan-600 dark:text-cyan-400",
+    selectedBorder: "border-cyan-200 dark:border-cyan-800",
+  },
+  orange: {
+    iconBg: "bg-orange-50 dark:bg-orange-900/20",    iconColor: "text-orange-500 dark:text-orange-400",
+    activeDot: "bg-orange-500",                       activePulse: "bg-orange-400",
+    selectedBg: "bg-orange-50 dark:bg-orange-900/10", selectedText: "text-orange-600 dark:text-orange-400",
+    selectedBorder: "border-orange-200 dark:border-orange-800",
+  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -420,6 +456,7 @@ interface ImportPopoverProps {
   onClearCampaignSelection?: (groupId: string) => void;
   customGroups: CustomGroup[];
   onAddCustomGroup: (group: CustomGroup) => void;
+  customSections: CustomSection[];
 }
 
 // ─── Account row (dynamic "add what you need" UX) ─────────────────────────────
@@ -429,7 +466,7 @@ function ImportPopover({
   onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
   onCampaignsVerified, savedCampaignsByGroup, savedSelectedCampaigns, onSaveCampaignSelection,
   onClearCampaignSelection,
-  customGroups, onAddCustomGroup, initialTab, inline,
+  customGroups, onAddCustomGroup, customSections, initialTab, inline,
 }: ImportPopoverProps & { initialTab?: ImportTab; inline?: boolean }) {
   const [tab, setTab]                     = useState<ImportTab>(initialTab ?? "sheets");
   const [url, setUrl]                     = useState("");
@@ -991,8 +1028,8 @@ function ImportPopover({
                               onChange={(e) => handleChangeRowGroup(row.rowId, e.target.value)}
                               className="h-8 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-2 text-xs text-slate-800 outline-none focus:border-blue-400 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
                             >
-                              {(["pos","livros","ebooks","perpetuo","eventos"] as GroupSection[]).map((sec) => (
-                                <optgroup key={sec} label={SECTION_LABELS[sec]}>
+                              {([...["pos","livros","ebooks","perpetuo","eventos"], ...customSections.map(s => s.id)] as GroupSection[]).map((sec) => (
+                                <optgroup key={sec} label={getSectionLabel(sec, customSections)}>
                                   {allGroupsInPopover.filter((grp) => grp.section === sec).map((grp) => {
                                     const usedByOther = accountRows.some((r) => r.rowId !== row.rowId && r.groupId === grp.id);
                                     return (
@@ -1146,6 +1183,16 @@ function ImportPopover({
                         {SECTION_LABELS[sec]}
                       </button>
                     ))}
+                    {customSections.map((sec) => {
+                      const hex = COLOR_HEX[sec.colorKey] ?? "#3b82f6";
+                      return (
+                        <button key={sec.id} type="button" onClick={() => { setWizardSection(sec.id); setWizardStep("group"); }}
+                          className="rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition"
+                          style={{ borderColor: hex + "60", backgroundColor: hex + "10", color: hex }}>
+                          {sec.label}
+                        </button>
+                      );
+                    })}
                   </div>
                   <button type="button" onClick={cancelWizard}
                     className="mt-2 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300">
@@ -1159,7 +1206,7 @@ function ImportPopover({
                 <div className="mt-2 overflow-hidden rounded-xl border border-blue-200 bg-blue-50/60 p-3 dark:border-blue-800 dark:bg-blue-900/10">
                   <button type="button" onClick={() => setWizardStep("section")}
                     className="mb-2 flex items-center gap-1 text-[10px] text-blue-500 hover:text-blue-700 dark:text-blue-400">
-                    ← {SECTION_LABELS[wizardSection]}
+                    ← {getSectionLabel(wizardSection, customSections)}
                   </button>
                   <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">
                     Selecione ou crie:
@@ -1196,7 +1243,7 @@ function ImportPopover({
                 <div className="mt-2 overflow-hidden rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-800 dark:bg-emerald-900/10">
                   <button type="button" onClick={() => setWizardStep("group")}
                     className="mb-2 flex items-center gap-1 text-[10px] text-emerald-600 hover:text-emerald-800 dark:text-emerald-400">
-                    ← {SECTION_LABELS[wizardSection]}
+                    ← {getSectionLabel(wizardSection, customSections)}
                   </button>
                   <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                     Nome do novo produto:
@@ -1207,7 +1254,7 @@ function ImportPopover({
                       value={wizardNewName}
                       onChange={(e) => setWizardNewName(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleWizardCreateNew()}
-                      placeholder={`Ex: Pós em ${SECTION_LABELS[wizardSection]}…`}
+                      placeholder={`Ex: Pós em ${getSectionLabel(wizardSection, customSections)}…`}
                       autoFocus
                       className="h-8 flex-1 rounded-lg border border-emerald-200 bg-white px-2 text-xs text-slate-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:border-emerald-700 dark:bg-slate-700 dark:text-slate-200"
                     />
@@ -1312,6 +1359,7 @@ interface CampaignPanelProps {
   searchCampaign: string;
   showCourseGroups: boolean;
   groups: GroupConfig[];
+  customSections: CustomSection[];
   selectedCampaign: string;
   campaignsByGroup: Record<string, CampaignSummary[]>;
   checkedCampaignIds: string[];
@@ -1334,7 +1382,7 @@ interface CampaignPanelProps {
 function CampaignPanel({
   selectedGroup, selectedTurma, activeCampaigns, turmasByGroup,
   dateFrom, dateTo, searchCampaign, showCourseGroups,
-  groups, selectedCampaign, campaignsByGroup, checkedCampaignIds, sortBy,
+  groups, customSections, selectedCampaign, campaignsByGroup, checkedCampaignIds, sortBy,
   onSelectGroup, onSelectTurma, onSelectCampaign, onToggleActive,
   onDateFrom, onDateTo, onSearch, onClearFilters, onSortBy, onCheckedCampaignIds,
   onClearCampaignFilter, isFilterExplicit, hasActiveFilters,
@@ -1418,7 +1466,7 @@ function CampaignPanel({
                 <div className={`${idx > 0 ? "mt-2 border-t" : ""} px-4 pb-1 pt-2.5`} style={{ borderColor: "var(--dm-border-subtle)" }}>
                   <p className="text-[10px] font-extrabold uppercase tracking-widest"
                     style={{ color: "var(--dm-text-tertiary)" }}>
-                    {SECTION_LABELS[group.section]}
+                    {getSectionLabel(group.section, customSections)}
                   </p>
                 </div>
               )}
@@ -1804,6 +1852,7 @@ export function Dashboard({
     selectedGroup, selectedTurma, activeCampaigns, campaignConfigs,
     selectedCategory, campaignsByGroup, selectedCampaign, selectedCampaignsByGroup, enabledSections,
     customGroups, addCustomGroup,
+    customSections, addCustomSection, removeCustomSection,
     setSelectedGroup, setSelectedTurma, toggleActive, setCampaignConfig,
     setSelectedCategory, setCampaignsForGroup, setSelectedCampaign, setEnabledSections,
     setCampaignSelectionForGroup, clearCampaignSelectionForGroup,
@@ -1866,13 +1915,30 @@ export function Dashboard({
   // Merge static groups with custom-created ones
   const allGroups = useMemo<GroupConfig[]>(() => [
     ...CAMPAIGN_GROUPS,
-    ...customGroups.map((cg): GroupConfig => ({
-      ...SECTION_DEFAULTS[cg.section as GroupSection],
-      id: cg.id,
-      label: cg.label,
-      section: cg.section as GroupSection,
-    })),
-  ], [customGroups]);
+    ...customGroups.map((cg): GroupConfig => {
+      // For built-in sections use SECTION_DEFAULTS; for custom sections, look up the CustomSection style
+      const isBuiltin = cg.section in SECTION_DEFAULTS;
+      if (isBuiltin) {
+        return {
+          ...SECTION_DEFAULTS[cg.section as keyof typeof SECTION_DEFAULTS],
+          id: cg.id,
+          label: cg.label,
+          section: cg.section as GroupSection,
+        };
+      }
+      const customSec = customSections.find((s) => s.id === cg.section);
+      const colorKey: ColorKey = customSec?.colorKey ?? "blue";
+      const colorCfg = COLOR_CONFIG_MAP[colorKey];
+      const ResolvedIcon = ICON_MAP[customSec?.iconName ?? "Package"] ?? Package;
+      return {
+        ...colorCfg,
+        icon: ResolvedIcon,
+        id: cg.id,
+        label: cg.label,
+        section: cg.section as GroupSection,
+      };
+    }),
+  ], [customGroups, customSections]);
 
   // ── Account → section map for Meta data ──────────────────────────────────────
   const accountSectionMap = useMemo<Record<string, ProductCategory>>(() => {
@@ -2094,6 +2160,7 @@ export function Dashboard({
     dateFrom, dateTo, searchCampaign,
     showCourseGroups,
     groups: sidebarGroups,
+    customSections,
     selectedCampaign,
     campaignsByGroup,
     checkedCampaignIds,
@@ -2393,6 +2460,7 @@ export function Dashboard({
                   onClearCampaignSelection={clearCampaignSelectionForGroup}
                   customGroups={customGroups}
                   onAddCustomGroup={addCustomGroup}
+                  customSections={customSections}
                   initialTab={importInitialTab}
                 />
               )}
@@ -2412,7 +2480,12 @@ export function Dashboard({
 
           {/* ── Category gate (analysis & creatives only — overview handles its own flow) ── */}
           {(mainTab === "analysis" || mainTab === "creatives") && !selectedCategory && (
-            <CategoryGate onSelect={setSelectedCategory} />
+            <CategoryGate
+              onSelect={setSelectedCategory}
+              customSections={customSections}
+              onAddSection={addCustomSection}
+              onRemoveSection={removeCustomSection}
+            />
           )}
 
           {/* ── Overview: welcome first → then category gate → then dashboard ── */}
@@ -2437,6 +2510,7 @@ export function Dashboard({
                     onClearCampaignSelection={clearCampaignSelectionForGroup}
                     customGroups={customGroups}
                     onAddCustomGroup={addCustomGroup}
+                    customSections={customSections}
                   />
                 </div>
               ) : (
@@ -2498,7 +2572,12 @@ export function Dashboard({
               )
             ) : !selectedCategory ? (
               /* ── Step 2: choose category ─────────────────────────────────────── */
-              <CategoryGate onSelect={setSelectedCategory} />
+              <CategoryGate
+                onSelect={setSelectedCategory}
+                customSections={customSections}
+                onAddSection={addCustomSection}
+                onRemoveSection={removeCustomSection}
+              />
             ) : (
               /* ── Step 3: full dashboard ──────────────────────────────────────── */
               <div className="space-y-5">

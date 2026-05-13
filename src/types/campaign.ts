@@ -1,6 +1,9 @@
 // ─── Product category ─────────────────────────────────────────────────────────
 
-export type ProductCategory = "pos" | "livros" | "ebooks" | "perpetuo" | "eventos";
+/** Built-in categories (fixed). Custom categories are arbitrary strings. */
+export type BuiltinCategory = "pos" | "livros" | "ebooks" | "perpetuo" | "eventos";
+/** Accepts built-in literal types + any custom string (open enum pattern). */
+export type ProductCategory = BuiltinCategory | (string & {});
 
 export interface CampaignRawRow {
   Data: string;
