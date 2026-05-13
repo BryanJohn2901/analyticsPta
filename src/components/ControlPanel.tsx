@@ -1041,7 +1041,7 @@ function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntries
 
 // ─── Tab: Integrações ─────────────────────────────────────────────────────────
 
-function TabIntegrations() {
+function TabIntegrations({ onSyncNow }: { onSyncNow?: () => void }) {
   const [token,    setToken]    = useState(() => loadMetaCredentials().accessToken ?? "");
   const [visible,  setVisible]  = useState(false);
   const [testing,  setTesting]  = useState(false);
@@ -1053,6 +1053,8 @@ function TabIntegrations() {
     saveMetaCredentials({ accessToken: token.trim() });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    // Trigger sync immediately and switch to Sincronização tab so the user can see progress
+    onSyncNow?.();
   };
 
   const handleTest = async () => {
@@ -1143,6 +1145,8 @@ function TabIntegrations() {
 
 // ─── Tab: Sincronização ───────────────────────────────────────────────────────
 
+const META_SYNC_LOOKBACK_DAYS = 30;
+
 interface TabSyncProps {
   syncStatus?:    { syncing: boolean; result?: MetaSyncResult; error?: string };
   campaignCount?: number;
@@ -1153,6 +1157,7 @@ interface TabSyncProps {
 
 function TabSync({ syncStatus, campaignCount, dataSource, onRefresh, onClearData }: TabSyncProps) {
   const [clearing, setClearing] = useState(false);
+  const hasToken = Boolean(loadMetaCredentials().accessToken);
 
   const handleClear = async () => {
     if (!onClearData) return;
@@ -1183,6 +1188,13 @@ function TabSync({ syncStatus, campaignCount, dataSource, onRefresh, onClearData
         </div>
 
         <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Período</p>
+          <span className="text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
+            Últimos {META_SYNC_LOOKBACK_DAYS} dias
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
           <p className="text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Registros</p>
           <div className="flex items-center gap-1.5">
             <Database size={11} style={{ color: "var(--dm-text-tertiary)" }} />
@@ -1196,7 +1208,7 @@ function TabSync({ syncStatus, campaignCount, dataSource, onRefresh, onClearData
           <div className="flex items-center justify-between">
             <p className="text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Última sync</p>
             <span className="text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
-              {lastSync.synced} registros · {lastSync.dateFrom} → {lastSync.dateTo}
+              {lastSync.synced} reg. · {lastSync.dateFrom} → {lastSync.dateTo}
             </span>
           </div>
         )}
@@ -1213,8 +1225,8 @@ function TabSync({ syncStatus, campaignCount, dataSource, onRefresh, onClearData
         )}
       </div>
 
-      {/* Atualizar button */}
-      {isMetaSource && onRefresh && (
+      {/* Atualizar button — visible as soon as a token exists, not only after first sync */}
+      {(isMetaSource || hasToken) && onRefresh && (
         <button
           type="button"
           onClick={() => void onRefresh()}
@@ -1223,7 +1235,7 @@ function TabSync({ syncStatus, campaignCount, dataSource, onRefresh, onClearData
           style={{ backgroundColor: "var(--dm-brand-500)" }}
         >
           <RotateCcw size={14} className={syncStatus?.syncing ? "animate-spin" : ""} />
-          Atualizar dados agora
+          {syncStatus?.syncing ? "Sincronizando…" : "Sincronizar agora"}
         </button>
       )}
 
@@ -1444,7 +1456,14 @@ export function ControlPanel({
               onPainelSaveNavigate={onPainelSaveNavigate}
             />
           )}
-          {tab === "integrations" && <TabIntegrations />}
+          {tab === "integrations" && (
+            <TabIntegrations
+              onSyncNow={() => {
+                setTab("sync");
+                void onRefresh?.();
+              }}
+            />
+          )}
           {tab === "sync" && (
             <TabSync
               syncStatus={syncStatus}
