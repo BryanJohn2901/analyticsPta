@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "@/hooks/useToast";
 import { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { Dashboard } from "@/components/Dashboard";
+import { ControlPanel } from "@/components/ControlPanel";
+import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import { AuthScreen } from "@/components/AuthScreen";
 import { CampaignData } from "@/types/campaign";
 import { fetchCampaignSheetData, parseCampaignCsvFile } from "@/utils/googleSheets";
@@ -24,6 +26,11 @@ import {
   metaInsightsToCampaignData,
 } from "@/utils/metaApi";
 import type { AdvertiserProfile } from "@/hooks/useAdvertiserStore";
+import type { UserCategory, UserAccountEntry } from "@/types/userConfig";
+import {
+  fetchUserCategories,
+  fetchUserAccountEntries,
+} from "@/utils/supabaseCategories";
 
 declare global {
   interface Window { supabase?: typeof supabaseClient; }
@@ -44,6 +51,18 @@ export default function Home() {
   const [syncStatus, setSyncStatus]     = useState<{ syncing: boolean; result?: MetaSyncResult; error?: string }>({ syncing: false });
   const campaignChannelRef = useRef<RealtimeChannel | null>(null);
   const sourceChannelRef = useRef<RealtimeChannel | null>(null);
+
+  // ── User configuration (Painel de Controle) ──────────────────────────────
+  const [showControlPanel,   setShowControlPanel]   = useState(false);
+  const [showOnboarding,     setShowOnboarding]     = useState(false);
+  const [userCategories,     setUserCategories]     = useState<UserCategory[]>([]);
+  const [userAccountEntries, setUserAccountEntries] = useState<UserAccountEntry[]>([]);
+
+  const handleOnboardingComplete = () => {
+    try { localStorage.setItem("pta_onboarding_v1", "1"); } catch {}
+    setShowOnboarding(false);
+    setShowControlPanel(true);
+  };
 
   const closeRealtimeChannels = () => {
     if (campaignChannelRef.current && supabaseClient) {
@@ -72,54 +91,59 @@ export default function Home() {
 
   /**
    * Syncs the last 7 days of Meta Ads data into Supabase using upsert.
-   * Safe to call on every load — only updates rows that changed.
+   * Prefers Supabase account entries (Painel de Controle) over localStorage profiles.
    */
   const handleMetaAutoSync = async (): Promise<void> => {
     const { accessToken } = loadMetaCredentials();
     if (!accessToken) return;
 
-    const profiles = loadStoredProfiles();
-    const accounts = profiles
-      .filter((p) => p.adAccountId)
-      .reduce<Record<string, string>>((acc, p) => {
-        const key = p.groupId || p.id;
-        if (!acc[key]) acc[key] = p.adAccountId;
-        return acc;
-      }, {});
+    // Build account list: prefer new Supabase entries, fall back to old localStorage profiles
+    type AccountItem = { adAccountId: string; campaignIds: string[] | undefined };
+    let accountItems: AccountItem[] = [];
 
-    if (Object.keys(accounts).length === 0) return;
+    if (userAccountEntries.length > 0) {
+      const seen = new Set<string>();
+      for (const entry of userAccountEntries) {
+        if (!entry.isEnabled || !entry.adAccountId) continue;
+        const ids = entry.selectedCampaignIds.length > 0 ? entry.selectedCampaignIds : undefined;
+        const key = `${entry.adAccountId}::${(ids ?? []).slice().sort().join(",")}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        accountItems.push({ adAccountId: entry.adAccountId, campaignIds: ids });
+      }
+    } else {
+      // Legacy fallback: read from localStorage profiles
+      const profiles = loadStoredProfiles();
+      const seenKeys = new Set<string>();
+      for (const profile of profiles) {
+        if (!profile.adAccountId) continue;
+        const ids = profile.campaigns?.map((c: { id: string }) => c.id);
+        const key = `${profile.adAccountId}::${(ids ?? []).slice().sort().join(",")}`;
+        if (seenKeys.has(key)) continue;
+        seenKeys.add(key);
+        accountItems.push({ adAccountId: profile.adAccountId, campaignIds: ids?.length ? ids : undefined });
+      }
+    }
 
-    // Use local date (not UTC) so Brazilian users (UTC-3) get the correct "today".
-    // toISOString() returns UTC which can be "tomorrow" after 21:00 BRT.
-    const localDateStr = () => {
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      return `${y}-${m}-${day}`;
-    };
-    const dateTo   = localDateStr();
-    const dateFromD = new Date();
-    dateFromD.setDate(dateFromD.getDate() - 7);
-    const dateFrom = `${dateFromD.getFullYear()}-${String(dateFromD.getMonth() + 1).padStart(2, "0")}-${String(dateFromD.getDate()).padStart(2, "0")}`;
+    if (accountItems.length === 0) return;
+
+    const dateTo   = new Date();
+    const dateFrom = new Date(dateTo);
+    dateFrom.setDate(dateFrom.getDate() - 7);
+    // Use local date — toISOString() returns UTC, which past 21h (UTC-3) gives "tomorrow".
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
     setSyncStatus({ syncing: true });
 
     try {
       const allData: CampaignData[] = [];
-      const seen = new Set<string>();
 
-      for (const [groupId, adAccountId] of Object.entries(accounts)) {
-        const profile = profiles.find((p) => (p.groupId || p.id) === groupId);
-        const campaignIds = profile?.campaigns.map((c) => c.id);
-        const key = `${adAccountId}::${(campaignIds ?? []).slice().sort().join(",")}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-
+      for (const { adAccountId, campaignIds } of accountItems) {
         const insights = await fetchMetaInsights(
           adAccountId,
-          dateFrom,
-          dateTo,
+          fmt(dateFrom),
+          fmt(dateTo),
           campaignIds && campaignIds.length > 0 ? campaignIds : undefined,
         );
         allData.push(...metaInsightsToCampaignData(insights, adAccountId));
@@ -387,13 +411,27 @@ export default function Home() {
       return;
     }
 
-    let periodicSyncInterval: ReturnType<typeof setInterval> | null = null;
+    let syncIntervalId: ReturnType<typeof setInterval> | null = null;
 
     void (async () => {
       try {
         await loadSupabaseData();
         const source = await fetchSharedDataSource();
         setDataSource(source);
+
+        // Load user categories and account entries (Painel de Controle)
+        const [cats, entries] = await Promise.all([
+          fetchUserCategories(),
+          fetchUserAccountEntries(),
+        ]);
+        setUserCategories(cats);
+        setUserAccountEntries(entries);
+
+        // Show onboarding tutorial on first login
+        try {
+          if (!localStorage.getItem("pta_onboarding_v1")) setShowOnboarding(true);
+        } catch {}
+
 
         disconnectRealtime();
         campaignChannelRef.current = subscribeSupabaseCampaigns(loadSupabaseData);
@@ -403,20 +441,22 @@ export default function Home() {
         // Auto-sync Meta Ads data on every login if source is Meta
         if (source?.type === "meta") {
           void handleMetaAutoSync();
-
-          // Keep data fresh: re-sync every 60 minutes while the tab is open.
-          // This ensures today's spend/clicks update without requiring a manual import.
-          periodicSyncInterval = setInterval(() => {
-            void handleMetaAutoSync();
-          }, 60 * 60 * 1000);
         }
+
+        // Keep syncing every 60 minutes while the tab is open
+        syncIntervalId = setInterval(() => {
+          void (async () => {
+            const currentSource = await fetchSharedDataSource();
+            if (currentSource?.type === "meta") void handleMetaAutoSync();
+          })();
+        }, 60 * 60 * 1000);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
       }
     })();
 
     return () => {
-      if (periodicSyncInterval !== null) clearInterval(periodicSyncInterval);
+      if (syncIntervalId !== null) clearInterval(syncIntervalId);
     };
   }, [session?.user.id]);
 
@@ -433,21 +473,44 @@ export default function Home() {
     );
   }
 
+  const currentUser = {
+    email: devBypass ? "dev@preview.local" : (session?.user.email ?? ""),
+    name:  devBypass ? "Dev Preview" : String(session?.user.user_metadata?.full_name ?? "").trim(),
+  };
+
   return (
-    <Dashboard
-      campaigns={campaigns}
-      dataSource={dataSource}
-      syncStatus={syncStatus}
-      currentUser={{
-        email: devBypass ? "dev@preview.local" : (session?.user.email ?? ""),
-        name: devBypass ? "Dev Preview" : String(session?.user.user_metadata?.full_name ?? "").trim(),
-      }}
-      onImportCsv={handleCsvUpload}
-      onImportUrl={handleGenerateDashboard}
-      onImportMeta={handleMetaImport}
-      onClearData={handleClearData}
-      onSignOut={handleSignOut}
-      onUpdateProfile={handleUpdateProfile}
-    />
+    <>
+      {showOnboarding && (
+        <OnboardingTutorial onComplete={handleOnboardingComplete} />
+      )}
+
+      <Dashboard
+        campaigns={campaigns}
+        dataSource={dataSource}
+        syncStatus={syncStatus}
+        currentUser={currentUser}
+        onImportCsv={handleCsvUpload}
+        onImportUrl={handleGenerateDashboard}
+        onImportMeta={handleMetaImport}
+        onRefresh={handleMetaAutoSync}
+        onClearData={handleClearData}
+        onSignOut={handleSignOut}
+        onUpdateProfile={handleUpdateProfile}
+        onOpenControlPanel={() => setShowControlPanel(true)}
+      />
+
+      <ControlPanel
+        isOpen={showControlPanel}
+        onClose={() => setShowControlPanel(false)}
+        userName={currentUser.name}
+        userEmail={currentUser.email}
+        categories={userCategories}
+        accountEntries={userAccountEntries}
+        onCategoriesChange={setUserCategories}
+        onEntriesChange={setUserAccountEntries}
+        onUpdateProfile={handleUpdateProfile}
+        onSignOut={handleSignOut}
+      />
+    </>
   );
 }
