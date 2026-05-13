@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  X, Plus, Trash2, Pencil, Check, Instagram, Youtube, ShoppingBag,
+  X, Plus, Trash2, Pencil, Check, Aperture, Play, ShoppingBag,
   Megaphone, Users, Globe, Star, Zap, Rocket, Heart, TrendingUp,
   Monitor, Smartphone, Camera, Music, Gamepad2, BookOpen, DollarSign,
   BarChart3, Target, Settings2, Link2, FileUp, ChevronRight,
@@ -12,8 +12,8 @@ import type { CustomSection } from "@/hooks/useCampaignStore";
 // ─── Icon library (closed set) ────────────────────────────────────────────────
 
 const ICON_OPTIONS: Array<{ name: string; icon: React.ElementType; label: string }> = [
-  { name: "Instagram",    icon: Instagram,   label: "Instagram" },
-  { name: "Youtube",      icon: Youtube,     label: "YouTube" },
+  { name: "Aperture",     icon: Aperture,    label: "Instagram" },
+  { name: "Play",         icon: Play,        label: "YouTube" },
   { name: "ShoppingBag",  icon: ShoppingBag, label: "E-commerce" },
   { name: "Megaphone",    icon: Megaphone,   label: "Anúncio" },
   { name: "Users",        icon: Users,       label: "Audiência" },
