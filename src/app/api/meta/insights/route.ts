@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const META_API_VERSION = "v19.0";
+const META_API_VERSION = "v21.0";
 
 export async function GET(request: NextRequest) {
   const sp          = request.nextUrl.searchParams;
@@ -23,10 +23,12 @@ export async function GET(request: NextRequest) {
     "campaign_id",
     "impressions",
     "reach",
-    "clicks",
-    "spend",        // investment (in account currency)
+    "clicks",               // all clicks (fallback)
+    "inline_link_clicks",   // link clicks only — matches Meta Ads Manager default "Cliques"
+    "spend",                // investment (in account currency)
     "cpm",
-    "ctr",          // returned as percentage string, e.g. "2.34" = 2.34%
+    "ctr",                  // all-click CTR (kept for reference; link CTR is recalculated)
+    "inline_link_click_ctr", // link CTR — matches Meta Ads Manager default "CTR"
     "date_start",
     "date_stop",
     "actions",        // contains conversion counts (purchase, lead, onsite_conversion.follow, etc.)

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const META_API_VERSION = "v19.0";
+const META_API_VERSION = "v21.0";
 
 interface MetaAdRaw {
   id: string;

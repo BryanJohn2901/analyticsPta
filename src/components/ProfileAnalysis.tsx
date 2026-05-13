@@ -12,7 +12,7 @@ import {
   fetchMetaCampaigns, fetchMetaInsights, fetchMetaAdAccounts,
   loadMetaCredentials, MetaInsight, MetaAdAccount,
 } from "@/utils/metaApi";
-import { formatBRL, formatCompact, formatInt, formatPercent, safeNumber } from "@/lib/format";
+import { formatBRL, formatCompact, formatInt, formatPercent } from "@/lib/format";
 import { getTemplate, TEMPLATE_LIST, DEFAULT_PERSONALIZADO_CONFIG } from "@/lib/templates";
 import { TabLanding } from "@/components/TabLanding";
 import type { TemplateId, Template, PersonalizadoConfig } from "@/lib/templates/types";
@@ -63,6 +63,12 @@ function daysAgoStr(n: number) {
   return d.toISOString().split("T")[0];
 }
 
+function parseMetaNum(v: unknown): number {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function getActionValue(actions: MetaInsight["actions"], type: string): number {
   return Number(actions?.find((a) => a.action_type === type)?.value ?? 0);
 }
@@ -85,10 +91,13 @@ function toAdsetRows(data: MetaInsight[]): AdsetRow[] {
       impressions: 0, reach: 0, clicks: 0, spend: 0, revenue: 0,
       cpm: 0, ctr: 0, purchases: 0, leads: 0, cpa: 0,
     };
-    cur.impressions += safeNumber(d.impressions);
-    cur.reach       += safeNumber(d.reach);
-    cur.clicks      += safeNumber(d.clicks);
-    cur.spend       += safeNumber(d.spend);
+    cur.impressions += parseMetaNum(d.impressions);
+    cur.reach       += parseMetaNum(d.reach);
+    // Prefer inline_link_clicks (matches Meta Ads Manager "Cliques" column)
+    cur.clicks      += d.inline_link_clicks != null
+      ? parseMetaNum(d.inline_link_clicks)
+      : parseMetaNum(d.clicks);
+    cur.spend       += parseMetaNum(d.spend);
     cur.purchases   += getActionValue(d.actions, "purchase");
     cur.leads       += getActionValue(d.actions, "lead")
                      + getActionValue(d.actions, "onsite_conversion.lead_grouped");

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { toast } from "@/hooks/useToast";
 import { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { Dashboard } from "@/components/Dashboard";
 import { AuthScreen } from "@/components/AuthScreen";
@@ -10,12 +11,19 @@ import { isSupabaseConfigured, supabaseClient } from "@/lib/supabase";
 import {
   fetchSharedDataSource,
   fetchSupabaseCampaigns,
+  MetaSyncResult,
   replaceSupabaseCampaigns,
   saveSharedDataSource,
   subscribeSharedDataSource,
   subscribeSupabaseCampaigns,
+  upsertMetaCampaigns,
 } from "@/utils/supabaseCampaigns";
-import { fetchMetaInsights, metaInsightsToCampaignData } from "@/utils/metaApi";
+import {
+  fetchMetaInsights,
+  loadMetaCredentials,
+  metaInsightsToCampaignData,
+} from "@/utils/metaApi";
+import type { AdvertiserProfile } from "@/hooks/useAdvertiserStore";
 
 declare global {
   interface Window { supabase?: typeof supabaseClient; }
@@ -29,11 +37,11 @@ export interface DataSource {
 
 export default function Home() {
   const [campaigns, setCampaigns]       = useState<CampaignData[]>([]);
-  const [error, setError]               = useState<string | null>(null);
   const [authError, setAuthError]       = useState<string | null>(null);
   const [session, setSession]           = useState<Session | null>(null);
   const [realtimeActive, setRealtimeActive] = useState(false);
   const [dataSource, setDataSource]     = useState<DataSource | null>(null);
+  const [syncStatus, setSyncStatus]     = useState<{ syncing: boolean; result?: MetaSyncResult; error?: string }>({ syncing: false });
   const campaignChannelRef = useRef<RealtimeChannel | null>(null);
   const sourceChannelRef = useRef<RealtimeChannel | null>(null);
 
@@ -53,12 +61,91 @@ export default function Home() {
     setRealtimeActive(false);
   };
 
+  /** Reads advertiser profiles from localStorage without needing the hook. */
+  function loadStoredProfiles(): AdvertiserProfile[] {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = localStorage.getItem("pta_advertiser_profiles_v2");
+      return raw ? (JSON.parse(raw) as AdvertiserProfile[]) : [];
+    } catch { return []; }
+  }
+
+  /**
+   * Syncs the last 7 days of Meta Ads data into Supabase using upsert.
+   * Safe to call on every load — only updates rows that changed.
+   */
+  const handleMetaAutoSync = async (): Promise<void> => {
+    const { accessToken } = loadMetaCredentials();
+    if (!accessToken) return;
+
+    const profiles = loadStoredProfiles();
+    const accounts = profiles
+      .filter((p) => p.adAccountId)
+      .reduce<Record<string, string>>((acc, p) => {
+        const key = p.groupId || p.id;
+        if (!acc[key]) acc[key] = p.adAccountId;
+        return acc;
+      }, {});
+
+    if (Object.keys(accounts).length === 0) return;
+
+    const dateTo   = new Date();
+    const dateFrom = new Date(dateTo);
+    dateFrom.setDate(dateFrom.getDate() - 7);
+    // Use local date — toISOString() returns UTC, which past 21h (UTC-3) gives "tomorrow".
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+    setSyncStatus({ syncing: true });
+
+    try {
+      const allData: CampaignData[] = [];
+      const seen = new Set<string>();
+
+      for (const [groupId, adAccountId] of Object.entries(accounts)) {
+        const profile = profiles.find((p) => (p.groupId || p.id) === groupId);
+        const campaignIds = profile?.campaigns.map((c) => c.id);
+        const key = `${adAccountId}::${(campaignIds ?? []).slice().sort().join(",")}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const insights = await fetchMetaInsights(
+          adAccountId,
+          fmt(dateFrom),
+          fmt(dateTo),
+          campaignIds && campaignIds.length > 0 ? campaignIds : undefined,
+        );
+        allData.push(...metaInsightsToCampaignData(insights, adAccountId));
+      }
+
+      // Deduplicate by id
+      const deduped = allData.filter(((seen2) => (item) => {
+        if (seen2.has(item.id)) return false;
+        seen2.add(item.id);
+        return true;
+      })(new Set<string>()));
+
+      if (deduped.length === 0) {
+        setSyncStatus({ syncing: false });
+        return;
+      }
+
+      const result = await upsertMetaCampaigns(deduped);
+      await loadSupabaseData();
+      setSyncStatus({ syncing: false, result });
+    } catch (e) {
+      setSyncStatus({
+        syncing: false,
+        error: e instanceof Error ? e.message : "Erro no sync com Meta Ads.",
+      });
+    }
+  };
+
   const handleSignOut = async (): Promise<void> => {
-    setError(null);
     if (!supabaseClient) return;
     const { error: signOutError } = await supabaseClient.auth.signOut();
     if (signOutError) {
-      setError(`Erro ao sair: ${signOutError.message}`);
+      toast.error(`Erro ao sair: ${signOutError.message}`);
       return;
     }
     disconnectRealtime();
@@ -68,7 +155,6 @@ export default function Home() {
   };
 
   const handleClearData = async (): Promise<void> => {
-    setError(null);
     if (!supabaseClient) return;
 
     const { error: metricsError } = await supabaseClient
@@ -77,7 +163,7 @@ export default function Home() {
       .neq("id", "00000000-0000-0000-0000-000000000000");
 
     if (metricsError) {
-      setError(`Erro ao limpar campanhas: ${metricsError.message}`);
+      toast.error(`Erro ao limpar campanhas: ${metricsError.message}`);
       return;
     }
 
@@ -87,7 +173,7 @@ export default function Home() {
       .eq("id", true);
 
     if (sourceError) {
-      setError(`Erro ao limpar fonte de dados: ${sourceError.message}`);
+      toast.error(`Erro ao limpar fonte de dados: ${sourceError.message}`);
       return;
     }
 
@@ -96,9 +182,8 @@ export default function Home() {
   };
 
   const handleGenerateDashboard = async (sheetUrl: string): Promise<void> => {
-    setError(null);
     if (!sheetUrl.includes("docs.google.com/spreadsheets")) {
-      setError("Informe uma URL válida de Google Sheets.");
+      toast.error("Informe uma URL válida de Google Sheets.");
       return;
     }
     try {
@@ -109,14 +194,13 @@ export default function Home() {
       await loadSharedDataSource();
       if (!realtimeActive) await handleConnectRealtime();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível carregar os dados da planilha.");
+      toast.error(e instanceof Error ? e.message : "Não foi possível carregar os dados da planilha.");
     }
   };
 
   const handleCsvUpload = async (file: File): Promise<void> => {
-    setError(null);
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Envie um arquivo no formato CSV.");
+      toast.error("Envie um arquivo no formato CSV.");
       return;
     }
     try {
@@ -127,7 +211,7 @@ export default function Home() {
       await loadSharedDataSource();
       if (!realtimeActive) await handleConnectRealtime();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Não foi possível processar o CSV.");
+      toast.error(e instanceof Error ? e.message : "Não foi possível processar o CSV.");
     }
   };
 
@@ -145,17 +229,24 @@ export default function Home() {
     dateTo: string,
     campaignFilter?: Record<string, string[]>,
   ): Promise<void> => {
-    setError(null);
-
     const configured = Object.entries(accounts).filter(([, id]) => id.trim() !== "");
     if (configured.length === 0) {
       throw new Error("Configure pelo menos uma conta de anúncio antes de importar.");
     }
 
     const allData: CampaignData[] = [];
+    // Track which (adAccountId, campaignIds) pairs we've already fetched to avoid
+    // doubling metrics when two groups share the same ad account with no campaign filter.
+    const fetchedKeys = new Set<string>();
 
     for (const [groupId, adAccountId] of configured) {
       const campaignIds = campaignFilter?.[groupId];
+      const normalizedAccount = adAccountId.replace(/^act_/, "");
+      const fetchKey = `${normalizedAccount}::${(campaignIds ?? []).slice().sort().join(",")}`;
+
+      if (fetchedKeys.has(fetchKey)) continue; // skip exact duplicate fetch
+      fetchedKeys.add(fetchKey);
+
       const insights = await fetchMetaInsights(
         adAccountId,
         dateFrom,
@@ -165,11 +256,20 @@ export default function Home() {
       allData.push(...metaInsightsToCampaignData(insights, adAccountId));
     }
 
-    if (allData.length === 0) {
+    // Deduplicate by id (meta-{account}-{date}-{campaignId}) to guard against any
+    // remaining overlaps when two groups have different but overlapping campaign filters.
+    const seenIds = new Set<string>();
+    const dedupedData = allData.filter((item) => {
+      if (seenIds.has(item.id)) return false;
+      seenIds.add(item.id);
+      return true;
+    });
+
+    if (dedupedData.length === 0) {
       throw new Error("Nenhum dado encontrado para o período selecionado nas contas configuradas.");
     }
 
-    await replaceSupabaseCampaigns(allData, "meta");
+    await replaceSupabaseCampaigns(dedupedData, "meta");
     await saveSharedDataSource({
       type:  "meta",
       label: `Meta Ads · ${configured.length} conta${configured.length > 1 ? "s" : ""}`,
@@ -214,13 +314,12 @@ export default function Home() {
   };
 
   const handleUpdateProfile = async (name: string): Promise<void> => {
-    setError(null);
     if (!supabaseClient) return;
     const { error: updateError } = await supabaseClient.auth.updateUser({
       data: { full_name: name },
     });
     if (updateError) {
-      setError(`Falha ao atualizar perfil: ${updateError.message}`);
+      toast.error(`Falha ao atualizar perfil: ${updateError.message}`);
       return;
     }
     const { data } = await supabaseClient.auth.getSession();
@@ -237,7 +336,7 @@ export default function Home() {
       sourceChannelRef.current = subscribeSharedDataSource(loadSharedDataSource);
       setRealtimeActive(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
+      toast.error(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
     }
   };
 
@@ -272,22 +371,48 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (syncStatus.error) toast.error(syncStatus.error);
+  }, [syncStatus.error]);
+
+  useEffect(() => {
     if (!session?.user.id || !isSupabaseConfigured) {
       closeRealtimeChannels();
       return;
     }
+
+    let syncIntervalId: ReturnType<typeof setInterval> | null = null;
+
     void (async () => {
       try {
         await loadSupabaseData();
-        await loadSharedDataSource();
+        const source = await fetchSharedDataSource();
+        setDataSource(source);
+
         disconnectRealtime();
         campaignChannelRef.current = subscribeSupabaseCampaigns(loadSupabaseData);
         sourceChannelRef.current = subscribeSharedDataSource(loadSharedDataSource);
         setRealtimeActive(true);
+
+        // Auto-sync Meta Ads data on every login if source is Meta
+        if (source?.type === "meta") {
+          void handleMetaAutoSync();
+        }
+
+        // Keep syncing every 60 minutes while the tab is open
+        syncIntervalId = setInterval(() => {
+          void (async () => {
+            const currentSource = await fetchSharedDataSource();
+            if (currentSource?.type === "meta") void handleMetaAutoSync();
+          })();
+        }, 60 * 60 * 1000);
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
+        toast.error(e instanceof Error ? e.message : "Falha ao conectar no Supabase Realtime.");
       }
     })();
+
+    return () => {
+      if (syncIntervalId !== null) clearInterval(syncIntervalId);
+    };
   }, [session?.user.id]);
 
   const devBypass = process.env.NODE_ENV === "development" && !isSupabaseConfigured;
@@ -306,8 +431,8 @@ export default function Home() {
   return (
     <Dashboard
       campaigns={campaigns}
-      error={error}
       dataSource={dataSource}
+      syncStatus={syncStatus}
       currentUser={{
         email: devBypass ? "dev@preview.local" : (session?.user.email ?? ""),
         name: devBypass ? "Dev Preview" : String(session?.user.user_metadata?.full_name ?? "").trim(),
@@ -315,6 +440,7 @@ export default function Home() {
       onImportCsv={handleCsvUpload}
       onImportUrl={handleGenerateDashboard}
       onImportMeta={handleMetaImport}
+      onRefresh={handleMetaAutoSync}
       onClearData={handleClearData}
       onSignOut={handleSignOut}
       onUpdateProfile={handleUpdateProfile}
