@@ -96,7 +96,7 @@ function SingleCampaignView({ campaigns, isMetricVisible = () => true }: { campa
   };
 
   return (
-    <article className="glass-panel overflow-hidden rounded-3xl shadow-lg">
+    <article className="glass-panel w-full min-w-0 overflow-hidden rounded-3xl shadow-lg">
       {/* Header */}
       <div className="border-b border-slate-200/50 px-6 py-5 dark:border-slate-700/50">
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -176,33 +176,43 @@ function SingleCampaignView({ campaigns, isMetricVisible = () => true }: { campa
       </div>
 
       {/* Daily data table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-[480px] text-sm">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[760px] table-fixed text-sm">
+          <colgroup>
+            <col className="w-[14%]" />
+            {isMetricVisible("investment")  && <col className="w-[14%]" />}
+            {isMetricVisible("revenue")     && <col className="w-[14%]" />}
+            {isMetricVisible("clicks")      && <col className="w-[11%]" />}
+            {isMetricVisible("conversions") && <col className="w-[13%]" />}
+            {isMetricVisible("ctr")         && <col className="w-[11%]" />}
+            {isMetricVisible("cpc")         && <col className="w-[11%]" />}
+            {isMetricVisible("roas")        && <col className="w-[12%]" />}
+          </colgroup>
           <thead>
             <tr className="bg-slate-100/50 text-left dark:bg-slate-800/50">
-              <th className="border-b border-slate-200/50 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 w-28">Data</th>
-              {isMetricVisible("investment")  && <th className="border-b border-slate-200/50 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">Investimento</th>}
-              {isMetricVisible("revenue")     && <th className="border-b border-slate-200/50 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">Receita</th>}
-              {isMetricVisible("clicks")      && <th className="border-b border-slate-200/50 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">Cliques</th>}
-              {isMetricVisible("conversions") && <th className="border-b border-slate-200/50 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">Conversões</th>}
-              {isMetricVisible("ctr")         && <th className="border-b border-slate-200/50 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-center">CTR</th>}
-              {isMetricVisible("cpc")         && <th className="border-b border-slate-200/50 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">CPC</th>}
-              {isMetricVisible("roas")        && <th className="border-b border-slate-200/50 px-5 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-center">ROAS</th>}
+              <th className="border-b border-slate-200/50 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400">Data</th>
+              {isMetricVisible("investment")  && <th className="border-b border-slate-200/50 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">Investimento</th>}
+              {isMetricVisible("revenue")     && <th className="border-b border-slate-200/50 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">Receita</th>}
+              {isMetricVisible("clicks")      && <th className="border-b border-slate-200/50 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">Cliques</th>}
+              {isMetricVisible("conversions") && <th className="border-b border-slate-200/50 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">Conversões</th>}
+              {isMetricVisible("ctr")         && <th className="border-b border-slate-200/50 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-center">CTR</th>}
+              {isMetricVisible("cpc")         && <th className="border-b border-slate-200/50 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-right">CPC</th>}
+              {isMetricVisible("roas")        && <th className="border-b border-slate-200/50 px-3 py-3 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 text-center">ROAS</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100/50 dark:divide-slate-700/50">
             {visibleRows.map((row) => (
               <tr key={row.id} className="transition-all hover:bg-white/50 dark:hover:bg-slate-800/50">
-                <td className="whitespace-nowrap px-5 py-3 text-[13px] font-semibold text-slate-700 dark:text-slate-300">
+                <td className="whitespace-nowrap px-3 py-3 text-[13px] font-semibold text-slate-700 dark:text-slate-300">
                   {formatDatePtBr(row.date)}
                 </td>
-                {isMetricVisible("investment")  && <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] font-bold text-slate-800 dark:text-slate-200" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.investment)}</td>}
-                {isMetricVisible("revenue")     && <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] font-bold text-emerald-600 dark:text-emerald-400" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.revenue)}</td>}
-                {isMetricVisible("clicks")      && <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] text-slate-600 dark:text-slate-400" style={{ fontFamily: "var(--font-display)" }}>{formatNumber(row.clicks)}</td>}
-                {isMetricVisible("conversions") && <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] font-semibold text-blue-600 dark:text-blue-400" style={{ fontFamily: "var(--font-display)" }}>{formatNumber(row.conversions)}</td>}
-                {isMetricVisible("ctr")         && <td className="whitespace-nowrap px-5 py-3 text-center"><CtrBadge value={row.ctr} /></td>}
-                {isMetricVisible("cpc")         && <td className="whitespace-nowrap px-5 py-3 text-right text-[13px] text-slate-600 dark:text-slate-400" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.cpc)}</td>}
-                {isMetricVisible("roas")        && <td className="whitespace-nowrap px-5 py-3 text-center"><RoasBadge value={row.roas} /></td>}
+                {isMetricVisible("investment")  && <td className="whitespace-nowrap px-3 py-3 text-right text-[13px] font-bold tabular-nums text-slate-800 dark:text-slate-200" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.investment)}</td>}
+                {isMetricVisible("revenue")     && <td className="whitespace-nowrap px-3 py-3 text-right text-[13px] font-bold tabular-nums text-emerald-600 dark:text-emerald-400" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.revenue)}</td>}
+                {isMetricVisible("clicks")      && <td className="whitespace-nowrap px-3 py-3 text-right text-[13px] tabular-nums text-slate-600 dark:text-slate-400" style={{ fontFamily: "var(--font-display)" }}>{formatNumber(row.clicks)}</td>}
+                {isMetricVisible("conversions") && <td className="whitespace-nowrap px-3 py-3 text-right text-[13px] font-semibold tabular-nums text-blue-600 dark:text-blue-400" style={{ fontFamily: "var(--font-display)" }}>{formatNumber(row.conversions)}</td>}
+                {isMetricVisible("ctr")         && <td className="whitespace-nowrap px-3 py-3 text-center"><CtrBadge value={row.ctr} /></td>}
+                {isMetricVisible("cpc")         && <td className="whitespace-nowrap px-3 py-3 text-right text-[13px] tabular-nums text-slate-600 dark:text-slate-400" style={{ fontFamily: "var(--font-display)" }}>{formatCurrency(row.cpc)}</td>}
+                {isMetricVisible("roas")        && <td className="whitespace-nowrap px-3 py-3 text-center"><RoasBadge value={row.roas} /></td>}
               </tr>
             ))}
           </tbody>
@@ -259,7 +269,7 @@ function MultiCampaignView({ campaigns, isMetricVisible = () => true }: { campai
   const lastIdx  = Math.min(currentPage * ITEMS_PER_PAGE, campaigns.length);
 
   return (
-    <article className="glass-panel overflow-hidden rounded-3xl shadow-lg">
+    <article className="glass-panel w-full min-w-0 overflow-hidden rounded-3xl shadow-lg">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/50 px-5 py-4 sm:px-6 sm:py-5 dark:border-slate-700/50">
         <div>
@@ -284,8 +294,8 @@ function MultiCampaignView({ campaigns, isMetricVisible = () => true }: { campai
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-[640px] text-sm">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[900px] table-fixed text-sm">
           <thead>
             <tr className="bg-slate-100/50 text-left dark:bg-slate-800/50">
               <th className="border-b border-slate-200/50 px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:border-slate-700/50 dark:text-slate-400 w-24">Data</th>

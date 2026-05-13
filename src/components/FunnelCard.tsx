@@ -1,5 +1,7 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, SlidersHorizontal } from "lucide-react";
 import { formatCurrency, formatNumber, formatPercent } from "@/utils/metrics";
 
 interface FunnelCardProps {
@@ -10,9 +12,13 @@ interface FunnelCardProps {
   // Optional extended metrics (when available from Meta or manual entry)
   pageViews?: number;
   leads?: number;
+  storageScope?: string;
 }
 
+type FunnelStepId = "impressions" | "clicks" | "pageViews" | "leads" | "conversions";
+
 interface FunnelStep {
+  id: FunnelStepId;
   label: string;
   value: number;
   rate?: number;          // conversion rate from previous step
@@ -23,20 +29,83 @@ interface FunnelStep {
   widthPct: number;       // visual funnel width %
 }
 
-export function FunnelCard({ impressions, clicks, conversions, investment, pageViews, leads }: FunnelCardProps) {
+const DEFAULT_FUNNEL_STEPS: FunnelStepId[] = ["impressions", "clicks", "conversions"];
+const ALL_FUNNEL_STEPS: Array<{
+  id: FunnelStepId;
+  label: string;
+  color: string;
+  rateLabel?: string;
+  costLabel?: string;
+}> = [
+  { id: "impressions", label: "Impressões", color: "#3b82f6", costLabel: "CPM" },
+  { id: "clicks", label: "Cliques", color: "#8b5cf6", rateLabel: "CTR", costLabel: "CPC" },
+  { id: "pageViews", label: "Vis. Página", color: "#0891b2", rateLabel: "Connect Rate", costLabel: "CPV" },
+  { id: "leads", label: "Leads", color: "#f59e0b", rateLabel: "Tx. Captura", costLabel: "CPL" },
+  { id: "conversions", label: "Conversões", color: "#10b981", rateLabel: "Tx. Conv.", costLabel: "CPA" },
+];
+
+function loadFunnelStepPrefs(storageKey: string): FunnelStepId[] {
+  if (typeof window === "undefined") return DEFAULT_FUNNEL_STEPS;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return DEFAULT_FUNNEL_STEPS;
+    const parsed = JSON.parse(raw) as string[];
+    const valid = parsed.filter((id): id is FunnelStepId =>
+      ALL_FUNNEL_STEPS.some((step) => step.id === id),
+    );
+    return valid.length > 0 ? valid : DEFAULT_FUNNEL_STEPS;
+  } catch {
+    return DEFAULT_FUNNEL_STEPS;
+  }
+}
+
+export function FunnelCard({ impressions, clicks, conversions, investment, pageViews, leads, storageScope }: FunnelCardProps) {
+  const storageKey = `pta_funnel_steps_v1:${storageScope || "default"}`;
+  const [showPanel, setShowPanel] = useState(false);
+  const [stepIds, setStepIds] = useState<FunnelStepId[]>(() => loadFunnelStepPrefs(storageKey));
+
+  const persistStepIds = (next: FunnelStepId[]) => {
+    const safe = next.length > 0 ? next : DEFAULT_FUNNEL_STEPS;
+    setStepIds(safe);
+    try { localStorage.setItem(storageKey, JSON.stringify(safe)); } catch {}
+  };
+
+  const toggleStep = (id: FunnelStepId) => {
+    persistStepIds(
+      stepIds.includes(id)
+        ? stepIds.filter((item) => item !== id)
+        : [...stepIds, id],
+    );
+  };
+
+  const moveStep = (id: FunnelStepId, direction: -1 | 1) => {
+    const index = stepIds.indexOf(id);
+    const nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= stepIds.length) return;
+    const next = [...stepIds];
+    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+    persistStepIds(next);
+  };
+
+  const stepValues = useMemo<Record<FunnelStepId, number>>(() => ({
+    impressions,
+    clicks,
+    pageViews: pageViews ?? 0,
+    leads: leads ?? 0,
+    conversions,
+  }), [clicks, conversions, impressions, leads, pageViews]);
 
   // Build steps dynamically based on available data
-  const rawSteps: Array<{ label: string; value: number; rateLabel?: string; color: string; costLabel?: string }> = [
-    { label: "Impressões",  value: impressions, color: "#3b82f6",                                            costLabel: "CPM" },
-    { label: "Cliques",     value: clicks,      color: "#8b5cf6", rateLabel: "CTR",                          costLabel: "CPC" },
-    ...(pageViews && pageViews > 0
-      ? [{ label: "Vis. Página", value: pageViews, color: "#0891b2", rateLabel: "Connect Rate", costLabel: "CPV" }]
-      : []),
-    ...(leads && leads > 0
-      ? [{ label: "Leads",      value: leads,     color: "#f59e0b", rateLabel: "Tx. Captura",   costLabel: "CPL" }]
-      : []),
-    { label: "Conversões",  value: conversions, color: "#10b981", rateLabel: conversions > 0 && clicks > 0 ? "Tx. Conv." : undefined, costLabel: "CPA" },
-  ];
+  const rawSteps = useMemo(
+    () => stepIds
+      .map((id) => {
+        const def = ALL_FUNNEL_STEPS.find((step) => step.id === id);
+        if (!def) return null;
+        return { ...def, value: stepValues[id] };
+      })
+      .filter(Boolean) as Array<{ id: FunnelStepId; label: string; value: number; rateLabel?: string; color: string; costLabel?: string }>,
+    [stepIds, stepValues],
+  );
 
   const maxVal = Math.max(...rawSteps.map((s) => s.value), 1);
 
@@ -54,18 +123,89 @@ export function FunnelCard({ impressions, clicks, conversions, investment, pageV
 
   const getCostValue = (step: FunnelStep) => {
     if (!step.cost) return null;
-    if (step.label === "Impressões") return formatCurrency((step.cost ?? 0) * 1000); // CPM
+    if (step.id === "impressions") return formatCurrency((step.cost ?? 0) * 1000); // CPM
     return formatCurrency(step.cost);
   };
 
   return (
     <article
-      className="rounded-xl border p-5 shadow-sm bg-white/80 dark:bg-[#161616]/80 glass-panel transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+      className="relative rounded-xl border p-5 shadow-sm bg-white/80 dark:bg-[#161616]/80 glass-panel transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
       style={{ borderColor: "var(--dm-border-default)" }}
     >
-      <h3 className="mb-5 text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>
-        Funil de Conversão
-      </h3>
+      <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h3 className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>
+          Funil de Conversão
+        </h3>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowPanel((v) => !v)}
+            className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition hover:opacity-80"
+            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
+          >
+            <SlidersHorizontal size={11} aria-hidden />
+            Personalizar funil
+          </button>
+          {showPanel && (
+            <div
+              className="absolute right-0 top-full z-30 mt-1 w-64 rounded-xl border p-3 shadow-lg"
+              style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+            >
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+                Etapas visíveis
+              </p>
+              <p className="mb-2 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+                Marque e reordene as etapas do funil.
+              </p>
+              <div className="space-y-1">
+                {ALL_FUNNEL_STEPS.map((step) => {
+                  const selected = stepIds.includes(step.id);
+                  const index = stepIds.indexOf(step.id);
+                  return (
+                    <div key={step.id} className="flex items-center gap-2 rounded-md px-1 py-0.5 hover:bg-[var(--dm-bg-elevated)]">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        disabled={selected && stepIds.length === 1}
+                        onChange={() => toggleStep(step.id)}
+                        className="h-3.5 w-3.5 accent-blue-500 disabled:opacity-40"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-xs" style={{ color: "var(--dm-text-secondary)" }}>{step.label}</span>
+                      <button
+                        type="button"
+                        onClick={() => moveStep(step.id, -1)}
+                        disabled={!selected || index <= 0}
+                        className="flex h-6 w-6 items-center justify-center rounded border disabled:opacity-30"
+                        style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-tertiary)" }}
+                        title="Mover para cima"
+                      >
+                        <ArrowUp size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveStep(step.id, 1)}
+                        disabled={!selected || index < 0 || index >= stepIds.length - 1}
+                        className="flex h-6 w-6 items-center justify-center rounded border disabled:opacity-30"
+                        style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-tertiary)" }}
+                        title="Mover para baixo"
+                      >
+                        <ArrowDown size={11} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => persistStepIds(DEFAULT_FUNNEL_STEPS)}
+                className="mt-2 w-full rounded-md py-1 text-[10px] font-semibold text-blue-500 hover:underline"
+              >
+                Restaurar padrão
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="flex flex-col items-center gap-0">
         {steps.map((step, i) => (

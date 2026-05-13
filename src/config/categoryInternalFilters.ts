@@ -8,6 +8,36 @@ export interface CategoryInternalFilterOption {
   label: string;
 }
 
+export const CUSTOM_INTERNAL_FILTER_PREFIX = "custom-filter:";
+
+export function createCustomInternalFilterId(categorySlug: string, label: string): string {
+  return `${CUSTOM_INTERNAL_FILTER_PREFIX}${categorySlug}:${encodeURIComponent(label.trim())}`;
+}
+
+export function isCustomInternalFilterId(filterId: string | null | undefined): filterId is string {
+  return Boolean(filterId?.startsWith(CUSTOM_INTERNAL_FILTER_PREFIX));
+}
+
+export function parseCustomInternalFilterId(
+  filterId: string | null | undefined,
+): { categorySlug: string; label: string } | null {
+  if (!isCustomInternalFilterId(filterId) || !filterId) return null;
+  const rest = filterId.slice(CUSTOM_INTERNAL_FILTER_PREFIX.length);
+  const splitAt = rest.indexOf(":");
+  if (splitAt <= 0) return null;
+  const categorySlug = rest.slice(0, splitAt);
+  const encodedLabel = rest.slice(splitAt + 1);
+  try {
+    return { categorySlug, label: decodeURIComponent(encodedLabel) };
+  } catch {
+    return { categorySlug, label: encodedLabel };
+  }
+}
+
+export function getCustomInternalFilterLabel(filterId: string | null | undefined): string | null {
+  return parseCustomInternalFilterId(filterId)?.label ?? null;
+}
+
 const POS: CategoryInternalFilterOption[] = [
   { id: "bm", label: "Biomecânica (BM)" },
   { id: "tf", label: "Treinamento Funcional (TF)" },
@@ -60,6 +90,8 @@ export function getInternalFilterLabel(
   filterId: string | null | undefined,
 ): string | null {
   if (!filterId) return null;
+  const custom = parseCustomInternalFilterId(filterId);
+  if (custom) return custom.label;
   const opts = getInternalFiltersForCategorySlug(slug);
   return opts.find((o) => o.id === filterId)?.label ?? filterId;
 }

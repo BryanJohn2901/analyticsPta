@@ -1,4 +1,5 @@
 import type { UserAccountEntry } from "@/types/userConfig";
+import { isCustomInternalFilterId } from "@/config/categoryInternalFilters";
 
 /** Evento disparado após salvar vínculo no Painel — o Dashboard aplica foco na categoria/grupo. */
 export const PTA_PAINEL_SAVE_NAV_EVENT = "pta:apply-painel-save" as const;
@@ -21,6 +22,7 @@ export function mapPainelInternalFilterToDashboardGroupId(
     eventos: "bs",
   };
   const fb = fallback[categorySlug] ?? "biomecanica";
+  if (isCustomInternalFilterId(internalFilter)) return internalFilter;
 
   if (categorySlug === "pos") {
     const m: Record<string, string> = {

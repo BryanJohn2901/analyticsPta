@@ -9,7 +9,15 @@ import {
 } from "lucide-react";
 import type { UserCategory, UserAccountEntry } from "@/types/userConfig";
 import { FIXED_CATEGORIES, MAX_CUSTOM_CATEGORIES } from "@/types/userConfig";
-import { getInternalFiltersForCategorySlug, getInternalFilterLabel } from "@/config/categoryInternalFilters";
+import {
+  createCustomInternalFilterId,
+  getCustomInternalFilterLabel,
+  getInternalFiltersForCategorySlug,
+  getInternalFilterLabel,
+  isCustomInternalFilterId,
+  parseCustomInternalFilterId,
+  type CategoryInternalFilterOption,
+} from "@/config/categoryInternalFilters";
 import {
   upsertUserCategory, deleteUserCategory,
   upsertUserAccountEntry, deleteUserAccountEntry,
@@ -26,6 +34,10 @@ import type { MetaSyncResult } from "@/utils/supabaseCampaigns";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type CPTab = "accounts" | "integrations" | "sync" | "profile";
+
+function isValidMetaAccountId(value: string): boolean {
+  return /^act_\d{4,}$/.test(value.trim());
+}
 
 interface ControlPanelProps {
   isOpen: boolean;
@@ -56,6 +68,7 @@ interface AddEntryFormProps {
   categoryId: string;
   categorySlug: string;
   isCustomCategory: boolean;
+  customFilterOptions?: CategoryInternalFilterOption[];
   onSaved: (entry: UserAccountEntry) => void;
   onCancel: () => void;
 }
@@ -64,12 +77,14 @@ function AddEntryForm({
   categoryId,
   categorySlug,
   isCustomCategory,
+  customFilterOptions = [],
   onSaved,
   onCancel,
 }: AddEntryFormProps) {
   const [label, setLabel] = useState("");
   const [accountId, setAccountId] = useState("");
   const [internalFilter, setInternalFilter] = useState("");
+  const [filterQuery, setFilterQuery] = useState("");
   const [verifyState, setVerifyState] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [errMsg, setErrMsg] = useState("");
   const [campaigns, setCampaigns] = useState<Array<{ id: string; name: string; status: string }>>([]);
@@ -81,27 +96,64 @@ function AddEntryForm({
   const [hasMetaToken, setHasMetaToken] = useState(false);
   const [campaignListOpen, setCampaignListOpen] = useState(true);
   const [fieldErrors, setFieldErrors] = useState<{ account?: string; filter?: string }>({});
+  const [accountSuggestionsOpen, setAccountSuggestionsOpen] = useState(false);
+  const [filterSuggestionsOpen, setFilterSuggestionsOpen] = useState(false);
 
-  const filterOptions = useMemo(
-    () => (isCustomCategory ? [] : getInternalFiltersForCategorySlug(categorySlug)),
-    [categorySlug, isCustomCategory],
+  const filterOptions = useMemo<CategoryInternalFilterOption[]>(
+    () => {
+      if (isCustomCategory) return [];
+      const seen = new Set<string>();
+      return [...getInternalFiltersForCategorySlug(categorySlug), ...customFilterOptions]
+        .filter((opt) => {
+          if (seen.has(opt.id)) return false;
+          seen.add(opt.id);
+          return true;
+        });
+    },
+    [categorySlug, customFilterOptions, isCustomCategory],
   );
   const needsInternalFilter = !isCustomCategory && filterOptions.length > 0;
   const accountReady = Boolean(accountId.trim());
-  const filterReady = !needsInternalFilter || Boolean(internalFilter.trim());
+  const filterReady = !needsInternalFilter || Boolean(internalFilter.trim() || filterQuery.trim());
   const canContinueAfterFilters = accountReady && filterReady;
 
-  useEffect(() => {
-    setLabel("");
-    setAccountId("");
-    setInternalFilter("");
-    setVerifyState("idle");
-    setCampaigns([]);
-    setSelected([]);
-    setErrMsg("");
-    setFieldErrors({});
-    setCampaignListOpen(true);
-  }, [categoryId]);
+  const accountSuggestions = useMemo(() => {
+    const q = accountId.trim().toLowerCase();
+    const base = q
+      ? metaAccounts.filter((acc) =>
+          acc.id.toLowerCase().includes(q) ||
+          acc.name.toLowerCase().includes(q) ||
+          acc.currency.toLowerCase().includes(q),
+        )
+      : metaAccounts;
+    return base.slice(0, 8);
+  }, [accountId, metaAccounts]);
+
+  const filterSuggestions = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase();
+    const base = q
+      ? filterOptions.filter((opt) =>
+          opt.label.toLowerCase().includes(q) ||
+          opt.id.toLowerCase().includes(q),
+        )
+      : filterOptions;
+    return base.slice(0, 8);
+  }, [filterOptions, filterQuery]);
+
+  const exactFilterMatch = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase();
+    if (!q) return null;
+    return filterOptions.find((opt) =>
+      opt.id.toLowerCase() === q ||
+      opt.label.toLowerCase() === q,
+    ) ?? null;
+  }, [filterOptions, filterQuery]);
+
+  const canCreateFilter =
+    !isCustomCategory &&
+    Boolean(filterQuery.trim()) &&
+    !exactFilterMatch &&
+    !isCustomInternalFilterId(filterQuery.trim());
 
   useEffect(() => {
     let cancelled = false;
@@ -134,18 +186,31 @@ function AddEntryForm({
 
   const handlePickAccount = (id: string) => {
     setAccountId(id);
-    setInternalFilter("");
     setLabel("");
     setVerifyState("idle");
     setCampaigns([]);
     setSelected([]);
     setErrMsg("");
     setCampaignListOpen(true);
-    setFieldErrors((e) => ({ ...e, account: undefined, filter: undefined }));
+    setAccountSuggestionsOpen(false);
+    setFieldErrors((e) => ({ ...e, account: undefined }));
   };
 
-  const handleInternalFilterChange = (value: string) => {
-    setInternalFilter(value);
+  const handleAccountInputChange = (value: string) => {
+    setAccountId(value);
+    setVerifyState("idle");
+    setCampaigns([]);
+    setSelected([]);
+    setErrMsg("");
+    setCampaignListOpen(true);
+    setAccountSuggestionsOpen(true);
+    setFieldErrors((e) => ({ ...e, account: undefined }));
+  };
+
+  const handlePickInternalFilter = (opt: CategoryInternalFilterOption) => {
+    setInternalFilter(opt.id);
+    setFilterQuery(opt.label);
+    setFilterSuggestionsOpen(false);
     setVerifyState("idle");
     setCampaigns([]);
     setSelected([]);
@@ -154,9 +219,60 @@ function AddEntryForm({
     setFieldErrors((e) => ({ ...e, filter: undefined }));
   };
 
+  const handleInternalFilterInputChange = (value: string) => {
+    setFilterQuery(value);
+    const exact = filterOptions.find((opt) =>
+      opt.id.toLowerCase() === value.trim().toLowerCase() ||
+      opt.label.toLowerCase() === value.trim().toLowerCase(),
+    );
+    setInternalFilter(exact?.id ?? "");
+    setFilterSuggestionsOpen(true);
+    setVerifyState("idle");
+    setCampaigns([]);
+    setSelected([]);
+    setErrMsg("");
+    setCampaignListOpen(true);
+    setFieldErrors((e) => ({ ...e, filter: undefined }));
+  };
+
+  const createFilterFromQuery = (): string => {
+    const name = filterQuery.trim();
+    if (!name) return "";
+    const existing = exactFilterMatch;
+    if (existing) {
+      handlePickInternalFilter(existing);
+      return existing.id;
+    }
+    const id = createCustomInternalFilterId(categorySlug, name);
+    setInternalFilter(id);
+    setFilterQuery(name);
+    setFilterSuggestionsOpen(false);
+    setFieldErrors((e) => ({ ...e, filter: undefined }));
+    return id;
+  };
+
+  const resolveInternalFilterForSubmit = (): string => {
+    if (isCustomCategory) return "";
+    if (internalFilter.trim()) return internalFilter.trim();
+    if (!filterQuery.trim()) return "";
+    return createFilterFromQuery();
+  };
+
   const handleVerify = async () => {
     if (!canContinueAfterFilters) return;
     const id = accountId.trim();
+    const resolvedFilter = resolveInternalFilterForSubmit();
+    const err: { account?: string; filter?: string } = {};
+    if (!isValidMetaAccountId(id)) {
+      err.account = "Use o formato act_1234567890.";
+    }
+    if (needsInternalFilter && !resolvedFilter) {
+      err.filter = "Selecione ou crie um filtro para esta categoria.";
+    }
+    if (Object.keys(err).length > 0) {
+      setFieldErrors(err);
+      return;
+    }
     const { accessToken } = loadMetaCredentials();
     if (!accessToken) {
       setErrMsg("Token de acesso não configurado. Configure em Integrações.");
@@ -179,15 +295,17 @@ function AddEntryForm({
 
   const handleSave = async () => {
     const err: { account?: string; filter?: string } = {};
-    if (!accountId.trim()) err.account = "Selecione uma conta de anúncios.";
-    if (needsInternalFilter && !internalFilter.trim()) {
-      err.filter = "Selecione o filtro desta conta para esta categoria.";
+    const id = accountId.trim();
+    const resolvedFilter = resolveInternalFilterForSubmit();
+    if (!id) err.account = "Informe uma conta de anúncios.";
+    else if (!isValidMetaAccountId(id)) err.account = "Use o formato act_1234567890.";
+    if (needsInternalFilter && !resolvedFilter) {
+      err.filter = "Selecione ou crie um filtro para esta categoria.";
     }
     if (Object.keys(err).length > 0) {
       setFieldErrors(err);
       return;
     }
-    const id = accountId.trim();
     const resolvedLabel =
       label.trim() ||
       metaAccounts.find((a) => a.id === id)?.name?.trim() ||
@@ -199,7 +317,7 @@ function AddEntryForm({
         categoryId,
         label: resolvedLabel,
         adAccountId: id,
-        internalFilter: isCustomCategory ? null : internalFilter.trim() || null,
+        internalFilter: isCustomCategory ? null : resolvedFilter || null,
         campaigns,
         selectedCampaignIds: selected.length < campaigns.length ? selected : [],
       });
@@ -215,7 +333,7 @@ function AddEntryForm({
   const toggleOne = (cid: string) =>
     setSelected((s) => (s.includes(cid) ? s.filter((x) => x !== cid) : [...s, cid]));
 
-  const filterSelectDisabled = !accountReady || isCustomCategory;
+  const filterSelectDisabled = isCustomCategory;
   const errBorderAccount = fieldErrors.account ? "#f87171" : "var(--dm-border-default)";
   const errBorderFilter = fieldErrors.filter ? "#f87171" : "var(--dm-border-default)";
 
@@ -236,23 +354,45 @@ function AddEntryForm({
               Carregando contas…
             </div>
           ) : (
-            <select
-              value={accountId}
-              onChange={(e) => handlePickAccount(e.target.value)}
-              className="h-9 w-full cursor-pointer rounded-lg border px-2.5 text-[11px] font-mono font-medium outline-none transition focus:ring-1"
-              style={{ borderColor: errBorderAccount, backgroundColor: "var(--dm-bg-elevated)",
-                color: "var(--dm-text-primary)" }}
-            >
-              <option value="">Selecione uma conta</option>
-              {metaAccounts.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.id}
-                  {acc.account_status !== 1 ? " (inativa)" : ""}
-                  {" — "}
-                  {acc.name}
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                value={accountId}
+                onChange={(e) => handleAccountInputChange(e.target.value)}
+                onFocus={() => setAccountSuggestionsOpen(true)}
+                onBlur={() => setTimeout(() => setAccountSuggestionsOpen(false), 120)}
+                placeholder="act_1234567890"
+                className="h-9 w-full rounded-lg border px-2.5 pr-8 text-[11px] font-mono font-medium outline-none transition focus:ring-1"
+                style={{ borderColor: errBorderAccount, backgroundColor: "var(--dm-bg-elevated)",
+                  color: "var(--dm-text-primary)" }}
+              />
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"
+                style={{ color: "var(--dm-text-tertiary)" }}
+              />
+              {accountSuggestionsOpen && accountSuggestions.length > 0 && (
+                <div
+                  className="absolute left-0 right-0 top-full z-40 mt-1 max-h-48 overflow-y-auto rounded-lg border p-1 shadow-xl"
+                  style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}
+                >
+                  {accountSuggestions.map((acc) => (
+                    <button
+                      key={acc.id}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); handlePickAccount(acc.id); }}
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition hover:bg-black/5 dark:hover:bg-white/5"
+                    >
+                      <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${acc.account_status === 1 ? "bg-emerald-500" : "bg-amber-400"}`} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[11px] font-semibold" style={{ color: "var(--dm-text-primary)" }}>{acc.name}</span>
+                        <span className="block truncate font-mono text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>{acc.id}</span>
+                      </span>
+                      <span className="text-[9px] font-semibold" style={{ color: "var(--dm-text-tertiary)" }}>{acc.currency}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           {fieldErrors.account && (
             <p className="mt-1 text-[10px] text-red-500">{fieldErrors.account}</p>
@@ -285,21 +425,58 @@ function AddEntryForm({
             <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>
               Filtro da Categoria <span className="text-red-500">*</span>
             </label>
-            <select
-              value={internalFilter}
-              onChange={(e) => handleInternalFilterChange(e.target.value)}
-              disabled={filterSelectDisabled}
-              className="h-9 w-full rounded-lg border px-2.5 text-[12px] font-medium outline-none transition focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ borderColor: errBorderFilter, backgroundColor: "var(--dm-bg-elevated)",
-                color: "var(--dm-text-primary)" }}
-            >
-              <option value="">
-                {!accountReady ? "Selecione um filtro" : "Selecione o filtro desta conta"}
-              </option>
-              {filterOptions.map((opt) => (
-                <option key={opt.id} value={opt.id}>{opt.label}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                value={filterQuery}
+                onChange={(e) => handleInternalFilterInputChange(e.target.value)}
+                onFocus={() => setFilterSuggestionsOpen(true)}
+                onBlur={() => setTimeout(() => setFilterSuggestionsOpen(false), 120)}
+                disabled={filterSelectDisabled}
+                placeholder="Digite ou selecione um filtro"
+                className="h-9 w-full rounded-lg border px-2.5 pr-8 text-[12px] font-medium outline-none transition focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
+                style={{ borderColor: errBorderFilter, backgroundColor: "var(--dm-bg-elevated)",
+                  color: "var(--dm-text-primary)" }}
+              />
+              <ChevronDown
+                size={14}
+                className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2"
+                style={{ color: "var(--dm-text-tertiary)" }}
+              />
+              {filterSuggestionsOpen && !filterSelectDisabled && (filterSuggestions.length > 0 || canCreateFilter) && (
+                <div
+                  className="absolute left-0 right-0 top-full z-40 mt-1 max-h-48 overflow-y-auto rounded-lg border p-1 shadow-xl"
+                  style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}
+                >
+                  {filterSuggestions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); handlePickInternalFilter(opt); }}
+                      className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-[11px] transition hover:bg-black/5 dark:hover:bg-white/5"
+                      style={{ color: "var(--dm-text-secondary)" }}
+                    >
+                      <span className="truncate">{opt.label}</span>
+                      {isCustomInternalFilterId(opt.id) && (
+                        <span className="rounded-full px-1.5 py-0.5 text-[9px] font-bold" style={{ backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-brand-500)" }}>
+                          criado
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  {canCreateFilter && (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); createFilterFromQuery(); }}
+                      className="mt-1 flex w-full items-center gap-1.5 rounded-md border border-dashed px-2 py-1.5 text-left text-[11px] font-semibold transition hover:opacity-80"
+                      style={{ borderColor: "var(--dm-brand-300)", color: "var(--dm-brand-500)" }}
+                    >
+                      <Plus size={11} />
+                      Criar: {filterQuery.trim()}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
             {fieldErrors.filter && (
               <p className="mt-1 text-[10px] text-red-500">{fieldErrors.filter}</p>
             )}
@@ -541,11 +718,26 @@ function CategorySection({
   const [toggling,       setToggling]       = useState(false);
   const [localRecord,    setLocalRecord]    = useState(categoryRecord);
   const isEnabled = (localRecord ?? categoryRecord)?.isEnabled ?? true;
+  const customFilterOptions = useMemo<CategoryInternalFilterOption[]>(() => {
+    if (isCustom) return [];
+    const seen = new Set<string>();
+    return entries
+      .map((entry) => entry.internalFilter)
+      .filter(isCustomInternalFilterId)
+      .map((id) => {
+        const parsed = parseCustomInternalFilterId(id);
+        if (!parsed || parsed.categorySlug !== slug || seen.has(id)) return null;
+        seen.add(id);
+        return { id, label: getCustomInternalFilterLabel(id) ?? parsed.label };
+      })
+      .filter(Boolean) as CategoryInternalFilterOption[];
+  }, [entries, isCustom, slug]);
 
   // Sync localRecord when parent prop changes (e.g. after creation callback)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (categoryRecord) setLocalRecord(categoryRecord);
-  }, [categoryRecord?.id, categoryRecord?.isEnabled]);
+  }, [categoryRecord]);
 
   // Creates the Supabase record on demand (first time user interacts with this category)
   const ensureRecord = async (): Promise<UserCategory> => {
@@ -620,6 +812,7 @@ function CategorySection({
               categoryId={localRecord.id}
               categorySlug={slug}
               isCustomCategory={!!isCustom}
+              customFilterOptions={customFilterOptions}
               onSaved={entry => {
                 onEntrySaved(entry);
                 setShowAdd(false);

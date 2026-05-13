@@ -13,19 +13,20 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { CampaignData, ProductCategory } from "@/types/campaign";
+import type { UserAccountEntry, UserCategory } from "@/types/userConfig";
 import {
   PTA_PAINEL_SAVE_NAV_EVENT,
   mapPainelInternalFilterToDashboardGroupId,
   type PainelSaveNavDetail,
 } from "@/utils/painelDashboardNavigation";
-import { CampaignConfig, CampaignSummary, CustomGroup, GroupSection, useCampaignStore } from "@/hooks/useCampaignStore";
+import { CampaignConfig, CampaignSummary, CustomGroup, CustomSection, ColorKey, GroupSection, useCampaignStore } from "@/hooks/useCampaignStore";
 import { classifyCampaign, classifyCourse } from "@/utils/campaignClassifier";
 import {
   fetchMetaAdAccounts, fetchMetaCampaigns, loadMetaCredentials, saveMetaCredentials,
 } from "@/utils/metaApi";
 import type { MetaSyncResult } from "@/utils/supabaseCampaigns";
 import type { MetaAdAccount, MetaCampaign } from "@/utils/metaApi";
-import { CategoryGate, CATEGORY_LABEL, CATEGORY_ICON, CATEGORY_DOT } from "@/components/CategoryGate";
+import { CategoryGate, CATEGORY_LABEL, CATEGORY_ICON, CATEGORY_DOT, ICON_MAP, COLOR_HEX } from "@/components/CategoryGate";
 import {
   aggregateByCampaign, aggregateTotals, buildBudgetDistribution,
   buildCampaignComparison, buildDailyTrend, formatCurrency, formatDatePtBr, formatNumber, formatPercent,
@@ -57,6 +58,8 @@ interface DashboardProps {
   dataSource?: DataSource | null;
   syncStatus?: { syncing: boolean; result?: MetaSyncResult; error?: string };
   currentUser: { name: string; email: string };
+  categories?: UserCategory[];
+  accountEntries?: UserAccountEntry[];
   onImportCsv: (file: File) => Promise<void>;
   onImportUrl: (url: string) => Promise<void>;
   onImportMeta?: (accounts: Record<string, string>, dateFrom: string, dateTo: string, campaignFilter?: Record<string, string[]>) => Promise<void>;
@@ -164,8 +167,8 @@ const CAMPAIGN_GROUPS: GroupConfig[] = [
   { section: "eventos",  id: "powertrainer", label: "Power Trainer",          icon: Ticket,          ...G_ROSE },
 ];
 
-// Default styles for custom-created groups (keyed by section)
-const SECTION_DEFAULTS: Record<GroupSection, Omit<GroupConfig, "id" | "label" | "section">> = {
+// Default styles for custom-created groups (keyed by built-in section)
+const SECTION_DEFAULTS: Record<string, Omit<GroupConfig, "id" | "label" | "section">> = {
   pos:      { icon: GraduationCap, ...G_BLUE },
   livros:   { icon: BookText,      ...G_EMERALD },
   ebooks:   { icon: MonitorSmartphone, ...G_VIOLET },
@@ -173,12 +176,48 @@ const SECTION_DEFAULTS: Record<GroupSection, Omit<GroupConfig, "id" | "label" | 
   eventos:  { icon: Ticket,        ...G_ROSE },
 };
 
-const SECTION_LABELS: Record<GroupSection, string> = {
+const SECTION_LABELS_BUILTIN: Record<string, string> = {
   pos:      "Pós Graduação",
   livros:   "Livros",
   ebooks:   "Ebooks",
   perpetuo: "Perpétuo",
   eventos:  "Eventos",
+};
+
+// Legacy alias kept for compatibility
+const SECTION_LABELS = SECTION_LABELS_BUILTIN;
+
+/** Resolves a section label — built-in OR custom. */
+function getSectionLabel(sectionId: string, customSections: CustomSection[]): string {
+  if (sectionId in SECTION_LABELS_BUILTIN) return SECTION_LABELS_BUILTIN[sectionId];
+  return customSections.find((s) => s.id === sectionId)?.label ?? sectionId;
+}
+
+/** Color config per ColorKey — for custom sections. */
+const COLOR_CONFIG_MAP: Record<ColorKey, Omit<GroupConfig, "id" | "label" | "section" | "icon">> = {
+  blue:    G_BLUE,
+  emerald: G_EMERALD,
+  violet:  G_VIOLET,
+  amber:   G_AMBER,
+  rose:    G_ROSE,
+  pink: {
+    iconBg: "bg-pink-50 dark:bg-pink-900/20",    iconColor: "text-pink-500 dark:text-pink-400",
+    activeDot: "bg-pink-500",                     activePulse: "bg-pink-400",
+    selectedBg: "bg-pink-50 dark:bg-pink-900/10", selectedText: "text-pink-600 dark:text-pink-400",
+    selectedBorder: "border-pink-200 dark:border-pink-800",
+  },
+  cyan: {
+    iconBg: "bg-cyan-50 dark:bg-cyan-900/20",    iconColor: "text-cyan-500 dark:text-cyan-400",
+    activeDot: "bg-cyan-500",                     activePulse: "bg-cyan-400",
+    selectedBg: "bg-cyan-50 dark:bg-cyan-900/10", selectedText: "text-cyan-600 dark:text-cyan-400",
+    selectedBorder: "border-cyan-200 dark:border-cyan-800",
+  },
+  orange: {
+    iconBg: "bg-orange-50 dark:bg-orange-900/20",    iconColor: "text-orange-500 dark:text-orange-400",
+    activeDot: "bg-orange-500",                       activePulse: "bg-orange-400",
+    selectedBg: "bg-orange-50 dark:bg-orange-900/10", selectedText: "text-orange-600 dark:text-orange-400",
+    selectedBorder: "border-orange-200 dark:border-orange-800",
+  },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -442,6 +481,7 @@ interface ImportPopoverProps {
   customGroups: CustomGroup[];
   onAddCustomGroup: (group: CustomGroup) => void;
   onOpenControlPanel?: () => void;
+  customSections: CustomSection[];
 }
 
 // ─── Account row (dynamic "add what you need" UX) ─────────────────────────────
@@ -451,7 +491,7 @@ function ImportPopover({
   onImportCsv, onImportUrl, onImportMeta, campaignConfigs, onSaveCampaignConfig, onClose,
   onCampaignsVerified, savedCampaignsByGroup, savedSelectedCampaigns, onSaveCampaignSelection,
   onClearCampaignSelection,
-  customGroups, onAddCustomGroup, onOpenControlPanel, initialTab, inline,
+  customGroups, onAddCustomGroup, onOpenControlPanel, customSections, initialTab, inline,
 }: ImportPopoverProps & { initialTab?: ImportTab; inline?: boolean }) {
   const [tab, setTab]                     = useState<ImportTab>(initialTab ?? "sheets");
   const [url, setUrl]                     = useState("");
@@ -497,13 +537,18 @@ function ImportPopover({
   // ── All groups (static + custom) ────────────────────────────────────────────
   const allGroupsInPopover = useMemo<GroupConfig[]>(() => [
     ...CAMPAIGN_GROUPS,
-    ...customGroups.map((cg): GroupConfig => ({
-      ...SECTION_DEFAULTS[cg.section as GroupSection],
-      id: cg.id,
-      label: cg.label,
-      section: cg.section as GroupSection,
-    })),
-  ], [customGroups]);
+    ...customGroups.map((cg): GroupConfig => {
+      const isBuiltin = cg.section in SECTION_DEFAULTS;
+      if (isBuiltin) {
+        return { ...SECTION_DEFAULTS[cg.section], id: cg.id, label: cg.label, section: cg.section as GroupSection };
+      }
+      const customSec = customSections.find((s) => s.id === cg.section);
+      const colorKey: ColorKey = customSec?.colorKey ?? "blue";
+      const colorCfg = COLOR_CONFIG_MAP[colorKey];
+      const ResolvedIcon = ICON_MAP[customSec?.iconName ?? "Package"] ?? Package;
+      return { ...colorCfg, icon: ResolvedIcon, id: cg.id, label: cg.label, section: cg.section as GroupSection };
+    }),
+  ], [customGroups, customSections]);
 
   // ── Add-campaign multi-step wizard ──────────────────────────────────────────
   type WizardStep = "idle" | "section" | "group" | "new-name";
@@ -930,6 +975,7 @@ interface CampaignPanelProps {
   searchCampaign: string;
   showCourseGroups: boolean;
   groups: GroupConfig[];
+  customSections: CustomSection[];
   selectedCampaign: string;
   campaignsByGroup: Record<string, CampaignSummary[]>;
   checkedCampaignIds: string[];
@@ -952,7 +998,7 @@ interface CampaignPanelProps {
 function CampaignPanel({
   selectedGroup, selectedTurma, activeCampaigns, turmasByGroup,
   dateFrom, dateTo, searchCampaign, showCourseGroups,
-  groups, selectedCampaign, campaignsByGroup, checkedCampaignIds, sortBy,
+  groups, customSections, selectedCampaign, campaignsByGroup, checkedCampaignIds, sortBy,
   onSelectGroup, onSelectTurma, onSelectCampaign, onToggleActive,
   onDateFrom, onDateTo, onSearch, onClearFilters, onSortBy, onCheckedCampaignIds,
   onClearCampaignFilter, isFilterExplicit, hasActiveFilters,
@@ -965,7 +1011,9 @@ function CampaignPanel({
   const [pendingFrom, setPendingFrom] = useState(dateFrom);
   const [pendingTo,   setPendingTo]   = useState(dateTo);
   // Keep pending in sync when parent clears filters externally
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPendingFrom(dateFrom); }, [dateFrom]);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPendingTo(dateTo); }, [dateTo]);
   const pendingChanged = pendingFrom !== dateFrom || pendingTo !== dateTo;
 
@@ -1041,7 +1089,7 @@ function CampaignPanel({
                 <div className={`${idx > 0 ? "mt-2 border-t" : ""} px-4 pb-1 pt-2.5`} style={{ borderColor: "var(--dm-border-subtle)" }}>
                   <p className="text-[10px] font-extrabold uppercase tracking-widest"
                     style={{ color: "var(--dm-text-tertiary)" }}>
-                    {SECTION_LABELS[group.section]}
+                    {getSectionLabel(group.section, customSections)}
                   </p>
                 </div>
               )}
@@ -1356,6 +1404,8 @@ export function Dashboard({
   dataSource,
   syncStatus,
   currentUser,
+  categories = [],
+  accountEntries = [],
   onImportCsv,
   onImportUrl,
   onImportMeta,
@@ -1407,10 +1457,15 @@ export function Dashboard({
     selectedGroup, selectedTurma, activeCampaigns, campaignConfigs,
     selectedCategory, campaignsByGroup, selectedCampaign, selectedCampaignsByGroup, enabledSections,
     customGroups, addCustomGroup,
+    customSections, addCustomSection, removeCustomSection,
     setSelectedGroup, setSelectedTurma, toggleActive, setCampaignConfig,
     setSelectedCategory, setCampaignsForGroup, setSelectedCampaign, setEnabledSections,
-    setCampaignSelectionForGroup, clearCampaignSelectionForGroup,
+    setCampaignSelectionForGroup, clearCampaignSelectionForGroup, syncPanelConfig,
   } = useCampaignStore();
+
+  useEffect(() => {
+    syncPanelConfig(categories, accountEntries);
+  }, [accountEntries, categories, syncPanelConfig]);
 
   // Goals are per-group; "all" uses the "global" bucket
   const goalsGroupKey = selectedGroup === "all" ? "global" : selectedGroup;
@@ -1423,6 +1478,7 @@ export function Dashboard({
   useEffect(() => {
     const normId = (x: string) => String(x).trim();
     if (selectedGroup === "all") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCheckedCampaignIds([]);
       return;
     }
@@ -1533,13 +1589,18 @@ export function Dashboard({
   // Merge static groups with custom-created ones
   const allGroups = useMemo<GroupConfig[]>(() => [
     ...CAMPAIGN_GROUPS,
-    ...customGroups.map((cg): GroupConfig => ({
-      ...SECTION_DEFAULTS[cg.section as GroupSection],
-      id: cg.id,
-      label: cg.label,
-      section: cg.section as GroupSection,
-    })),
-  ], [customGroups]);
+    ...customGroups.map((cg): GroupConfig => {
+      const isBuiltin = cg.section in SECTION_DEFAULTS;
+      if (isBuiltin) {
+        return { ...SECTION_DEFAULTS[cg.section], id: cg.id, label: cg.label, section: cg.section as GroupSection };
+      }
+      const customSec = customSections.find((s) => s.id === cg.section);
+      const colorKey: ColorKey = customSec?.colorKey ?? "blue";
+      const colorCfg = COLOR_CONFIG_MAP[colorKey];
+      const ResolvedIcon = ICON_MAP[customSec?.iconName ?? "Package"] ?? Package;
+      return { ...colorCfg, icon: ResolvedIcon, id: cg.id, label: cg.label, section: cg.section as GroupSection };
+    }),
+  ], [customGroups, customSections]);
 
   // ── Account → section map for Meta data ──────────────────────────────────────
   const accountSectionMap = useMemo<Record<string, ProductCategory>>(() => {
@@ -1791,6 +1852,7 @@ export function Dashboard({
     dateFrom, dateTo, searchCampaign,
     showCourseGroups,
     groups: sidebarGroups,
+    customSections,
     selectedCampaign,
     campaignsByGroup,
     checkedCampaignIds,
@@ -2048,6 +2110,7 @@ export function Dashboard({
                     onAddCustomGroup={addCustomGroup}
                     initialTab={importInitialTab}
                     onOpenControlPanel={onOpenControlPanel}
+                    customSections={customSections}
                   />
                 )}
               </div>
@@ -2113,6 +2176,7 @@ export function Dashboard({
                     customGroups={customGroups}
                     onAddCustomGroup={addCustomGroup}
                     onOpenControlPanel={onOpenControlPanel}
+                    customSections={customSections}
                   />
                 </div>
               ) : (
@@ -2424,6 +2488,7 @@ export function Dashboard({
                   clicks={totals.totalClicks}
                   conversions={totals.totalConversions}
                   investment={totals.totalInvestment}
+                  storageScope={currentUser.email}
                 />
 
                 <ChartsSection dailyTrend={dailyTrend} campaignComparison={campaignComparison} budgetDistribution={budgetDistribution} />
@@ -2545,6 +2610,9 @@ export function Dashboard({
                 setSelectedCategory(c);
                 setPickCategoryOpen(false);
               }}
+              customSections={customSections}
+              onAddSection={addCustomSection}
+              onRemoveSection={removeCustomSection}
             />
           </div>
         </div>

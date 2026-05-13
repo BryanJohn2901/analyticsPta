@@ -50,7 +50,7 @@ export default function Home() {
   const [campaigns, setCampaigns]       = useState<CampaignData[]>([]);
   const [authError, setAuthError]       = useState<string | null>(null);
   const [session, setSession]           = useState<Session | null>(null);
-  const [authReady, setAuthReady]         = useState(false);
+  const [authReady, setAuthReady]         = useState(!isSupabaseConfigured || !supabaseClient);
   const [realtimeActive, setRealtimeActive] = useState(false);
   const [dataSource, setDataSource]     = useState<DataSource | null>(null);
   const [syncStatus, setSyncStatus]     = useState<{ syncing: boolean; result?: MetaSyncResult; error?: string }>({ syncing: false });
@@ -104,6 +104,13 @@ export default function Home() {
     } catch { return []; }
   }
 
+  const loadSupabaseData = async (): Promise<CampaignData[]> => {
+    const data = await fetchSupabaseCampaigns();
+    setCampaigns(data);
+    return data;
+  };
+  const loadSharedDataSource = async () => setDataSource(await fetchSharedDataSource());
+
   /**
    * Syncs Meta Ads data into Supabase (upsert). Usa entradas do Painel ou perfis em localStorage.
    * @param entriesOverride — lista recém-carregada do Supabase (evita estado React atrasado no login).
@@ -119,7 +126,7 @@ export default function Home() {
 
     // Build account list: prefer new Supabase entries, fall back to old localStorage profiles
     type AccountItem = { adAccountId: string; campaignIds: string[] | undefined };
-    let accountItems: AccountItem[] = [];
+    const accountItems: AccountItem[] = [];
 
     if (entries.length > 0) {
       const seen = new Set<string>();
@@ -211,7 +218,9 @@ export default function Home() {
   };
 
   const handleMetaAutoSyncRef = useRef(handleMetaAutoSync);
-  handleMetaAutoSyncRef.current = handleMetaAutoSync;
+  useEffect(() => {
+    handleMetaAutoSyncRef.current = handleMetaAutoSync;
+  }, [handleMetaAutoSync]);
 
   const handleSignOut = async (): Promise<void> => {
     if (!supabaseClient) return;
@@ -351,13 +360,6 @@ export default function Home() {
     await loadSharedDataSource();
   };
 
-  const loadSupabaseData = async (): Promise<CampaignData[]> => {
-    const data = await fetchSupabaseCampaigns();
-    setCampaigns(data);
-    return data;
-  };
-  const loadSharedDataSource = async () => setDataSource(await fetchSharedDataSource());
-
   const handleSignIn = async (email: string, password: string): Promise<void> => {
     setAuthError(null);
     if (!supabaseClient) return;
@@ -429,7 +431,6 @@ export default function Home() {
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabaseClient) {
-      setAuthReady(true);
       return;
     }
     const client = supabaseClient;
@@ -576,6 +577,8 @@ export default function Home() {
         dataSource={dataSource}
         syncStatus={syncStatus}
         currentUser={currentUser}
+        categories={userCategories}
+        accountEntries={userAccountEntries}
         onImportCsv={handleCsvUpload}
         onImportUrl={handleGenerateDashboard}
         onImportMeta={handleMetaImport}
