@@ -5,6 +5,7 @@ import { toast } from "@/hooks/useToast";
 import { RealtimeChannel, Session } from "@supabase/supabase-js";
 import { Dashboard } from "@/components/Dashboard";
 import { ControlPanel } from "@/components/ControlPanel";
+import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import { AuthScreen } from "@/components/AuthScreen";
 import { CampaignData } from "@/types/campaign";
 import { fetchCampaignSheetData, parseCampaignCsvFile } from "@/utils/googleSheets";
@@ -52,9 +53,16 @@ export default function Home() {
   const sourceChannelRef = useRef<RealtimeChannel | null>(null);
 
   // ── User configuration (Painel de Controle) ──────────────────────────────
-  const [showControlPanel,  setShowControlPanel]  = useState(false);
-  const [userCategories,    setUserCategories]    = useState<UserCategory[]>([]);
+  const [showControlPanel,   setShowControlPanel]   = useState(false);
+  const [showOnboarding,     setShowOnboarding]     = useState(false);
+  const [userCategories,     setUserCategories]     = useState<UserCategory[]>([]);
   const [userAccountEntries, setUserAccountEntries] = useState<UserAccountEntry[]>([]);
+
+  const handleOnboardingComplete = () => {
+    try { localStorage.setItem("pta_onboarding_v1", "1"); } catch {}
+    setShowOnboarding(false);
+    setShowControlPanel(true);
+  };
 
   const closeRealtimeChannels = () => {
     if (campaignChannelRef.current && supabaseClient) {
@@ -419,6 +427,12 @@ export default function Home() {
         setUserCategories(cats);
         setUserAccountEntries(entries);
 
+        // Show onboarding tutorial on first login
+        try {
+          if (!localStorage.getItem("pta_onboarding_v1")) setShowOnboarding(true);
+        } catch {}
+
+
         disconnectRealtime();
         campaignChannelRef.current = subscribeSupabaseCampaigns(loadSupabaseData);
         sourceChannelRef.current = subscribeSharedDataSource(loadSharedDataSource);
@@ -466,6 +480,10 @@ export default function Home() {
 
   return (
     <>
+      {showOnboarding && (
+        <OnboardingTutorial onComplete={handleOnboardingComplete} />
+      )}
+
       <Dashboard
         campaigns={campaigns}
         dataSource={dataSource}
