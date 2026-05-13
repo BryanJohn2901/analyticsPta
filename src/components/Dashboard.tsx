@@ -6,7 +6,7 @@ import {
   Activity, BadgeDollarSign, BarChart2, BookOpen, CalendarDays,
   CheckCircle2, ChevronDown, ChevronUp, CircleDollarSign, Dumbbell, FileText,
   FileUp, Filter, Flag, GraduationCap, Home, ImageIcon, Link2, Loader2, LogOut, Menu, Moon,
-  MousePointerClick, Package, Pencil, Plus, Repeat, RotateCcw, SlidersHorizontal, Sun,
+  MousePointerClick, Package, Pencil, Plus, Repeat, RotateCcw, Settings2, SlidersHorizontal, Sun,
   Target, Trash2, TrendingUp, Trophy, Upload, UserRound, Users, Wallet, X, XCircle, Zap,
   LayoutDashboard, History, LineChart, Sparkles, Database, Dna, Weight, HeartPulse,
   Medal, PersonStanding, Flame, BookText, MonitorSmartphone, Ticket, Library, VenetianMask
@@ -59,6 +59,7 @@ interface DashboardProps {
   onClearData?: () => Promise<void>;
   onSignOut: () => Promise<void>;
   onUpdateProfile: (name: string) => Promise<void>;
+  onOpenControlPanel?: () => void;
 }
 
 type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles" | "products";
@@ -1507,6 +1508,7 @@ export function Dashboard({
   onClearData,
   onSignOut,
   onUpdateProfile,
+  onOpenControlPanel,
 }: DashboardProps) {
   const [mainTab, setMainTab]               = useState<MainTab>("overview");
   const [dateFrom, setDateFrom]             = useState<string>(() => {
@@ -2017,6 +2019,20 @@ export function Dashboard({
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
+
+            {/* Painel de Controle */}
+            {onOpenControlPanel && (
+              <button
+                onClick={onOpenControlPanel}
+                title="Painel de Controle"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border transition hover:opacity-80"
+                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)",
+                  color: "var(--dm-text-secondary)" }}
+              >
+                <Settings2 size={15} />
+              </button>
+            )}
+
             <UserMenu
               name={currentUser.name}
               email={currentUser.email}
