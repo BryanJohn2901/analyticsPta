@@ -27,6 +27,7 @@ const formatCurrency = formatBRL;
 const formatNumber = formatInt;
 
 const TEMPLATE_LS_KEY = "pta_profile_template_v1";
+const DATES_LS_KEY    = "pta_profile_dates_v1";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,6 +56,8 @@ interface AdsetRow {
   purchases: number;
   leads: number;
   cpa: number;
+  page_views: number;
+  new_followers: number;
 }
 
 function todayStr() { return new Date().toISOString().split("T")[0]; }
@@ -90,6 +93,7 @@ function toAdsetRows(data: MetaInsight[]): AdsetRow[] {
       name: key,
       impressions: 0, reach: 0, clicks: 0, spend: 0, revenue: 0,
       cpm: 0, ctr: 0, purchases: 0, leads: 0, cpa: 0,
+      page_views: 0, new_followers: 0,
     };
     cur.impressions += parseMetaNum(d.impressions);
     cur.reach       += parseMetaNum(d.reach);
@@ -98,18 +102,23 @@ function toAdsetRows(data: MetaInsight[]): AdsetRow[] {
       ? parseMetaNum(d.inline_link_clicks)
       : parseMetaNum(d.clicks);
     cur.spend       += parseMetaNum(d.spend);
-    cur.purchases   += getActionValue(d.actions, "purchase");
-    cur.leads       += getActionValue(d.actions, "lead")
-                     + getActionValue(d.actions, "onsite_conversion.lead_grouped");
-    cur.revenue     += pickActionValue(d.action_values, "purchase", "omni_purchase",
-                       "offsite_conversion.fb_pixel_purchase");
+    cur.purchases     += getActionValue(d.actions, "purchase");
+    cur.leads         += getActionValue(d.actions, "lead")
+                       + getActionValue(d.actions, "onsite_conversion.lead_grouped");
+    cur.revenue       += pickActionValue(d.action_values, "purchase", "omni_purchase",
+                         "offsite_conversion.fb_pixel_purchase");
+    // landing_page_view: fired when the destination page fully loads after an ad click.
+    // More reliable than link clicks for page-view funnels (imersão, personalizado).
+    cur.page_views    += getActionValue(d.actions, "landing_page_view");
+    // follow: counts new Instagram followers driven by the ad (requires engagement/traffic objective).
+    cur.new_followers += getActionValue(d.actions, "follow");
     map.set(key ?? "", cur);
   });
   return Array.from(map.values()).map((r) => ({
     ...r,
     cpm: r.impressions > 0 ? (r.spend / r.impressions) * 1000 : 0,
     ctr: r.impressions > 0 ? (r.clicks / r.impressions) * 100 : 0,
-    cpa: r.purchases > 0 ? r.spend / r.purchases : 0,
+    cpa: r.purchases  > 0 ? r.spend / r.purchases : 0,
   })).sort((a, b) => b.spend - a.spend);
 }
 
@@ -614,12 +623,14 @@ function CampaignAnalysisPanel({
   useEffect(() => { void load(); }, [load]);
 
   // ── Totals ────────────────────────────────────────────────────────────────────
-  const totalSpend       = data.reduce((s, r) => s + r.spend,       0);
-  const totalRevenue     = data.reduce((s, r) => s + r.revenue,     0);
-  const totalPurchases   = data.reduce((s, r) => s + r.purchases,   0);
-  const totalClicks      = data.reduce((s, r) => s + r.clicks,      0);
-  const totalImpressions = data.reduce((s, r) => s + r.impressions, 0);
-  const totalLeads       = data.reduce((s, r) => s + r.leads,       0);
+  const totalSpend        = data.reduce((s, r) => s + r.spend,         0);
+  const totalRevenue      = data.reduce((s, r) => s + r.revenue,       0);
+  const totalPurchases    = data.reduce((s, r) => s + r.purchases,     0);
+  const totalClicks       = data.reduce((s, r) => s + r.clicks,        0);
+  const totalImpressions  = data.reduce((s, r) => s + r.impressions,   0);
+  const totalLeads        = data.reduce((s, r) => s + r.leads,         0);
+  const totalPageViews    = data.reduce((s, r) => s + r.page_views,    0);
+  const totalNewFollowers = data.reduce((s, r) => s + r.new_followers, 0);
   const avgCtr           = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
   const txCaptura        = totalClicks    > 0 ? (totalLeads    / totalClicks)    * 100 : 0;
   const txConversao      = totalLeads     > 0 ? (totalPurchases / totalLeads)    * 100
@@ -667,9 +678,11 @@ function CampaignAnalysisPanel({
     sales:         totalPurchases,
     tickets:       totalPurchases,   // imersão maps purchases → tickets
     // page_views / profile_visits / new_followers not returned by campaign-level API
-    page_views:    0,
+    page_views:     totalPageViews,
+    // profile_visits is not available from the Meta campaign-level Insights API.
+    // It requires a separate Instagram Graph API call — left as 0 until integrated.
     profile_visits: 0,
-    new_followers:  0,
+    new_followers:  totalNewFollowers,
   };
   const derived   = tpl.derive(rawValues);
   const kpiValues = { ...rawValues, ...derived };
@@ -793,7 +806,8 @@ function CampaignAnalysisPanel({
                     impressions: r.impressions, reach: r.reach, clicks: r.clicks,
                     spend: r.spend, revenue: r.revenue, leads: r.leads,
                     sales: r.purchases, tickets: r.purchases, cpa: r.cpa,
-                    page_views: 0, profile_visits: 0, new_followers: 0,
+                    page_views: r.page_views, new_followers: r.new_followers,
+                    profile_visits: 0, // not available at campaign level
                   };
                   const rowDerived = tpl.derive(rowValues);
                   const rowAll = { ...rowValues, ...rowDerived };
@@ -878,8 +892,29 @@ function ProfileDetailView({
 }) {
   const { addCampaignToProfile, removeCampaignFromProfile } = useAdvertiserStore();
   const [activeCampId, setActiveCampId] = useState<string>(profile.campaigns[0]?.id ?? "");
-  const [dateFrom, setDateFrom]         = useState(daysAgoStr(14));
-  const [dateTo, setDateTo]             = useState(todayStr());
+
+  // Persist date range per profile so it survives navigation back-and-forth.
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    if (typeof window === "undefined") return daysAgoStr(14);
+    try {
+      const stored = JSON.parse(localStorage.getItem(DATES_LS_KEY) ?? "{}") as Record<string, { from: string; to: string }>;
+      return stored[profile.id]?.from ?? daysAgoStr(14);
+    } catch { return daysAgoStr(14); }
+  });
+  const [dateTo, setDateTo] = useState<string>(() => {
+    if (typeof window === "undefined") return todayStr();
+    try {
+      const stored = JSON.parse(localStorage.getItem(DATES_LS_KEY) ?? "{}") as Record<string, { from: string; to: string }>;
+      return stored[profile.id]?.to ?? todayStr();
+    } catch { return todayStr(); }
+  });
+
+  const persistDates = (from: string, to: string) => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(DATES_LS_KEY) ?? "{}") as Record<string, { from: string; to: string }>;
+      localStorage.setItem(DATES_LS_KEY, JSON.stringify({ ...stored, [profile.id]: { from, to } }));
+    } catch {}
+  };
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
   const hasToken = Boolean(loadMetaCredentials().accessToken);
@@ -1010,10 +1045,10 @@ function ProfileDetailView({
               style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)" }}
             >
               <CalendarDays size={13} style={{ color: "var(--dm-text-tertiary)" }} />
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+              <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); persistDates(e.target.value, dateTo); }}
                 className="bg-transparent text-xs font-medium outline-none" style={{ color: "var(--dm-text-primary)" }} />
               <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>até</span>
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+              <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); persistDates(dateFrom, e.target.value); }}
                 className="bg-transparent text-xs font-medium outline-none" style={{ color: "var(--dm-text-primary)" }} />
             </div>
           </div>

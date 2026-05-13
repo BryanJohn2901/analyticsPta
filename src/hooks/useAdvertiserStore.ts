@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 const STORAGE_KEY = "pta_advertiser_profiles_v2";
 
@@ -58,9 +58,9 @@ function persist(profiles: AdvertiserProfile[]): void {
 }
 
 export function useAdvertiserStore() {
-  const [profiles, setProfiles] = useState<AdvertiserProfile[]>([]);
-
-  useEffect(() => { setProfiles(loadProfiles()); }, []);
+  // Synchronous init from localStorage (same pattern as useCampaignStore) so the
+  // profile list never flashes the empty-state on first render.
+  const [profiles, setProfiles] = useState<AdvertiserProfile[]>(loadProfiles);
 
   const addProfile = useCallback((data: Omit<AdvertiserProfile, "id" | "createdAt">) => {
     const profile: AdvertiserProfile = {
