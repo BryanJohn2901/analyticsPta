@@ -37,7 +37,7 @@ export default function RootLayout({
       className={`${inter.variable} ${geistMono.variable} ${outfit.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <ThemeProvider>
           {children}
           <Toaster />

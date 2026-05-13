@@ -17,6 +17,8 @@ export interface UserAccountEntry {
   categoryId: string;
   label: string;
   adAccountId: string;
+  /** Subfiltro da categoria fixa (ex.: bm, tf). Categorias personalizadas: null. */
+  internalFilter: string | null;
   campaigns: Array<{ id: string; name: string; status: string }>;
   selectedCampaignIds: string[]; // empty array = all campaigns
   isEnabled: boolean;

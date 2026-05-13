@@ -55,7 +55,7 @@ export const fetchSupabaseCampaigns = async (): Promise<CampaignData[]> => {
 };
 
 export const subscribeSupabaseCampaigns = (
-  onChange: () => Promise<void>,
+  onChange: () => Promise<unknown>,
 ): RealtimeChannel => {
   if (!supabaseClient) {
     throw new Error("Supabase não configurado.");

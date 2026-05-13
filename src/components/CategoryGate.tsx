@@ -143,36 +143,40 @@ interface CategoryGateProps {
 
 export function CategoryGate({ onSelect }: CategoryGateProps) {
   return (
-    <div className="flex min-h-full flex-col items-center justify-center px-4 py-12">
-      <div className="w-full max-w-3xl">
+    <div className="flex min-h-[min(70vh,560px)] flex-col items-center justify-center px-4 py-10 sm:py-14">
+      <div className="w-full max-w-4xl">
 
         {/* Header */}
-        <div className="mb-10 text-center">
+        <div className="mb-8 text-center sm:mb-10">
+          <p className="mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}>
+            <span className="flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: "var(--dm-brand-500)" }}>1</span>
+            Passo 1 de 2 — área de negócio
+          </p>
           <div
-            className="mb-5 inline-flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg"
+            className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl shadow-lg"
             style={{ backgroundColor: "var(--dm-brand-500)" }}
           >
-            <GraduationCap size={26} style={{ color: "var(--dm-text-inverse)" }} />
+            <GraduationCap size={28} style={{ color: "var(--dm-text-inverse)" }} />
           </div>
           <h1
-            className="text-2xl font-bold sm:text-3xl"
+            className="text-2xl font-bold tracking-tight sm:text-3xl"
             style={{ color: "var(--dm-text-primary)" }}
           >
-            O que você quer analisar?
+            Que tipo de campanhas quer ver primeiro?
           </h1>
-          <p className="mt-2 text-sm" style={{ color: "var(--dm-text-secondary)" }}>
-            Escolha a categoria de campanha para ver apenas os dados relevantes
+          <p className="mx-auto mt-3 max-w-lg text-sm leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
+            Cada cartão agrupa um conjunto de cursos e métricas. Pode mudar mais tarde pelo canto superior do dashboard.
           </p>
         </div>
 
-        {/* 5 cards — responsive grid */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Cards — responsive grid */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORY_CONFIGS.map((cat) => (
             <button
               key={cat.id}
               type="button"
               onClick={() => onSelect(cat.id)}
-              className="dm-cat-card group relative flex flex-col rounded-xl border p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              className="dm-cat-card group relative flex flex-col rounded-2xl border p-6 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
               style={{
                 backgroundColor: "var(--dm-bg-surface)",
                 borderColor: "var(--dm-border-default)",
@@ -181,20 +185,20 @@ export function CategoryGate({ onSelect }: CategoryGateProps) {
             >
               {/* Icon */}
               <div
-                className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg"
+                className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl"
                 style={{ backgroundColor: "var(--dm-bg-elevated)" }}
               >
-                <cat.icon size={18} style={{ color: cat.vars.base }} />
+                <cat.icon size={20} style={{ color: cat.vars.base }} />
               </div>
 
               {/* Title + description */}
-              <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>{cat.label}</p>
-              <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
+              <p className="text-[15px] font-semibold" style={{ color: "var(--dm-text-primary)" }}>{cat.label}</p>
+              <p className="mt-1.5 text-xs leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
                 {cat.description}
               </p>
 
               {/* Tags — neutral */}
-              <div className="mt-3 flex flex-wrap gap-1">
+              <div className="mt-4 flex flex-wrap gap-1">
                 {cat.tags.slice(0, 3).map((tag) => (
                   <span
                     key={tag}
@@ -214,7 +218,7 @@ export function CategoryGate({ onSelect }: CategoryGateProps) {
                 )}
               </div>
 
-              {/* Blue hover indicator */}
+              {/* Hover indicator */}
               <span
                 className="absolute right-4 top-4 h-2 w-2 rounded-full opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                 style={{ backgroundColor: "var(--dm-brand-500)" }}
@@ -223,8 +227,8 @@ export function CategoryGate({ onSelect }: CategoryGateProps) {
           ))}
         </div>
 
-        <p className="mt-8 text-center text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
-          Você pode trocar a categoria a qualquer momento pelo cabeçalho do dashboard
+        <p className="mt-8 text-center text-xs leading-relaxed" style={{ color: "var(--dm-text-tertiary)" }}>
+          Dica: no telemóvel, use o menu ☰ para mudar de separador; no desktop, a categoria também aparece no topo ao lado do título da página.
         </p>
       </div>
     </div>

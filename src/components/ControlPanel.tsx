@@ -1,29 +1,37 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useTheme } from "next-themes";
 import {
   X, Settings2, ChevronDown, ChevronUp, Plus, Trash2, Loader2,
   Zap, User, Activity, CheckCircle2, XCircle, Link2, Eye, EyeOff,
   RefreshCw, Save, RotateCcw, Sun, Moon, Database,
 } from "lucide-react";
-import { classifyCampaign } from "@/utils/campaignClassifier";
 import type { UserCategory, UserAccountEntry } from "@/types/userConfig";
 import { FIXED_CATEGORIES, MAX_CUSTOM_CATEGORIES } from "@/types/userConfig";
+import { getInternalFiltersForCategorySlug, getInternalFilterLabel } from "@/config/categoryInternalFilters";
 import {
   upsertUserCategory, deleteUserCategory,
   upsertUserAccountEntry, deleteUserAccountEntry,
 } from "@/utils/supabaseCategories";
-import { fetchMetaCampaigns, loadMetaCredentials, saveMetaCredentials } from "@/utils/metaApi";
+import {
+  fetchMetaCampaigns,
+  fetchMetaAdAccounts,
+  loadMetaCredentials,
+  saveMetaCredentials,
+  type MetaAdAccount,
+} from "@/utils/metaApi";
 import type { MetaSyncResult } from "@/utils/supabaseCampaigns";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CPTab = "accounts" | "integrations" | "sync" | "profile";
+export type CPTab = "accounts" | "integrations" | "sync" | "profile";
 
 interface ControlPanelProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Ao abrir o drawer (transição fechado → aberto), foca esta aba (ex.: integrações para configurar origem). */
+  openingTab?: CPTab;
   userName: string;
   userEmail: string;
   categories: UserCategory[];
@@ -38,40 +46,131 @@ interface ControlPanelProps {
   dataSource?:   { type: string; label: string } | null;
   onRefresh?:    () => Promise<void>;
   onClearData?:  () => Promise<void>;
-  // Campaign name suggestions for AddEntryForm
-  campaignSuggestions?: string[];
+  /** Após salvar vínculo de conta no Painel: fecha o drawer e o Dashboard aplica categoria/grupo/campanhas. */
+  onPainelSaveNavigate?: (detail: { entry: UserAccountEntry; categorySlug: string; isCustom: boolean }) => void;
 }
 
 // ─── AddEntryForm ─────────────────────────────────────────────────────────────
 
 interface AddEntryFormProps {
   categoryId: string;
+  categorySlug: string;
+  isCustomCategory: boolean;
   onSaved: (entry: UserAccountEntry) => void;
   onCancel: () => void;
-  suggestions?: string[];
 }
 
-function AddEntryForm({ categoryId, onSaved, onCancel, suggestions = [] }: AddEntryFormProps) {
-  const [label,       setLabel]       = useState("");
-  const [accountId,   setAccountId]   = useState("");
+function AddEntryForm({
+  categoryId,
+  categorySlug,
+  isCustomCategory,
+  onSaved,
+  onCancel,
+}: AddEntryFormProps) {
+  const [label, setLabel] = useState("");
+  const [accountId, setAccountId] = useState("");
+  const [internalFilter, setInternalFilter] = useState("");
   const [verifyState, setVerifyState] = useState<"idle" | "loading" | "ok" | "error">("idle");
-  const [errMsg,      setErrMsg]      = useState("");
-  const [campaigns,   setCampaigns]   = useState<Array<{ id: string; name: string; status: string }>>([]);
-  const [selected,    setSelected]    = useState<string[]>([]);
-  const [saving,      setSaving]      = useState(false);
+  const [errMsg, setErrMsg] = useState("");
+  const [campaigns, setCampaigns] = useState<Array<{ id: string; name: string; status: string }>>([]);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [metaAccounts, setMetaAccounts] = useState<MetaAdAccount[]>([]);
+  const [loadingAccounts, setLoadingAccounts] = useState(true);
+  const [accountsLoadErr, setAccountsLoadErr] = useState("");
+  const [hasMetaToken, setHasMetaToken] = useState(false);
+  const [campaignListOpen, setCampaignListOpen] = useState(true);
+  const [fieldErrors, setFieldErrors] = useState<{ account?: string; filter?: string }>({});
+
+  const filterOptions = useMemo(
+    () => (isCustomCategory ? [] : getInternalFiltersForCategorySlug(categorySlug)),
+    [categorySlug, isCustomCategory],
+  );
+  const needsInternalFilter = !isCustomCategory && filterOptions.length > 0;
+  const accountReady = Boolean(accountId.trim());
+  const filterReady = !needsInternalFilter || Boolean(internalFilter.trim());
+  const canContinueAfterFilters = accountReady && filterReady;
+
+  useEffect(() => {
+    setLabel("");
+    setAccountId("");
+    setInternalFilter("");
+    setVerifyState("idle");
+    setCampaigns([]);
+    setSelected([]);
+    setErrMsg("");
+    setFieldErrors({});
+    setCampaignListOpen(true);
+  }, [categoryId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { accessToken } = loadMetaCredentials();
+      const tokenOk = Boolean(accessToken?.trim());
+      setHasMetaToken(tokenOk);
+      if (!accessToken?.trim()) {
+        setMetaAccounts([]);
+        setAccountsLoadErr("");
+        setLoadingAccounts(false);
+        return;
+      }
+      setLoadingAccounts(true);
+      setAccountsLoadErr("");
+      try {
+        const list = await fetchMetaAdAccounts(accessToken);
+        if (!cancelled) setMetaAccounts(list);
+      } catch (e) {
+        if (!cancelled) {
+          setMetaAccounts([]);
+          setAccountsLoadErr(e instanceof Error ? e.message : "Falha ao carregar contas.");
+        }
+      } finally {
+        if (!cancelled) setLoadingAccounts(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handlePickAccount = (id: string) => {
+    setAccountId(id);
+    setInternalFilter("");
+    setLabel("");
+    setVerifyState("idle");
+    setCampaigns([]);
+    setSelected([]);
+    setErrMsg("");
+    setCampaignListOpen(true);
+    setFieldErrors((e) => ({ ...e, account: undefined, filter: undefined }));
+  };
+
+  const handleInternalFilterChange = (value: string) => {
+    setInternalFilter(value);
+    setVerifyState("idle");
+    setCampaigns([]);
+    setSelected([]);
+    setErrMsg("");
+    setCampaignListOpen(true);
+    setFieldErrors((e) => ({ ...e, filter: undefined }));
+  };
 
   const handleVerify = async () => {
+    if (!canContinueAfterFilters) return;
     const id = accountId.trim();
-    if (!id) return;
     const { accessToken } = loadMetaCredentials();
-    if (!accessToken) { setErrMsg("Token de acesso não configurado. Configure em Integrações."); setVerifyState("error"); return; }
+    if (!accessToken) {
+      setErrMsg("Token de acesso não configurado. Configure em Integrações.");
+      setVerifyState("error");
+      return;
+    }
     setVerifyState("loading");
     setErrMsg("");
     try {
       const camps = await fetchMetaCampaigns(id, accessToken);
       setCampaigns(camps);
-      setSelected(camps.map(c => c.id));
+      setSelected(camps.map((c) => c.id));
       setVerifyState("ok");
+      setCampaignListOpen(false);
     } catch (e) {
       setErrMsg(e instanceof Error ? e.message : "Falha ao verificar conta.");
       setVerifyState("error");
@@ -79,13 +178,28 @@ function AddEntryForm({ categoryId, onSaved, onCancel, suggestions = [] }: AddEn
   };
 
   const handleSave = async () => {
-    if (!label.trim() || !accountId.trim()) return;
+    const err: { account?: string; filter?: string } = {};
+    if (!accountId.trim()) err.account = "Selecione uma conta de anúncios.";
+    if (needsInternalFilter && !internalFilter.trim()) {
+      err.filter = "Selecione o filtro desta conta para esta categoria.";
+    }
+    if (Object.keys(err).length > 0) {
+      setFieldErrors(err);
+      return;
+    }
+    const id = accountId.trim();
+    const resolvedLabel =
+      label.trim() ||
+      metaAccounts.find((a) => a.id === id)?.name?.trim() ||
+      id;
+    setFieldErrors({});
     setSaving(true);
     try {
       const entry = await upsertUserAccountEntry({
         categoryId,
-        label:               label.trim(),
-        adAccountId:         accountId.trim(),
+        label: resolvedLabel,
+        adAccountId: id,
+        internalFilter: isCustomCategory ? null : internalFilter.trim() || null,
         campaigns,
         selectedCampaignIds: selected.length < campaigns.length ? selected : [],
       });
@@ -97,99 +211,182 @@ function AddEntryForm({ categoryId, onSaved, onCancel, suggestions = [] }: AddEn
     }
   };
 
-  const toggleAll = () => setSelected(s => s.length === campaigns.length ? [] : campaigns.map(c => c.id));
-  const toggleOne = (id: string) =>
-    setSelected(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+  const toggleAll = () => setSelected((s) => (s.length === campaigns.length ? [] : campaigns.map((c) => c.id)));
+  const toggleOne = (cid: string) =>
+    setSelected((s) => (s.includes(cid) ? s.filter((x) => x !== cid) : [...s, cid]));
+
+  const filterSelectDisabled = !accountReady || isCustomCategory;
+  const errBorderAccount = fieldErrors.account ? "#f87171" : "var(--dm-border-default)";
+  const errBorderFilter = fieldErrors.filter ? "#f87171" : "var(--dm-border-default)";
 
   return (
     <div className="mt-2 rounded-xl border p-3 space-y-3"
       style={{ borderColor: "var(--dm-brand-300)", backgroundColor: "var(--dm-bg-elevated)" }}
     >
-      {/* Label */}
-      <div>
-        <label className="mb-1 block text-[11px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
-          Nome da conta
-        </label>
-        {suggestions.length > 0 && (
-          <datalist id="cp-entry-suggestions">
-            {suggestions.map(s => <option key={s} value={s} />)}
-          </datalist>
-        )}
-        <input
-          value={label}
-          onChange={e => setLabel(e.target.value)}
-          placeholder="Ex: Biomecânica, André Seguidor…"
-          list={suggestions.length > 0 ? "cp-entry-suggestions" : undefined}
-          className="h-8 w-full rounded-lg border px-3 text-xs outline-none transition focus:ring-1"
-          style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)",
-            color: "var(--dm-text-primary)" }}
-        />
+      {/* Campo 1 — ID da Conta (obrigatório) */}
+      <div className="rounded-lg border p-2.5 space-y-2"
+        style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}>
+        <div>
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>
+            ID da Conta <span className="text-red-500">*</span>
+          </label>
+          {loadingAccounts ? (
+            <div className="flex h-9 items-center gap-2 px-2 text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
+              <Loader2 size={12} className="animate-spin flex-shrink-0" />
+              Carregando contas…
+            </div>
+          ) : (
+            <select
+              value={accountId}
+              onChange={(e) => handlePickAccount(e.target.value)}
+              className="h-9 w-full cursor-pointer rounded-lg border px-2.5 text-[11px] font-mono font-medium outline-none transition focus:ring-1"
+              style={{ borderColor: errBorderAccount, backgroundColor: "var(--dm-bg-elevated)",
+                color: "var(--dm-text-primary)" }}
+            >
+              <option value="">Selecione uma conta</option>
+              {metaAccounts.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.id}
+                  {acc.account_status !== 1 ? " (inativa)" : ""}
+                  {" — "}
+                  {acc.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {fieldErrors.account && (
+            <p className="mt-1 text-[10px] text-red-500">{fieldErrors.account}</p>
+          )}
+          {!loadingAccounts && !hasMetaToken && (
+            <p className="mt-1 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+              Configure o token em <strong>Integrações</strong> para listar suas contas.
+            </p>
+          )}
+          {accountsLoadErr && (
+            <p className="mt-1 text-[10px] text-red-500">{accountsLoadErr}</p>
+          )}
+          {!loadingAccounts && hasMetaToken && metaAccounts.length === 0 && !accountsLoadErr && (
+            <p className="mt-1 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+              Nenhuma conta encontrada para este token.
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Ad Account ID */}
-      <div>
-        <label className="mb-1 block text-[11px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
-          Ad Account ID
-        </label>
-        <div className="flex gap-2">
-          <input
-            value={accountId}
-            onChange={e => setAccountId(e.target.value)}
-            placeholder="act_123456789"
-            className="h-8 flex-1 rounded-lg border px-3 text-xs outline-none transition focus:ring-1"
-            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)",
-              color: "var(--dm-text-primary)" }}
-          />
+      {/* Campo 2, campanhas, Campo 3 — mesmo cartão; campanhas entre 2 e 3 */}
+      <div className="rounded-lg border p-2.5 space-y-2"
+        style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}>
+        {isCustomCategory ? (
+          <p className="text-[10px] leading-snug" style={{ color: "var(--dm-text-tertiary)" }}>
+            Categorias personalizadas não usam subfiltros catalogados — o vínculo é direto à categoria.
+          </p>
+        ) : (
+          <div>
+            <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>
+              Filtro da Categoria <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={internalFilter}
+              onChange={(e) => handleInternalFilterChange(e.target.value)}
+              disabled={filterSelectDisabled}
+              className="h-9 w-full rounded-lg border px-2.5 text-[12px] font-medium outline-none transition focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ borderColor: errBorderFilter, backgroundColor: "var(--dm-bg-elevated)",
+                color: "var(--dm-text-primary)" }}
+            >
+              <option value="">
+                {!accountReady ? "Selecione um filtro" : "Selecione o filtro desta conta"}
+              </option>
+              {filterOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
+            {fieldErrors.filter && (
+              <p className="mt-1 text-[10px] text-red-500">{fieldErrors.filter}</p>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-stretch gap-2">
           <button
             type="button"
             onClick={() => void handleVerify()}
-            disabled={!accountId.trim() || verifyState === "loading"}
-            className="flex h-8 flex-shrink-0 items-center gap-1 rounded-lg border px-3 text-xs font-semibold transition disabled:opacity-50"
-            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)",
+            disabled={!canContinueAfterFilters || verifyState === "loading"}
+            className="flex min-h-9 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 text-[11px] font-semibold transition disabled:opacity-50"
+            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)",
               color: "var(--dm-text-secondary)" }}
           >
             {verifyState === "loading"
-              ? <Loader2 size={11} className="animate-spin" />
-              : <Activity size={11} />}
-            Verificar
+              ? <Loader2 size={12} className="animate-spin" />
+              : <Activity size={12} />}
+            Carregar campanhas
           </button>
+          {verifyState === "ok" && campaigns.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setCampaignListOpen((v) => !v)}
+              className="flex h-9 flex-shrink-0 items-center gap-1 rounded-lg border px-2.5 text-[11px] font-bold transition"
+              style={{
+                borderColor: "var(--dm-brand-200)",
+                backgroundColor: "var(--dm-brand-50)",
+                color: "var(--dm-brand-600)",
+              }}
+              title={campaignListOpen ? "Ocultar lista" : "Escolher campanhas"}
+            >
+              <Link2 size={11} />
+              {selected.length}/{campaigns.length}
+              <ChevronDown size={14} className={`transition ${campaignListOpen ? "rotate-180" : ""}`} />
+            </button>
+          )}
         </div>
         {verifyState === "error" && (
-          <p className="mt-1 text-[10px] text-red-500">{errMsg}</p>
+          <p className="text-[10px] text-red-500">{errMsg}</p>
         )}
+
+        {verifyState === "ok" && campaigns.length > 0 && campaignListOpen && (
+          <div className="pt-1">
+            <div className="mb-1.5 flex items-center justify-between">
+              <span className="text-[11px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
+                Campanhas nesta categoria
+              </span>
+              <button type="button" onClick={toggleAll}
+                className="text-[10px] font-semibold" style={{ color: "var(--dm-brand-500)" }}>
+                {selected.length === campaigns.length ? "Desmarcar todas" : "Marcar todas"}
+              </button>
+            </div>
+            <div className="max-h-40 overflow-y-auto rounded-lg border p-1.5 space-y-0.5"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}>
+              {campaigns.map((c) => (
+                <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 transition hover:bg-slate-100/50 dark:hover:bg-slate-700/50">
+                  <input type="checkbox" checked={selected.includes(c.id)}
+                    onChange={() => toggleOne(c.id)}
+                    className="h-3 w-3 flex-shrink-0 rounded accent-blue-600" />
+                  <span className="flex-1 truncate text-[11px]" style={{ color: "var(--dm-text-primary)" }}
+                    title={c.name}>{c.name}</span>
+                  <span className={`flex-shrink-0 text-[9px] font-bold ${c.status === "ACTIVE" ? "text-emerald-500" : "text-amber-400"}`}>
+                    {c.status === "ACTIVE" ? "●" : "◐"}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="border-t pt-2" style={{ borderColor: "var(--dm-border-default)" }}>
+          <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>
+            Nome no Painel <span className="font-normal normal-case opacity-80">(opcional)</span>
+          </label>
+          <input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Igual ao nome da Meta se deixado em branco"
+            disabled={!canContinueAfterFilters}
+            className="h-9 w-full rounded-lg border px-2.5 text-[12px] outline-none transition focus:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)",
+              color: "var(--dm-text-primary)" }}
+          />
+        </div>
       </div>
 
-      {/* Campaign picker (only after successful verify) */}
-      {verifyState === "ok" && campaigns.length > 0 && (
-        <div>
-          <div className="mb-1 flex items-center justify-between">
-            <span className="text-[11px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
-              Campanhas ({selected.length}/{campaigns.length})
-            </span>
-            <button type="button" onClick={toggleAll}
-              className="text-[10px] font-semibold" style={{ color: "var(--dm-brand-500)" }}>
-              {selected.length === campaigns.length ? "Desmarcar todas" : "Marcar todas"}
-            </button>
-          </div>
-          <div className="max-h-40 overflow-y-auto rounded-lg border p-1.5 space-y-0.5"
-            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}>
-            {campaigns.map(c => (
-              <label key={c.id} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 transition hover:bg-slate-100/50 dark:hover:bg-slate-700/50">
-                <input type="checkbox" checked={selected.includes(c.id)}
-                  onChange={() => toggleOne(c.id)}
-                  className="h-3 w-3 flex-shrink-0 rounded accent-blue-600" />
-                <span className="flex-1 truncate text-[11px]" style={{ color: "var(--dm-text-primary)" }}
-                  title={c.name}>{c.name}</span>
-                <span className={`flex-shrink-0 text-[9px] font-bold ${c.status === "ACTIVE" ? "text-emerald-500" : "text-amber-400"}`}>
-                  {c.status === "ACTIVE" ? "●" : "◐"}
-                </span>
-              </label>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Actions */}
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel}
           className="flex h-8 flex-1 items-center justify-center rounded-lg border text-xs font-semibold transition"
@@ -197,7 +394,7 @@ function AddEntryForm({ categoryId, onSaved, onCancel, suggestions = [] }: AddEn
           Cancelar
         </button>
         <button type="button" onClick={() => void handleSave()}
-          disabled={!label.trim() || !accountId.trim() || saving}
+          disabled={saving}
           className="flex h-8 flex-1 items-center justify-center gap-1 rounded-lg text-xs font-bold text-white transition disabled:opacity-50"
           style={{ backgroundColor: "var(--dm-brand-500)" }}>
           {saving ? <Loader2 size={11} className="animate-spin" /> : <Save size={11} />}
@@ -212,16 +409,18 @@ function AddEntryForm({ categoryId, onSaved, onCancel, suggestions = [] }: AddEn
 
 interface EntryRowProps {
   entry: UserAccountEntry;
+  categorySlug: string;
   onDeleted: (id: string) => void;
   onToggled: (entry: UserAccountEntry) => void;
 }
 
-function EntryRow({ entry, onDeleted, onToggled }: EntryRowProps) {
+function EntryRow({ entry, categorySlug, onDeleted, onToggled }: EntryRowProps) {
   const [deleting,  setDeleting]  = useState(false);
   const [expanded,  setExpanded]  = useState(false);
   const [toggling,  setToggling]  = useState(false);
   const campCount = entry.campaigns.length;
   const selCount  = entry.selectedCampaignIds.length || campCount;
+  const filterLabel = getInternalFilterLabel(categorySlug, entry.internalFilter);
 
   const handleDelete = async () => {
     setDeleting(true);
@@ -236,7 +435,8 @@ function EntryRow({ entry, onDeleted, onToggled }: EntryRowProps) {
     try {
       const updated = await upsertUserAccountEntry({
         id: entry.id, categoryId: entry.categoryId, label: entry.label,
-        adAccountId: entry.adAccountId, campaigns: entry.campaigns,
+        adAccountId: entry.adAccountId, internalFilter: entry.internalFilter,
+        campaigns: entry.campaigns,
         selectedCampaignIds: entry.selectedCampaignIds, isEnabled: !entry.isEnabled,
       });
       onToggled(updated);
@@ -261,6 +461,11 @@ function EntryRow({ entry, onDeleted, onToggled }: EntryRowProps) {
           <p className="truncate text-[12px] font-semibold" style={{ color: "var(--dm-text-primary)" }}>
             {entry.label}
           </p>
+          {filterLabel && (
+            <p className="truncate text-[9px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>
+              {filterLabel}
+            </p>
+          )}
           <p className="truncate text-[10px] font-mono" style={{ color: "var(--dm-text-tertiary)" }}>
             {entry.adAccountId}
           </p>
@@ -315,7 +520,6 @@ interface CategorySectionProps {
   slug: string;
   name: string;
   emoji: string;
-  campaignSuggestions?: string[];
   categoryRecord: UserCategory | undefined;
   entries: UserAccountEntry[];
   onCategoryToggle:  (slug: string, enabled: boolean) => void;
@@ -325,12 +529,13 @@ interface CategorySectionProps {
   onEntryToggled:  (entry: UserAccountEntry) => void;
   isCustom?: boolean;
   onDeleteCategory?: (slug: string) => void;
+  onPainelSaveNavigate?: (detail: { entry: UserAccountEntry; categorySlug: string; isCustom: boolean }) => void;
 }
 
 function CategorySection({
-  slug, name, emoji, categoryRecord, entries, campaignSuggestions,
+  slug, name, emoji, categoryRecord, entries,
   onCategoryToggle, onCategoryCreated, onEntrySaved, onEntryDeleted, onEntryToggled,
-  isCustom, onDeleteCategory,
+  isCustom, onDeleteCategory, onPainelSaveNavigate,
 }: CategorySectionProps) {
   const [showAdd,        setShowAdd]        = useState(false);
   const [toggling,       setToggling]       = useState(false);
@@ -406,17 +611,20 @@ function CategorySection({
       {(entries.length > 0 || showAdd) && (
         <div className="p-3 space-y-2" style={{ borderTop: "1px solid var(--dm-border-default)" }}>
           {entries.map(entry => (
-            <EntryRow key={entry.id} entry={entry}
+            <EntryRow key={entry.id} entry={entry} categorySlug={slug}
               onDeleted={onEntryDeleted} onToggled={onEntryToggled} />
           ))}
 
           {showAdd && localRecord && (
             <AddEntryForm
               categoryId={localRecord.id}
-              suggestions={(campaignSuggestions ?? []).filter(
-                n => classifyCampaign(n) === slug
-              )}
-              onSaved={entry => { onEntrySaved(entry); setShowAdd(false); }}
+              categorySlug={slug}
+              isCustomCategory={!!isCustom}
+              onSaved={entry => {
+                onEntrySaved(entry);
+                setShowAdd(false);
+                onPainelSaveNavigate?.({ entry, categorySlug: slug, isCustom: !!isCustom });
+              }}
               onCancel={() => setShowAdd(false)}
             />
           )}
@@ -445,10 +653,10 @@ interface TabAccountsProps {
   accountEntries: UserAccountEntry[];
   onCategoriesChange: (cats: UserCategory[]) => void;
   onEntriesChange:    (entries: UserAccountEntry[]) => void;
-  campaignSuggestions?: string[];
+  onPainelSaveNavigate?: (detail: { entry: UserAccountEntry; categorySlug: string; isCustom: boolean }) => void;
 }
 
-function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntriesChange, campaignSuggestions }: TabAccountsProps) {
+function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntriesChange, onPainelSaveNavigate }: TabAccountsProps) {
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [newCatEmoji, setNewCatEmoji] = useState("📌");
@@ -533,12 +741,12 @@ function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntries
               <CategorySection key={fc.slug}
                 slug={fc.slug} name={fc.name} emoji={fc.emoji}
                 categoryRecord={catRecord} entries={entries}
-                campaignSuggestions={campaignSuggestions}
                 onCategoryToggle={handleToggleCategory}
                 onCategoryCreated={cat => onCategoriesChange([...categories, cat])}
                 onEntrySaved={handleEntrySaved}
                 onEntryDeleted={handleEntryDeleted}
                 onEntryToggled={handleEntryToggled}
+                onPainelSaveNavigate={onPainelSaveNavigate}
               />
             );
           })}
@@ -565,7 +773,6 @@ function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntries
                 <CategorySection key={cat.slug}
                   slug={cat.slug} name={cat.name} emoji={cat.emoji ?? "📌"}
                   categoryRecord={cat} entries={entries}
-                  campaignSuggestions={campaignSuggestions}
                   onCategoryToggle={handleToggleCategory}
                   onCategoryCreated={created => onCategoriesChange(categories.map(c => c.id === created.id ? created : c))}
                   onEntrySaved={handleEntrySaved}
@@ -573,6 +780,7 @@ function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntries
                   onEntryToggled={handleEntryToggled}
                   isCustom
                   onDeleteCategory={handleDeleteCustom}
+                  onPainelSaveNavigate={onPainelSaveNavigate}
                 />
               );
             })}
@@ -960,10 +1168,19 @@ export function ControlPanel({
   categories, accountEntries,
   onCategoriesChange, onEntriesChange,
   onUpdateProfile, onSignOut,
-  syncStatus, campaignCount, dataSource, onRefresh, onClearData,
-  campaignSuggestions,
+  syncStatus, campaignCount, dataSource,   onRefresh, onClearData,
+  onPainelSaveNavigate,
+  openingTab,
 }: ControlPanelProps) {
   const [tab, setTab] = useState<CPTab>("accounts");
+  const prevIsOpen = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !prevIsOpen.current && openingTab) {
+      setTab(openingTab);
+    }
+    prevIsOpen.current = isOpen;
+  }, [isOpen, openingTab]);
 
   const tabCls = useCallback((t: CPTab) =>
     `px-3 py-2 text-xs font-semibold rounded-lg transition ${
@@ -1026,7 +1243,7 @@ export function ControlPanel({
               accountEntries={accountEntries}
               onCategoriesChange={onCategoriesChange}
               onEntriesChange={onEntriesChange}
-              campaignSuggestions={campaignSuggestions}
+              onPainelSaveNavigate={onPainelSaveNavigate}
             />
           )}
           {tab === "integrations" && <TabIntegrations />}
