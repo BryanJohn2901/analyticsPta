@@ -87,6 +87,7 @@ function AddEntryForm({
   const [filterQuery, setFilterQuery] = useState("");
   const [verifyState, setVerifyState] = useState<"idle" | "loading" | "ok" | "error">("idle");
   const [errMsg, setErrMsg] = useState("");
+  const [saveErrMsg, setSaveErrMsg] = useState("");
   const [campaigns, setCampaigns] = useState<Array<{ id: string; name: string; status: string }>>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
@@ -311,6 +312,7 @@ function AddEntryForm({
       metaAccounts.find((a) => a.id === id)?.name?.trim() ||
       id;
     setFieldErrors({});
+    setSaveErrMsg("");
     setSaving(true);
     try {
       const entry = await upsertUserAccountEntry({
@@ -323,7 +325,7 @@ function AddEntryForm({
       });
       onSaved(entry);
     } catch (e) {
-      setErrMsg(e instanceof Error ? e.message : "Erro ao salvar.");
+      setSaveErrMsg(e instanceof Error ? e.message : "Erro ao salvar.");
     } finally {
       setSaving(false);
     }
@@ -564,6 +566,9 @@ function AddEntryForm({
         </div>
       </div>
 
+      {saveErrMsg && (
+        <p className="text-[10px] text-red-500">{saveErrMsg}</p>
+      )}
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel}
           className="flex h-8 flex-1 items-center justify-center rounded-lg border text-xs font-semibold transition"
