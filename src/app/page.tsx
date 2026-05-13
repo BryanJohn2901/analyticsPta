@@ -510,6 +510,12 @@ export default function Home() {
         onEntriesChange={setUserAccountEntries}
         onUpdateProfile={handleUpdateProfile}
         onSignOut={handleSignOut}
+        syncStatus={syncStatus}
+        campaignCount={campaigns.length}
+        dataSource={dataSource}
+        onRefresh={handleMetaAutoSync}
+        onClearData={handleClearData}
+        campaignSuggestions={[...new Set(campaigns.map(c => c.campaignName).filter(Boolean))]}
       />
     </>
   );

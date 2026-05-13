@@ -1378,8 +1378,6 @@ export function Dashboard({
   const [sortBy, setSortBy] = useState<SortBy>("date-desc");
   const [checkedCampaignIds, setCheckedCampaignIds] = useState<string[]>([]);
   const [showGoals, setShowGoals] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
-  const [profileName, setProfileName] = useState(currentUser.name || "");
 
   const { getGoals, setGoal, resetGoals } = useGoalsStore();
 
@@ -1698,56 +1696,6 @@ export function Dashboard({
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--dm-bg-page)]">
-      {showProfileModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl border p-5 shadow-2xl" style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>Editar perfil</h3>
-              <button
-                type="button"
-                onClick={() => setShowProfileModal(false)}
-                className="flex h-7 w-7 items-center justify-center rounded-lg transition"
-                style={{ color: "var(--dm-text-tertiary)" }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-            <label className="mb-2 block text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
-              Nome
-            </label>
-            <input
-              type="text"
-              value={profileName}
-              onChange={(event) => setProfileName(event.target.value)}
-              placeholder="Seu nome"
-              className="h-10 w-full rounded-lg border px-3 text-sm outline-none transition"
-              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
-            />
-            <p className="mt-2 text-[11px]" style={{ color: "var(--dm-text-secondary)" }}>{currentUser.email}</p>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowProfileModal(false)}
-                className="rounded-lg border px-3 py-2 text-xs font-semibold transition"
-                style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={async () => {
-                  await onUpdateProfile(profileName.trim() || currentUser.name || "Usuario");
-                  setShowProfileModal(false);
-                }}
-                className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white transition hover:bg-brand-hover"
-              >
-                Salvar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Mobile nav overlay ── */}
       {showMobileNav && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setShowMobileNav(false)}>
@@ -1853,30 +1801,19 @@ export function Dashboard({
           </div>
 
           <div className="flex items-center gap-2">
-            <ThemeToggle />
-
-            {/* Painel de Controle */}
-            {onOpenControlPanel && (
-              <button
-                onClick={onOpenControlPanel}
-                title="Painel de Controle"
-                className="flex h-8 w-8 items-center justify-center rounded-lg border transition hover:opacity-80"
-                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)",
-                  color: "var(--dm-text-secondary)" }}
-              >
-                <Settings2 size={15} />
-              </button>
-            )}
-
-            <UserMenu
-              name={currentUser.name}
-              email={currentUser.email}
-              onEditProfile={() => {
-                setProfileName(currentUser.name || "");
-                setShowProfileModal(true);
-              }}
-              onSignOut={onSignOut}
-            />
+            {/* Username → opens Control Panel */}
+            <button
+              type="button"
+              onClick={onOpenControlPanel}
+              title="Painel de Controle"
+              className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition hover:opacity-80"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-secondary)" }}
+            >
+              <UserRound size={13} />
+              <span className="hidden max-w-[120px] truncate sm:inline">
+                {currentUser.name.trim() || currentUser.email.split("@")[0] || "Usuário"}
+              </span>
+            </button>
 
             {/* Mobile campaign panel button */}
             {showRightPanel && (
@@ -1889,72 +1826,6 @@ export function Dashboard({
                 {hasActiveFilters && (
                   <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-brand" />
                 )}
-              </button>
-            )}
-
-            {/* Active data source badge — shown when data is loaded */}
-            {dataSource && (
-              <div className="flex h-8 items-center gap-1.5 rounded-lg border pl-2.5 pr-1 text-xs font-medium"
-                style={{
-                  backgroundColor: "var(--dm-success-bg)",
-                  borderColor: "var(--dm-success-border)",
-                  color: "var(--dm-success-text)",
-                }}
-              >
-                {dataSource.type === "google_sheets"
-                  ? <Link2   size={12} className="flex-shrink-0" />
-                  : dataSource.type === "meta"
-                  ? <Zap     size={12} className="flex-shrink-0" />
-                  : <FileUp  size={12} className="flex-shrink-0" />
-                }
-                <span className="hidden max-w-[140px] truncate sm:block" title={dataSource.label}>
-                  {dataSource.type === "google_sheets"
-                    ? (() => { try { return new URL(dataSource.label).pathname.split("/")[3]?.slice(0, 12) + "…"; } catch { return dataSource.label; } })()
-                    : dataSource.label
-                  }
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onClearData?.()}
-                  title="Desconectar fonte de dados"
-                  className="ml-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded transition hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
-                >
-                  <X size={11} />
-                </button>
-              </div>
-            )}
-
-            {/* Meta sync status indicator */}
-            {dataSource?.type === "meta" && syncStatus && (
-              syncStatus.syncing ? (
-                <div className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium"
-                  style={{ borderColor: "var(--dm-border)", color: "var(--dm-text-secondary)", backgroundColor: "var(--dm-surface)" }}
-                >
-                  <Loader2 size={11} className="animate-spin flex-shrink-0" />
-                  <span className="hidden sm:block">Sincronizando…</span>
-                </div>
-              ) : syncStatus.result ? (
-                <div
-                  className="flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium"
-                  title={`${syncStatus.result.synced} registros sincronizados · ${formatDatePtBr(syncStatus.result.dateFrom)} → ${formatDatePtBr(syncStatus.result.dateTo)}`}
-                  style={{ borderColor: "var(--dm-success-border)", color: "var(--dm-success-text)", backgroundColor: "var(--dm-success-bg)" }}
-                >
-                  <CheckCircle2 size={11} className="flex-shrink-0" />
-                  <span className="hidden sm:block">{syncStatus.result.synced} sync</span>
-                </div>
-              ) : null
-            )}
-
-            {/* Manual refresh button — visible when source is Meta */}
-            {dataSource?.type === "meta" && onRefresh && (
-              <button
-                onClick={() => void onRefresh()}
-                disabled={syncStatus?.syncing}
-                title="Atualizar dados do Meta Ads agora"
-                className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:border-brand hover:bg-brand/5 hover:text-brand disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300 dark:hover:border-brand dark:hover:bg-brand/10 dark:hover:text-brand"
-              >
-                <RotateCcw size={13} className={syncStatus?.syncing ? "animate-spin" : ""} />
-                <span className="hidden sm:inline">Atualizar</span>
               </button>
             )}
 
@@ -1981,18 +1852,6 @@ export function Dashboard({
                 />
               )}
             </div>
-
-            {/* Limpar dados — only shown when a source is active */}
-            {dataSource && onClearData && (
-              <button
-                onClick={() => void onClearData()}
-                className="flex h-8 items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 text-xs font-semibold text-red-500 transition hover:border-red-400 hover:bg-red-50 dark:border-red-800 dark:bg-slate-800 dark:text-red-400 dark:hover:bg-red-900/20"
-                title="Zerar os dados importados"
-              >
-                <Trash2 size={13} />
-                <span className="hidden sm:inline">Limpar dados</span>
-              </button>
-            )}
 
             {/* Import button */}
             <div className="relative">

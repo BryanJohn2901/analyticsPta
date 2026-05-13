@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useTheme } from "next-themes";
 import {
   X, Settings2, ChevronDown, ChevronUp, Plus, Trash2, Loader2,
   Zap, User, Activity, CheckCircle2, XCircle, Link2, Eye, EyeOff,
-  RefreshCw, Save,
+  RefreshCw, Save, RotateCcw, Sun, Moon, Database,
 } from "lucide-react";
 import type { UserCategory, UserAccountEntry } from "@/types/userConfig";
 import { FIXED_CATEGORIES, MAX_CUSTOM_CATEGORIES } from "@/types/userConfig";
@@ -13,10 +14,11 @@ import {
   upsertUserAccountEntry, deleteUserAccountEntry,
 } from "@/utils/supabaseCategories";
 import { fetchMetaCampaigns, loadMetaCredentials, saveMetaCredentials } from "@/utils/metaApi";
+import type { MetaSyncResult } from "@/utils/supabaseCampaigns";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CPTab = "accounts" | "integrations" | "profile";
+type CPTab = "accounts" | "integrations" | "sync" | "profile";
 
 interface ControlPanelProps {
   isOpen: boolean;
@@ -29,6 +31,14 @@ interface ControlPanelProps {
   onEntriesChange:    (entries: UserAccountEntry[]) => void;
   onUpdateProfile:    (name: string) => Promise<void>;
   onSignOut:          () => Promise<void>;
+  // Sync tab
+  syncStatus?:   { syncing: boolean; result?: MetaSyncResult; error?: string };
+  campaignCount?: number;
+  dataSource?:   { type: string; label: string } | null;
+  onRefresh?:    () => Promise<void>;
+  onClearData?:  () => Promise<void>;
+  // Campaign name suggestions for AddEntryForm
+  campaignSuggestions?: string[];
 }
 
 // ─── AddEntryForm ─────────────────────────────────────────────────────────────
@@ -37,9 +47,10 @@ interface AddEntryFormProps {
   categoryId: string;
   onSaved: (entry: UserAccountEntry) => void;
   onCancel: () => void;
+  suggestions?: string[];
 }
 
-function AddEntryForm({ categoryId, onSaved, onCancel }: AddEntryFormProps) {
+function AddEntryForm({ categoryId, onSaved, onCancel, suggestions = [] }: AddEntryFormProps) {
   const [label,       setLabel]       = useState("");
   const [accountId,   setAccountId]   = useState("");
   const [verifyState, setVerifyState] = useState<"idle" | "loading" | "ok" | "error">("idle");
@@ -98,10 +109,16 @@ function AddEntryForm({ categoryId, onSaved, onCancel }: AddEntryFormProps) {
         <label className="mb-1 block text-[11px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
           Nome da conta
         </label>
+        {suggestions.length > 0 && (
+          <datalist id="cp-entry-suggestions">
+            {suggestions.map(s => <option key={s} value={s} />)}
+          </datalist>
+        )}
         <input
           value={label}
           onChange={e => setLabel(e.target.value)}
           placeholder="Ex: Biomecânica, André Seguidor…"
+          list={suggestions.length > 0 ? "cp-entry-suggestions" : undefined}
           className="h-8 w-full rounded-lg border px-3 text-xs outline-none transition focus:ring-1"
           style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)",
             color: "var(--dm-text-primary)" }}
@@ -297,6 +314,7 @@ interface CategorySectionProps {
   slug: string;
   name: string;
   emoji: string;
+  campaignSuggestions?: string[];
   categoryRecord: UserCategory | undefined;
   entries: UserAccountEntry[];
   onCategoryToggle:  (slug: string, enabled: boolean) => void;
@@ -309,7 +327,7 @@ interface CategorySectionProps {
 }
 
 function CategorySection({
-  slug, name, emoji, categoryRecord, entries,
+  slug, name, emoji, categoryRecord, entries, campaignSuggestions,
   onCategoryToggle, onCategoryCreated, onEntrySaved, onEntryDeleted, onEntryToggled,
   isCustom, onDeleteCategory,
 }: CategorySectionProps) {
@@ -394,6 +412,7 @@ function CategorySection({
           {showAdd && localRecord && (
             <AddEntryForm
               categoryId={localRecord.id}
+              suggestions={campaignSuggestions}
               onSaved={entry => { onEntrySaved(entry); setShowAdd(false); }}
               onCancel={() => setShowAdd(false)}
             />
@@ -423,9 +442,10 @@ interface TabAccountsProps {
   accountEntries: UserAccountEntry[];
   onCategoriesChange: (cats: UserCategory[]) => void;
   onEntriesChange:    (entries: UserAccountEntry[]) => void;
+  campaignSuggestions?: string[];
 }
 
-function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntriesChange }: TabAccountsProps) {
+function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntriesChange, campaignSuggestions }: TabAccountsProps) {
   const [showNewCat, setShowNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [newCatEmoji, setNewCatEmoji] = useState("📌");
@@ -510,6 +530,7 @@ function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntries
               <CategorySection key={fc.slug}
                 slug={fc.slug} name={fc.name} emoji={fc.emoji}
                 categoryRecord={catRecord} entries={entries}
+                campaignSuggestions={campaignSuggestions}
                 onCategoryToggle={handleToggleCategory}
                 onCategoryCreated={cat => onCategoriesChange([...categories, cat])}
                 onEntrySaved={handleEntrySaved}
@@ -541,6 +562,7 @@ function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntries
                 <CategorySection key={cat.slug}
                   slug={cat.slug} name={cat.name} emoji={cat.emoji ?? "📌"}
                   categoryRecord={cat} entries={entries}
+                  campaignSuggestions={campaignSuggestions}
                   onCategoryToggle={handleToggleCategory}
                   onCategoryCreated={created => onCategoriesChange(categories.map(c => c.id === created.id ? created : c))}
                   onEntrySaved={handleEntrySaved}
@@ -710,6 +732,116 @@ function TabIntegrations() {
   );
 }
 
+// ─── Tab: Sincronização ───────────────────────────────────────────────────────
+
+interface TabSyncProps {
+  syncStatus?:    { syncing: boolean; result?: MetaSyncResult; error?: string };
+  campaignCount?: number;
+  dataSource?:    { type: string; label: string } | null;
+  onRefresh?:     () => Promise<void>;
+  onClearData?:   () => Promise<void>;
+}
+
+function TabSync({ syncStatus, campaignCount, dataSource, onRefresh, onClearData }: TabSyncProps) {
+  const [clearing, setClearing] = useState(false);
+
+  const handleClear = async () => {
+    if (!onClearData) return;
+    setClearing(true);
+    try { await onClearData(); } finally { setClearing(false); }
+  };
+
+  const lastSync = syncStatus?.result;
+  const isMetaSource = dataSource?.type === "meta";
+
+  return (
+    <div className="space-y-5">
+      {/* Status card */}
+      <div className="rounded-xl border p-4 space-y-3"
+        style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)" }}>
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Fonte de dados</p>
+          {dataSource ? (
+            <span className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+              style={{ backgroundColor: "var(--dm-success-bg)", color: "var(--dm-success-text)" }}>
+              {dataSource.type === "meta" ? "Meta Ads" : dataSource.type === "google_sheets" ? "Google Sheets" : "CSV"}
+            </span>
+          ) : (
+            <span className="rounded-full px-2 py-0.5 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+              Nenhuma
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Registros</p>
+          <div className="flex items-center gap-1.5">
+            <Database size={11} style={{ color: "var(--dm-text-tertiary)" }} />
+            <span className="text-[13px] font-bold" style={{ color: "var(--dm-text-primary)" }}>
+              {campaignCount ?? 0}
+            </span>
+          </div>
+        </div>
+
+        {lastSync && (
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Última sync</p>
+            <span className="text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
+              {lastSync.synced} registros · {lastSync.dateFrom} → {lastSync.dateTo}
+            </span>
+          </div>
+        )}
+
+        {syncStatus?.syncing && (
+          <div className="flex items-center gap-2 text-[11px]" style={{ color: "var(--dm-text-secondary)" }}>
+            <Loader2 size={12} className="animate-spin flex-shrink-0" />
+            Sincronizando dados…
+          </div>
+        )}
+
+        {syncStatus?.error && (
+          <p className="text-[11px] text-red-500">{syncStatus.error}</p>
+        )}
+      </div>
+
+      {/* Atualizar button */}
+      {isMetaSource && onRefresh && (
+        <button
+          type="button"
+          onClick={() => void onRefresh()}
+          disabled={syncStatus?.syncing}
+          className="flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold text-white transition disabled:opacity-60"
+          style={{ backgroundColor: "var(--dm-brand-500)" }}
+        >
+          <RotateCcw size={14} className={syncStatus?.syncing ? "animate-spin" : ""} />
+          Atualizar dados agora
+        </button>
+      )}
+
+      {/* Limpar dados */}
+      {dataSource && onClearData && (
+        <div className="rounded-xl border p-4"
+          style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)" }}>
+          <p className="mb-1 text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Limpar dados</p>
+          <p className="mb-3 text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
+            Remove todos os dados importados e desconecta a fonte atual.
+          </p>
+          <button
+            type="button"
+            onClick={() => void handleClear()}
+            disabled={clearing}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border py-2 text-xs font-semibold transition hover:bg-red-50 hover:border-red-300 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:border-red-800 dark:hover:text-red-400 disabled:opacity-50"
+            style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}
+          >
+            {clearing ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+            Limpar dados
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Tab: Perfil ──────────────────────────────────────────────────────────────
 
 interface TabProfileProps {
@@ -723,6 +855,7 @@ function TabProfile({ name, email, onUpdateProfile, onSignOut }: TabProfileProps
   const [editName, setEditName] = useState(name);
   const [saving,   setSaving]   = useState(false);
   const [saved,    setSaved]    = useState(false);
+  const { resolvedTheme, setTheme } = useTheme();
 
   const handleSave = async () => {
     if (!editName.trim()) return;
@@ -782,6 +915,30 @@ function TabProfile({ name, email, onUpdateProfile, onSignOut }: TabProfileProps
         </p>
       </div>
 
+      {/* Theme */}
+      <div>
+        <label className="mb-2 block text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>
+          Tema
+        </label>
+        <div className="flex gap-2">
+          {(["light", "dark"] as const).map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTheme(t)}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border py-2 text-xs font-semibold transition ${
+                resolvedTheme === t
+                  ? "border-[var(--dm-brand-400)] bg-[var(--dm-brand-50)] text-[var(--dm-brand-600)]"
+                  : "border-[var(--dm-border-default)] text-[var(--dm-text-secondary)]"
+              }`}
+            >
+              {t === "light" ? <Sun size={13} /> : <Moon size={13} />}
+              {t === "light" ? "Claro" : "Escuro"}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Sign out */}
       <button type="button" onClick={() => void onSignOut()}
         className="flex w-full items-center justify-center gap-2 rounded-lg border py-2.5 text-sm font-semibold transition hover:bg-red-50 hover:border-red-300 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:border-red-800 dark:hover:text-red-400"
@@ -800,6 +957,8 @@ export function ControlPanel({
   categories, accountEntries,
   onCategoriesChange, onEntriesChange,
   onUpdateProfile, onSignOut,
+  syncStatus, campaignCount, dataSource, onRefresh, onClearData,
+  campaignSuggestions,
 }: ControlPanelProps) {
   const [tab, setTab] = useState<CPTab>("accounts");
 
@@ -850,9 +1009,10 @@ export function ControlPanel({
         {/* Tab bar */}
         <div className="flex flex-shrink-0 gap-1 border-b px-4 py-2"
           style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)" }}>
-          <button className={tabCls("accounts")}   onClick={() => setTab("accounts")}>Contas</button>
+          <button className={tabCls("accounts")}     onClick={() => setTab("accounts")}>Contas</button>
           <button className={tabCls("integrations")} onClick={() => setTab("integrations")}>Integrações</button>
-          <button className={tabCls("profile")}    onClick={() => setTab("profile")}>Perfil</button>
+          <button className={tabCls("sync")}         onClick={() => setTab("sync")}>Sincronização</button>
+          <button className={tabCls("profile")}      onClick={() => setTab("profile")}>Perfil</button>
         </div>
 
         {/* Scrollable content */}
@@ -863,9 +1023,19 @@ export function ControlPanel({
               accountEntries={accountEntries}
               onCategoriesChange={onCategoriesChange}
               onEntriesChange={onEntriesChange}
+              campaignSuggestions={campaignSuggestions}
             />
           )}
           {tab === "integrations" && <TabIntegrations />}
+          {tab === "sync" && (
+            <TabSync
+              syncStatus={syncStatus}
+              campaignCount={campaignCount}
+              dataSource={dataSource}
+              onRefresh={onRefresh}
+              onClearData={onClearData}
+            />
+          )}
           {tab === "profile" && (
             <TabProfile
               name={userName}
