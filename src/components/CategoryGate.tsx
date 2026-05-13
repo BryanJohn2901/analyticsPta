@@ -2,8 +2,6 @@
 
 import { BookMarked, CalendarDays, FileText, GraduationCap, Repeat } from "lucide-react";
 import { ProductCategory } from "@/types/campaign";
-import type { CustomSection } from "@/hooks/useCampaignStore";
-import { getIconComponent, getColorConfig } from "@/components/ControlPanel";
 
 // ─── Category definitions ─────────────────────────────────────────────────────
 
@@ -140,11 +138,10 @@ export const CATEGORY_DOT: Record<ProductCategory, string> = Object.fromEntries(
 // ─── Gate component ───────────────────────────────────────────────────────────
 
 interface CategoryGateProps {
-  onSelect: (cat: ProductCategory | string) => void;
-  customSections?: CustomSection[];
+  onSelect: (cat: ProductCategory) => void;
 }
 
-export function CategoryGate({ onSelect, customSections = [] }: CategoryGateProps) {
+export function CategoryGate({ onSelect }: CategoryGateProps) {
   return (
     <div className="flex min-h-full flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-3xl">
@@ -168,7 +165,7 @@ export function CategoryGate({ onSelect, customSections = [] }: CategoryGateProp
           </p>
         </div>
 
-        {/* Fixed category cards */}
+        {/* 5 cards — responsive grid */}
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {CATEGORY_CONFIGS.map((cat) => (
             <button
@@ -182,16 +179,21 @@ export function CategoryGate({ onSelect, customSections = [] }: CategoryGateProp
                 "--dm-cat-card-hover-border": "var(--dm-brand-500)",
               } as React.CSSProperties}
             >
+              {/* Icon */}
               <div
                 className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg"
                 style={{ backgroundColor: "var(--dm-bg-elevated)" }}
               >
                 <cat.icon size={18} style={{ color: cat.vars.base }} />
               </div>
+
+              {/* Title + description */}
               <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>{cat.label}</p>
               <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
                 {cat.description}
               </p>
+
+              {/* Tags — neutral */}
               <div className="mt-3 flex flex-wrap gap-1">
                 {cat.tags.slice(0, 3).map((tag) => (
                   <span
@@ -211,43 +213,14 @@ export function CategoryGate({ onSelect, customSections = [] }: CategoryGateProp
                   </span>
                 )}
               </div>
+
+              {/* Blue hover indicator */}
               <span
                 className="absolute right-4 top-4 h-2 w-2 rounded-full opacity-0 transition-opacity duration-200 group-hover:opacity-100"
                 style={{ backgroundColor: "var(--dm-brand-500)" }}
               />
             </button>
           ))}
-
-          {/* Custom section cards */}
-          {customSections.map((sec) => {
-            const IconComp = getIconComponent(sec.icon);
-            const col      = getColorConfig(sec.color);
-            return (
-              <button
-                key={sec.id}
-                type="button"
-                onClick={() => onSelect(sec.id)}
-                className="dm-cat-card group relative flex flex-col rounded-xl border p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-                style={{
-                  backgroundColor: "var(--dm-bg-surface)",
-                  borderColor: "var(--dm-border-default)",
-                  "--dm-cat-card-hover-border": col.dot,
-                } as React.CSSProperties}
-              >
-                <div className={`mb-4 flex h-10 w-10 items-center justify-center rounded-lg ${col.bg}`}>
-                  <IconComp size={18} className={col.text} />
-                </div>
-                <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>{sec.label}</p>
-                <p className="mt-1 text-[11px] leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
-                  Categoria personalizada
-                </p>
-                <span
-                  className="absolute right-4 top-4 h-2 w-2 rounded-full opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                  style={{ backgroundColor: col.dot }}
-                />
-              </button>
-            );
-          })}
         </div>
 
         <p className="mt-8 text-center text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>

@@ -38,8 +38,6 @@ import { ProductBase } from "@/components/products/ProductBase";
 import { DashMonsterLogo } from "@/components/DashMonsterLogo";
 import { TabLanding } from "@/components/TabLanding";
 import { PixelFunnelSection } from "@/components/PixelFunnelSection";
-import { DateRangePicker } from "@/components/DateRangePicker";
-import { ControlPanel, getIconComponent, getColorConfig } from "@/components/ControlPanel";
 import { toast } from "@/hooks/useToast";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -960,21 +958,6 @@ function CampaignPanel({
     onDateTo(pendingTo);
   };
 
-  // Instantly apply a date range (used by preset buttons — bypasses pending state)
-  const applyRange = (from: string, to: string) => {
-    setPendingFrom(from);
-    setPendingTo(to);
-    onDateFrom(from);
-    onDateTo(to);
-  };
-
-  const clearDates = () => {
-    setPendingFrom("");
-    setPendingTo("");
-    onDateFrom("");
-    onDateTo("");
-  };
-
   // Flatten all campaign names across all groups for search suggestions
   const allCampaignNames = useMemo(() => {
     const seen = new Set<string>();
@@ -1234,18 +1217,50 @@ function CampaignPanel({
 
         <div className="space-y-3 px-4 pb-4">
           {/* Date range */}
-          <DateRangePicker
-            from={dateFrom}
-            to={dateTo}
-            pendingFrom={pendingFrom}
-            pendingTo={pendingTo}
-            onPendingFrom={setPendingFrom}
-            onPendingTo={setPendingTo}
-            onApply={applyDates}
-            onApplyRange={applyRange}
-            onClear={clearDates}
-            pendingChanged={pendingChanged}
-          />
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Período</p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>De</span>
+                <input
+                  type="date"
+                  value={pendingFrom}
+                  onChange={(e) => setPendingFrom(e.target.value)}
+                  className="h-9 w-full rounded-lg border px-2 text-xs outline-none transition focus:ring-1"
+                  style={{
+                    borderColor: pendingFrom !== dateFrom ? "var(--dm-brand-400)" : "var(--dm-border-default)",
+                    backgroundColor: "var(--dm-bg-elevated)",
+                    color: "var(--dm-text-primary)",
+                  }}
+                />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[10px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>Até</span>
+                <input
+                  type="date"
+                  value={pendingTo}
+                  onChange={(e) => setPendingTo(e.target.value)}
+                  className="h-9 w-full rounded-lg border px-2 text-xs outline-none transition focus:ring-1"
+                  style={{
+                    borderColor: pendingTo !== dateTo ? "var(--dm-brand-400)" : "var(--dm-border-default)",
+                    backgroundColor: "var(--dm-bg-elevated)",
+                    color: "var(--dm-text-primary)",
+                  }}
+                />
+              </label>
+            </div>
+
+            {/* Apply button — only when pending differs from applied */}
+            {pendingChanged && (
+              <button
+                onClick={applyDates}
+                className="mt-2 w-full rounded-lg py-2 text-xs font-bold text-white transition active:scale-95"
+                style={{ backgroundColor: "var(--dm-brand-500)" }}
+              >
+                Aplicar período
+              </button>
+            )}
+          </div>
 
           {/* Campaign search */}
           <div>
@@ -1349,7 +1364,6 @@ export function Dashboard({
   const { hidden: hiddenMetrics, toggle: toggleMetric, showAll: showAllMetrics, isVisible: isMetricVisible } = useMetricVisibility();
   const [showKpiPanel, setShowKpiPanel] = useState(false);
   const [searchCampaign, setSearchCampaign] = useState("");
-  const [showControlPanel, setShowControlPanel] = useState(false);
   const [showImport, setShowImport]         = useState(false);
   const [importInitialTab, setImportInitialTab] = useState<ImportTab>("meta");
   const [inlineImportTab, setInlineImportTab]   = useState<ImportTab | null>(null);
@@ -1373,8 +1387,6 @@ export function Dashboard({
     selectedGroup, selectedTurma, activeCampaigns, campaignConfigs,
     selectedCategory, campaignsByGroup, selectedCampaign, selectedCampaignsByGroup, enabledSections,
     customGroups, addCustomGroup,
-    customSections, canAddCustomSection,
-    addCustomSection, updateCustomSection, removeCustomSection,
     setSelectedGroup, setSelectedTurma, toggleActive, setCampaignConfig,
     setSelectedCategory, setCampaignsForGroup, setSelectedCampaign, setEnabledSections,
     setCampaignSelectionForGroup, clearCampaignSelectionForGroup,
@@ -1736,26 +1748,6 @@ export function Dashboard({
         </div>
       )}
 
-      {/* ── Control Panel ── */}
-      {showControlPanel && (
-        <ControlPanel
-          onClose={() => setShowControlPanel(false)}
-          customSections={customSections}
-          canAddCustomSection={canAddCustomSection}
-          onAddCustomSection={(data) => addCustomSection(data)}
-          onUpdateCustomSection={(id, data) => updateCustomSection(id, data)}
-          onRemoveCustomSection={(id) => removeCustomSection(id)}
-          dataSourceType={dataSource?.type}
-          dataSourceLabel={dataSource?.label}
-          onOpenImport={(tab) => { setShowControlPanel(false); openImport(tab); }}
-          onClearData={onClearData ? () => { void onClearData(); } : undefined}
-          userName={currentUser.name}
-          userEmail={currentUser.email}
-          onUpdateProfile={onUpdateProfile}
-          onSignOut={() => { void onSignOut(); }}
-        />
-      )}
-
       {/* ── Mobile nav overlay ── */}
       {showMobileNav && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setShowMobileNav(false)}>
@@ -1798,27 +1790,7 @@ export function Dashboard({
         {navContent}
 
         {/* Footer */}
-        <div className="border-t px-3 py-3 space-y-2" style={{ borderColor: "var(--dm-border-default)" }}>
-          {/* Control Panel button */}
-          <button
-            type="button"
-            onClick={() => setShowControlPanel(true)}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition"
-            style={{ color: "var(--dm-nav-default-text)" }}
-            onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = "var(--dm-nav-hover-bg)";
-              (e.currentTarget as HTMLElement).style.color = "var(--dm-nav-hover-text)";
-            }}
-            onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.backgroundColor = "";
-              (e.currentTarget as HTMLElement).style.color = "var(--dm-nav-default-text)";
-            }}
-          >
-            <SlidersHorizontal size={15} className="flex-shrink-0" />
-            <span className="truncate">Painel de Controle</span>
-          </button>
-
-          {/* Data status indicator */}
+        <div className="border-t px-5 py-4" style={{ borderColor: "var(--dm-border-default)" }}>
           <div className={`flex items-center gap-2 rounded-lg px-2 py-1.5 ${campaigns.length > 0 ? "bg-emerald-50 dark:bg-emerald-900/20" : "bg-slate-50 dark:bg-slate-700/50"}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${campaigns.length > 0 ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-500"}`} />
             <p className={`text-[11px] font-medium ${campaigns.length > 0 ? "text-emerald-700 dark:text-emerald-400" : "text-slate-400 dark:text-slate-500"}`}>
@@ -1860,16 +1832,9 @@ export function Dashboard({
 
               {/* Category chip — click to change */}
               {selectedCategory && needsCategory && (() => {
-                const customSec = customSections.find((s) => s.id === selectedCategory);
-                const CatIcon = customSec
-                  ? getIconComponent(customSec.icon)
-                  : (CATEGORY_ICON[selectedCategory as ProductCategory] ?? SlidersHorizontal);
-                const dot = customSec
-                  ? getColorConfig(customSec.color).dot
-                  : (CATEGORY_DOT[selectedCategory as ProductCategory] ?? "var(--dm-brand-500)");
-                const label = customSec
-                  ? customSec.label
-                  : (CATEGORY_LABEL[selectedCategory as ProductCategory] ?? selectedCategory);
+                const cat = selectedCategory as ProductCategory;
+                const CatIcon = CATEGORY_ICON[cat] ?? Flag;
+                const dot     = CATEGORY_DOT[cat] ?? "var(--dm-brand-500)";
                 return (
                   <button
                     type="button"
@@ -1879,7 +1844,7 @@ export function Dashboard({
                   >
                     <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dot }} />
                     <CatIcon size={11} />
-                    <span className="hidden sm:inline">{label}</span>
+                    <span className="hidden sm:inline">{CATEGORY_LABEL[cat] ?? cat}</span>
                     <X size={10} className="text-slate-400 dark:text-slate-500" />
                   </button>
                 );
@@ -2071,7 +2036,7 @@ export function Dashboard({
 
           {/* ── Category gate (analysis & creatives only — overview handles its own flow) ── */}
           {(mainTab === "analysis" || mainTab === "creatives") && !selectedCategory && (
-            <CategoryGate onSelect={setSelectedCategory} customSections={customSections} />
+            <CategoryGate onSelect={setSelectedCategory} />
           )}
 
           {/* ── Overview: welcome first → then category gate → then dashboard ── */}
@@ -2158,7 +2123,7 @@ export function Dashboard({
               )
             ) : !selectedCategory ? (
               /* ── Step 2: choose category ─────────────────────────────────────── */
-              <CategoryGate onSelect={setSelectedCategory} customSections={customSections} />
+              <CategoryGate onSelect={setSelectedCategory} />
             ) : (
               /* ── Step 3: full dashboard ──────────────────────────────────────── */
               <div className="space-y-5">
@@ -2373,7 +2338,7 @@ export function Dashboard({
                 cta={{ label: "Importar dados agora", onClick: () => onOpenControlPanel ? onOpenControlPanel() : openImport("sheets") }}
               />
             ) : (
-              <CampaignAnalysis campaigns={aggregated} selectedCategory={selectedCategory} isMetricVisible={isMetricVisible} />
+              <CampaignAnalysis campaigns={aggregated} selectedCategory={selectedCategory as ProductCategory | null} isMetricVisible={isMetricVisible} />
             )
           )}
 
