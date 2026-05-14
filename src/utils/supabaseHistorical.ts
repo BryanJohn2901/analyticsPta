@@ -4,7 +4,7 @@ import { HistoricalKind, HistoricalMeta, HistoricalRow } from "@/types/historica
 // ─── Mapping helpers ──────────────────────────────────────────────────────────
 
 const TOP_LEVEL_KEYS = new Set([
-  "id", "kind", "product", "month", "year", "monthKey", "monthLabel", "investment", "revenue",
+  "id", "kind", "product", "turma", "month", "year", "monthKey", "monthLabel", "investment", "revenue",
 ]);
 
 function toNum(value: unknown): number {
@@ -33,6 +33,7 @@ function reconstructFromSupabase(record: Record<string, unknown>): HistoricalRow
     id: record.id as string,
     kind,
     product: String(record.product ?? ""),
+    turma: (record.turma as string | undefined) || undefined,
     month: String(record.month ?? ""),
     year: Number(record.year ?? 0),
     monthKey: String(record.month_key ?? ""),
@@ -67,6 +68,7 @@ function toDbRow(r: HistoricalRow): Record<string, unknown> {
   const db: Record<string, unknown> = {
     kind: top.kind,
     product: top.product,
+    turma: top.turma ?? null,
     month: top.month,
     year: top.year,
     month_key: top.monthKey,
