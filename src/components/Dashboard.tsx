@@ -1044,11 +1044,6 @@ function CampaignPanel({
         <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
           {showCourseGroups ? "Grupos e campanhas" : "Filtros"}
         </p>
-        <p className="text-[10px] leading-snug" style={{ color: "var(--dm-text-tertiary)" }}>
-          {showCourseGroups
-            ? "Escolha um curso à esquerda; turmas e campanhas aparecem ao expandir."
-            : "Use período e busca abaixo; os gráficos atualizam ao aplicar."}
-        </p>
         {activeCount > 0 && showCourseGroups && (
           <span className="mt-1 w-fit rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ backgroundColor: "var(--dm-brand-50)", color: "var(--dm-brand-500)" }}>
             {activeCount} curso{activeCount !== 1 ? "s" : ""} em destaque
@@ -1766,7 +1761,7 @@ export function Dashboard({
   const overviewSelectionSummary = useMemo(() => {
     if (!selectedCategory) return null;
     const catKey = selectedCategory as ProductCategory;
-    const catName = CATEGORY_LABEL[catKey] ?? String(selectedCategory);
+    const catName = getSectionLabel(String(selectedCategory), customSections);
     const groupName =
       selectedGroup === "all"
         ? "Todos os grupos desta categoria"
@@ -1988,7 +1983,7 @@ export function Dashboard({
                     >
                       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: dot }} />
                       <CatIcon size={11} aria-hidden />
-                      <span className="hidden sm:inline">{CATEGORY_LABEL[cat] ?? cat}</span>
+                      <span className="hidden sm:inline">{getSectionLabel(String(cat), customSections)}</span>
                       <span className="sr-only">Trocar categoria</span>
                       <X size={10} className="text-slate-400 dark:text-slate-500" aria-hidden />
                     </button>
@@ -2250,9 +2245,6 @@ export function Dashboard({
                         <h2 id="overview-context-heading" className="text-base font-bold tracking-tight" style={{ color: "var(--dm-text-primary)" }}>
                           Resumo da sua vista
                         </h2>
-                        <p className="mt-1 max-w-2xl text-xs leading-relaxed" style={{ color: "var(--dm-text-secondary)" }}>
-                          Categoria e curso vêm do topo e da coluna à direita; o período e a busca aplicam-se a todos os cartões abaixo.
-                        </p>
                       </div>
                       {hasActiveFilters && (
                         <button
@@ -2266,16 +2258,16 @@ export function Dashboard({
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}>
-                        Categoria: {overviewSelectionSummary.catName}
+                        {overviewSelectionSummary.catName}
                       </span>
                       <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}>
-                        Foco: {overviewSelectionSummary.groupName}
+                        {overviewSelectionSummary.groupName}
                       </span>
                       <span className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-medium" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}>
-                        Período: {overviewSelectionSummary.period}
+                        {overviewSelectionSummary.period}
                       </span>
                       <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200">
-                        {filteredCampaigns.length} de {categorizedCampaigns.length} campanhas visíveis
+                        {filteredCampaigns.length} / {categorizedCampaigns.length} campanhas
                       </span>
                     </div>
                   </section>
@@ -2320,9 +2312,6 @@ export function Dashboard({
                       <h2 id="kpi-section-title" className="text-sm font-bold tracking-tight sm:text-base" style={{ color: "var(--dm-text-primary)" }}>
                         Indicadores principais
                       </h2>
-                      <p className="mt-0.5 text-[11px] sm:text-xs" style={{ color: "var(--dm-text-secondary)" }}>
-                        Valores agregados das campanhas visíveis na vista atual. Use <strong>Personalizar cartões</strong> para esconder o que não precisa.
-                      </p>
                     </div>
                     <div className="relative sm:mb-0.5">
                     <button
@@ -2391,7 +2380,7 @@ export function Dashboard({
                     isMetricVisible("roas") && (
                       <KpiCard key="roas"
                         title="ROAS" value={`${totals.roas.toFixed(2)}x`}
-                        subtitle="Retorno sobre verba de anúncio"
+                        subtitle={undefined}
                         icon={TrendingUp} accentColor="blue"
                         goalValue={goals.roas} goalLabel={goals.roas != null ? `${goals.roas.toFixed(1)}x` : undefined}
                         goalPct={goals.roas != null ? (totals.roas / goals.roas) * 100 : null}
@@ -2409,7 +2398,7 @@ export function Dashboard({
                     isMetricVisible("roi") && (
                       <KpiCard key="roi"
                         title="ROI" value={formatPercent(totals.roi)}
-                        subtitle="Retorno sobre investimento"
+                        subtitle={undefined}
                         icon={TrendingUp} accentColor="blue"
                         goalValue={goals.roi} goalLabel={goals.roi != null ? `${goals.roi.toFixed(0)}%` : undefined}
                         goalPct={goals.roi != null ? (totals.roi / goals.roi) * 100 : null}
@@ -2418,7 +2407,7 @@ export function Dashboard({
                     isMetricVisible("cpa") && (
                       <KpiCard key="cpa"
                         title="CPA Médio" value={formatCurrency(totals.averageCpa)}
-                        subtitle="Custo por aquisição"
+                        subtitle={undefined}
                         icon={BadgeDollarSign} accentColor="blue" invertTrend
                         goalValue={goals.cpa} goalLabel={goals.cpa != null ? formatCurrency(goals.cpa) : undefined}
                         goalPct={goals.cpa != null && totals.averageCpa > 0 ? (goals.cpa / totals.averageCpa) * 100 : null}
@@ -2428,7 +2417,7 @@ export function Dashboard({
                     isMetricVisible("ctr") && (
                       <KpiCard key="ctr"
                         title="CTR Médio" value={formatPercent(totals.averageCtr)}
-                        subtitle="Taxa de cliques"
+                        subtitle={undefined}
                         icon={MousePointerClick} accentColor="blue"
                         goalValue={goals.ctr} goalLabel={goals.ctr != null ? `${goals.ctr.toFixed(1)}%` : undefined}
                         goalPct={goals.ctr != null ? (totals.averageCtr / goals.ctr) * 100 : null}
@@ -2437,7 +2426,7 @@ export function Dashboard({
                     isMetricVisible("cpc") && (
                       <KpiCard key="cpc"
                         title="CPC Médio" value={formatCurrency(totals.averageCpc)}
-                        subtitle="Custo por clique"
+                        subtitle={undefined}
                         icon={BadgeDollarSign} accentColor="blue" invertTrend
                         goalValue={goals.cpc} goalLabel={goals.cpc != null ? formatCurrency(goals.cpc) : undefined}
                         goalPct={goals.cpc != null && totals.averageCpc > 0 ? (goals.cpc / totals.averageCpc) * 100 : null}
@@ -2447,7 +2436,7 @@ export function Dashboard({
                     isMetricVisible("cpm") && (
                       <KpiCard key="cpm"
                         title="CPM Médio" value={formatCurrency(totals.averageCpm)}
-                        subtitle="Custo por mil impressões"
+                        subtitle={undefined}
                         icon={Zap} accentColor="blue" invertTrend
                         goalValue={goals.cpm} goalLabel={goals.cpm != null ? formatCurrency(goals.cpm) : undefined}
                         goalPct={goals.cpm != null && totals.averageCpm > 0 ? (goals.cpm / totals.averageCpm) * 100 : null}
@@ -2464,7 +2453,7 @@ export function Dashboard({
                     isMetricVisible("impressions") && (
                       <KpiCard key="impressions"
                         title="Impressões" value={formatNumber(totals.totalImpressions)}
-                        subtitle="Total de visualizações"
+                        subtitle={undefined}
                         icon={Activity} accentColor="blue"
                       />
                     ),
