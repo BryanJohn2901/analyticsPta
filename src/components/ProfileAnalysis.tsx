@@ -5,8 +5,8 @@ import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
-  AlertCircle, ArrowLeft, BookMarked, CalendarDays, CheckCircle2, Edit2,
-  GraduationCap, Key, Loader2, Plus, RefreshCw, Repeat, Trash2, Users, X, Zap,
+  AlertCircle, ArrowDown, ArrowLeft, ArrowUp, BookMarked, CalendarDays, CheckCircle2, Edit2,
+  GraduationCap, Key, Loader2, Plus, RefreshCw, Repeat, SlidersHorizontal, Trash2, Users, X, Zap,
 } from "lucide-react";
 import {
   fetchMetaCampaigns, fetchMetaInsights, fetchMetaAdAccounts,
@@ -26,8 +26,49 @@ import type { CampaignConfig } from "@/hooks/useCampaignStore";
 const formatCurrency = formatBRL;
 const formatNumber = formatInt;
 
-const TEMPLATE_LS_KEY = "pta_profile_template_v1";
-const DATES_LS_KEY    = "pta_profile_dates_v1";
+const TEMPLATE_LS_KEY    = "pta_profile_template_v1";
+const DATES_LS_KEY       = "pta_profile_dates_v1";
+const FUNNEL_CONFIG_LS_KEY = "pta_profile_funnel_v1";
+
+type ProfileFunnelStepId = "reach" | "impressions" | "clicks" | "page_views" | "leads" | "sales";
+
+interface ProfileFunnelStep {
+  id: ProfileFunnelStepId;
+  label: string;
+  color: string;
+  rateLabel?: string;
+}
+
+const PROFILE_FUNNEL_STEPS: ProfileFunnelStep[] = [
+  { id: "reach",       label: "Alcance",          color: "#3b82f6" },
+  { id: "impressions", label: "Impressões",        color: "#8b5cf6", rateLabel: "Freq." },
+  { id: "clicks",      label: "Cliques no link",   color: "#0891b2", rateLabel: "CTR" },
+  { id: "page_views",  label: "Vis. de Página",    color: "#f59e0b", rateLabel: "Taxa LP" },
+  { id: "leads",       label: "Leads",             color: "#e11d48", rateLabel: "Tx. Captura" },
+  { id: "sales",       label: "Resultados",        color: "#10b981", rateLabel: "Tx. Venda" },
+];
+
+const DEFAULT_FUNNEL_STEP_IDS: ProfileFunnelStepId[] = ["impressions", "clicks", "leads", "sales"];
+
+function loadProfileFunnelConfig(campaignId: string): ProfileFunnelStepId[] {
+  if (typeof window === "undefined") return DEFAULT_FUNNEL_STEP_IDS;
+  try {
+    const stored = JSON.parse(localStorage.getItem(FUNNEL_CONFIG_LS_KEY) ?? "{}") as Record<string, string[]>;
+    const ids = stored[campaignId];
+    if (!ids) return DEFAULT_FUNNEL_STEP_IDS;
+    const valid = ids.filter((id): id is ProfileFunnelStepId =>
+      PROFILE_FUNNEL_STEPS.some((s) => s.id === id),
+    );
+    return valid.length > 0 ? valid : DEFAULT_FUNNEL_STEP_IDS;
+  } catch { return DEFAULT_FUNNEL_STEP_IDS; }
+}
+
+function saveProfileFunnelConfig(campaignId: string, ids: ProfileFunnelStepId[]): void {
+  try {
+    const stored = JSON.parse(localStorage.getItem(FUNNEL_CONFIG_LS_KEY) ?? "{}") as Record<string, string[]>;
+    localStorage.setItem(FUNNEL_CONFIG_LS_KEY, JSON.stringify({ ...stored, [campaignId]: ids }));
+  } catch {}
+}
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -607,6 +648,31 @@ function CampaignAnalysisPanel({
   const [data, setData]       = useState<AdsetRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [funnelStepIds, setFunnelStepIds] = useState<ProfileFunnelStepId[]>(() => loadProfileFunnelConfig(campaign.id));
+  const [showFunnelPanel, setShowFunnelPanel] = useState(false);
+
+  const persistFunnelSteps = (next: ProfileFunnelStepId[]) => {
+    const safe = next.length > 0 ? next : DEFAULT_FUNNEL_STEP_IDS;
+    setFunnelStepIds(safe);
+    saveProfileFunnelConfig(campaign.id, safe);
+  };
+
+  const toggleFunnelStep = (id: ProfileFunnelStepId) => {
+    persistFunnelSteps(
+      funnelStepIds.includes(id)
+        ? funnelStepIds.filter((s) => s !== id)
+        : [...funnelStepIds, id],
+    );
+  };
+
+  const moveFunnelStep = (id: ProfileFunnelStepId, dir: -1 | 1) => {
+    const idx = funnelStepIds.indexOf(id);
+    const next = idx + dir;
+    if (idx < 0 || next < 0 || next >= funnelStepIds.length) return;
+    const arr = [...funnelStepIds];
+    [arr[idx], arr[next]] = [arr[next], arr[idx]];
+    persistFunnelSteps(arr);
+  };
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -724,47 +790,107 @@ function CampaignAnalysisPanel({
       {/* ── Layout: funil + tabela lado a lado ──────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-[200px_1fr]">
 
-        {/* Funil dirigido pelo template */}
+        {/* Funil modular */}
         <article
-          className="min-w-0 overflow-hidden rounded-xl border shadow-sm"
+          className="relative min-w-0 overflow-hidden rounded-xl border shadow-sm"
           style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
         >
           <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--dm-border-subtle)" }}>
             <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
               Funil de Vendas
             </h3>
-            <Zap size={13} style={{ color: "var(--dm-brand-500)", opacity: 0.6 }} />
+            <button
+              type="button"
+              onClick={() => setShowFunnelPanel((v) => !v)}
+              className="flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold transition hover:opacity-80"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
+            >
+              <SlidersHorizontal size={10} aria-hidden />
+              Personalizar
+            </button>
           </div>
+
+          {/* Painel de personalização */}
+          {showFunnelPanel && (
+            <div
+              className="absolute right-0 top-12 z-30 w-56 rounded-xl border p-3 shadow-lg"
+              style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+            >
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+                Etapas visíveis
+              </p>
+              <div className="space-y-1">
+                {PROFILE_FUNNEL_STEPS.map((step) => {
+                  const selected = funnelStepIds.includes(step.id);
+                  const index    = funnelStepIds.indexOf(step.id);
+                  return (
+                    <div key={step.id} className="flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-[var(--dm-bg-elevated)]">
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        disabled={selected && funnelStepIds.length === 1}
+                        onChange={() => toggleFunnelStep(step.id)}
+                        className="h-3.5 w-3.5 accent-blue-500 disabled:opacity-40"
+                      />
+                      <span className="min-w-0 flex-1 truncate text-xs" style={{ color: "var(--dm-text-secondary)" }}>{step.label}</span>
+                      <button type="button" onClick={() => moveFunnelStep(step.id, -1)}
+                        disabled={!selected || index <= 0}
+                        className="flex h-5 w-5 items-center justify-center rounded border disabled:opacity-30"
+                        style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-tertiary)" }}>
+                        <ArrowUp size={10} />
+                      </button>
+                      <button type="button" onClick={() => moveFunnelStep(step.id, 1)}
+                        disabled={!selected || index < 0 || index >= funnelStepIds.length - 1}
+                        className="flex h-5 w-5 items-center justify-center rounded border disabled:opacity-30"
+                        style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-tertiary)" }}>
+                        <ArrowDown size={10} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                type="button"
+                onClick={() => persistFunnelSteps(DEFAULT_FUNNEL_STEP_IDS)}
+                className="mt-2 w-full rounded-md py-1 text-[10px] font-semibold text-blue-500 hover:underline"
+              >
+                Restaurar padrão
+              </button>
+            </div>
+          )}
+
           <div className="flex flex-col items-stretch gap-0 p-4">
-            {tpl.funnel.map((stage, i) => {
-              const val  = kpiValues[stage.id] ?? 0;
-              const prev = i > 0 ? (kpiValues[tpl.funnel[i - 1].id] ?? 0) : null;
+            {funnelStepIds.map((stepId, i) => {
+              const step = PROFILE_FUNNEL_STEPS.find((s) => s.id === stepId);
+              if (!step) return null;
+              const val  = kpiValues[stepId] ?? 0;
+              const prevId = i > 0 ? funnelStepIds[i - 1] : null;
+              const prev = prevId ? (kpiValues[prevId] ?? 0) : null;
               const rate = prev !== null && prev > 0 ? val / prev : null;
               return (
-                <div key={stage.id} className="flex flex-col items-center">
-                  {i > 0 && rate !== null && stage.rateFromPrev && (
+                <div key={stepId} className="flex flex-col items-center">
+                  {i > 0 && (
                     <div className="flex flex-col items-center py-1">
                       <div className="h-3 w-px" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
-                      <span
-                        className="z-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-                        style={{ borderColor: "var(--dm-border-subtle)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-brand-500)" }}
-                      >
-                        {stage.rateFromPrev} {formatPercent(rate)}
-                      </span>
+                      {rate !== null && step.rateLabel && (
+                        <span
+                          className="z-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
+                          style={{ borderColor: "var(--dm-border-subtle)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-brand-500)" }}
+                        >
+                          {step.rateLabel}: {formatPercent(rate * 100)}
+                        </span>
+                      )}
                       <div className="h-3 w-px" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
                     </div>
                   )}
-                  {i > 0 && (rate === null || !stage.rateFromPrev) && (
-                    <div className="h-3 w-px" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
-                  )}
                   <div
                     className="w-full min-w-0 overflow-hidden rounded-lg px-3 py-3 text-center"
-                    style={{ background: stage.bg }}
+                    style={{ backgroundColor: step.color + "22", border: `1px solid ${step.color}44` }}
                   >
-                    <p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">
-                      {stage.label}
+                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: step.color }}>
+                      {step.label}
                     </p>
-                    <p className="mt-1 truncate text-base font-bold text-slate-900">
+                    <p className="mt-1 truncate text-base font-bold" style={{ color: "var(--dm-text-primary)" }}>
                       {formatNumber(val)}
                     </p>
                   </div>
