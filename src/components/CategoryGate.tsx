@@ -433,6 +433,17 @@ export function CategoryGate({
             </button>
           ))}
 
+          {/* Separador visual — só aparece se houver categorias personalizadas */}
+          {customSections.length > 0 && (
+            <div className="col-span-full flex items-center gap-3 pt-2">
+              <div className="h-px flex-1" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
+              <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+                Personalizadas
+              </span>
+              <div className="h-px flex-1" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
+            </div>
+          )}
+
           {/* Custom section cards */}
           {customSections.map((sec) => {
             const Ico = ICON_MAP[sec.iconName] ?? Package;
@@ -483,8 +494,8 @@ export function CategoryGate({
             );
           })}
 
-          {/* + Nova Categoria card */}
-          {onAddSection && (
+          {/* + Nova Categoria card — máx 3 personalizadas */}
+          {onAddSection && customSections.length < 3 && (
             <button
               type="button"
               onClick={() => setShowModal(true)}
