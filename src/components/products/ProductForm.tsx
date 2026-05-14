@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   Attachment, COURSE_GROUPS_PRODUCT, DorSolucao, Entregavel, EntregavelItem,
-  Lote, PersonaSegmento, ProductData, ProductType, SubPromessa,
+  Lote, PageLink, PersonaSegmento, ProductData, ProductType, SubPromessa,
   TurmaLink, emptyProduct,
 } from "@/types/product";
 import { parseTxtTemplate, PRODUCT_TXT_TEMPLATE, summarizeParsed } from "@/utils/parseProductTxt";
@@ -578,6 +578,50 @@ function TurmaLinks({ links, onChange }: { links: TurmaLink[]; onChange: (l: Tur
   );
 }
 
+// ─── Page links editor (capture / sales pages) ───────────────────────────────
+
+function PageLinksEditor({
+  links, onChange, addLabel, placeholder,
+}: {
+  links: PageLink[];
+  onChange: (l: PageLink[]) => void;
+  addLabel: string;
+  placeholder?: string;
+}) {
+  const update = (id: string, key: keyof PageLink, v: string) =>
+    onChange(links.map((l) => (l.id === id ? { ...l, [key]: v } : l)));
+  const remove = (id: string) => onChange(links.filter((l) => l.id !== id));
+  const add    = () => onChange([...links, { id: uid(), label: "", url: "" }]);
+
+  return (
+    <div className="space-y-2">
+      {links.length > 0 && (
+        <div className="grid grid-cols-[140px_1fr_28px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1 dark:text-slate-500">
+          <span>Nome / Rótulo</span><span>URL</span><span />
+        </div>
+      )}
+      {links.map((l) => (
+        <div key={l.id} className="grid grid-cols-[140px_1fr_28px] gap-2 items-center">
+          <input
+            value={l.label}
+            onChange={(e) => update(l.id, "label", e.target.value)}
+            placeholder={placeholder ?? "Ex: Principal"}
+            className={cls.input}
+          />
+          <input
+            value={l.url}
+            onChange={(e) => update(l.id, "url", e.target.value)}
+            placeholder="https://…"
+            className={cls.input}
+          />
+          <button type="button" onClick={() => remove(l.id)} className={cls.removeBtn}><X size={13} /></button>
+        </div>
+      ))}
+      <button type="button" onClick={add} className={cls.addBtn}><Plus size={12} /> {addLabel}</button>
+    </div>
+  );
+}
+
 // ─── Persona segmentos ────────────────────────────────────────────────────────
 
 function PersonaSegmentos({
@@ -629,9 +673,18 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   // ── Form state ──────────────────────────────────────────────────────────────
   // Ao editar, mescla com emptyProduct como base para garantir que campos
   // adicionados após o produto ter sido salvo nunca fiquem como undefined.
-  const [form, setForm] = useState<Omit<ProductData, "id" | "createdAt" | "updatedAt">>(() =>
-    isEdit ? { ...emptyProduct(product!.type), ...product! } : emptyProduct("pos"),
-  );
+  // Migra campos legados: paginaCaptura/paginaVendas (string) → arrays.
+  const [form, setForm] = useState<Omit<ProductData, "id" | "createdAt" | "updatedAt">>(() => {
+    const base = isEdit ? { ...emptyProduct(product!.type), ...product! } : emptyProduct("pos");
+    if (isEdit) {
+      const any = product as unknown as Record<string, unknown>;
+      if (!base.paginasCaptura?.length && typeof any.paginaCaptura === "string" && any.paginaCaptura)
+        base.paginasCaptura = [{ id: uid(), label: "Captura", url: any.paginaCaptura as string }];
+      if (!base.paginasVenda?.length && typeof any.paginaVendas === "string" && any.paginaVendas)
+        base.paginasVenda = [{ id: uid(), label: "Vendas", url: any.paginaVendas as string }];
+    }
+    return base;
+  });
 
   const set = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) =>
     setForm((prev) => ({ ...prev, [key]: val }));
@@ -1163,27 +1216,25 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
           {/* ══ LINKS DE VENDA ══ */}
           <Section title="Links de Venda" icon={Link2}>
-            <Field label="Links por turma">
+            <Field label="Links de pagamento por turma">
               <TurmaLinks links={form.linksVenda} onChange={(l) => set("linksVenda", l)} />
             </Field>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Página de Captura">
-                <input
-                  value={form.paginaCaptura}
-                  onChange={(e) => set("paginaCaptura", e.target.value)}
-                  placeholder="https://…"
-                  className={cls.input}
-                />
-              </Field>
-              <Field label="Página de Vendas">
-                <input
-                  value={form.paginaVendas}
-                  onChange={(e) => set("paginaVendas", e.target.value)}
-                  placeholder="https://…"
-                  className={cls.input}
-                />
-              </Field>
-            </div>
+            <Field label="Páginas de Captura">
+              <PageLinksEditor
+                links={form.paginasCaptura}
+                onChange={(l) => set("paginasCaptura", l)}
+                addLabel="Adicionar página de captura"
+                placeholder="Ex: Pré-Especialização"
+              />
+            </Field>
+            <Field label="Páginas de Venda">
+              <PageLinksEditor
+                links={form.paginasVenda}
+                onChange={(l) => set("paginasVenda", l)}
+                addLabel="Adicionar página de venda"
+                placeholder="Ex: Principal"
+              />
+            </Field>
           </Section>
 
           {/* ══ VINCULAÇÃO ══ */}

@@ -1,6 +1,6 @@
 import {
   CourseGroupId, DorSolucao, Entregavel, EntregavelItem,
-  Lote, PersonaSegmento, ProductData, ProductType, SubPromessa, TurmaLink,
+  Lote, PageLink, PersonaSegmento, ProductData, ProductType, SubPromessa, TurmaLink,
 } from "@/types/product";
 
 // ─── Normalise string (remove accents, uppercase, trim) ───────────────────────
@@ -462,11 +462,37 @@ export function parseTxtTemplate(
 
   // ── LINKS DE VENDA ────────────────────────────────────────────────────────────
   const lnkSec = sec(sections, "LINKS DE VENDA", "LINK", "LINKS");
-  result.paginaCaptura =
-    kv(lnkSec, "PÁGINA DE CAPTURA", "PAGINA DE CAPTURA", "CAPTURA")
-    || allItems(lnkSec).find(l => l.startsWith("http")) || "";
-  result.paginaVendas  =
-    kv(lnkSec, "PÁGINA DE VENDAS", "PAGINA DE VENDAS", "VENDAS") || "";
+
+  // Páginas de captura — cada linha "Rótulo: URL" ou só URL
+  const capturaItems = itemsAfterKey(lnkSec, "PÁGINAS DE CAPTURA", "PAGINAS DE CAPTURA", "PÁGINA DE CAPTURA", "PAGINA DE CAPTURA", "CAPTURA");
+  if (capturaItems.length > 0) {
+    result.paginasCaptura = capturaItems.map((item): PageLink => {
+      const colonIdx = item.indexOf(":");
+      if (colonIdx > 0 && !item.startsWith("http")) {
+        return { id: crypto.randomUUID(), label: item.slice(0, colonIdx).trim(), url: item.slice(colonIdx + 1).trim() };
+      }
+      return { id: crypto.randomUUID(), label: "Captura", url: item.trim() };
+    });
+  } else {
+    const single = kv(lnkSec, "PÁGINA DE CAPTURA", "PAGINA DE CAPTURA", "CAPTURA")
+      || allItems(lnkSec).find(l => l.startsWith("http")) || "";
+    if (single) result.paginasCaptura = [{ id: crypto.randomUUID(), label: "Captura", url: single }];
+  }
+
+  // Páginas de venda
+  const vendaItems = itemsAfterKey(lnkSec, "PÁGINAS DE VENDA", "PAGINAS DE VENDA", "PÁGINA DE VENDAS", "PAGINA DE VENDAS", "VENDAS");
+  if (vendaItems.length > 0) {
+    result.paginasVenda = vendaItems.map((item): PageLink => {
+      const colonIdx = item.indexOf(":");
+      if (colonIdx > 0 && !item.startsWith("http")) {
+        return { id: crypto.randomUUID(), label: item.slice(0, colonIdx).trim(), url: item.slice(colonIdx + 1).trim() };
+      }
+      return { id: crypto.randomUUID(), label: "Vendas", url: item.trim() };
+    });
+  } else {
+    const single = kv(lnkSec, "PÁGINA DE VENDAS", "PAGINA DE VENDAS", "VENDAS") || "";
+    if (single) result.paginasVenda = [{ id: crypto.randomUUID(), label: "Vendas", url: single }];
+  }
 
   // TURMA: lines
   const turmaLines = lnkSec.filter(l => n(l.slice(0, l.indexOf(":")|| 0)) === "TURMA");
@@ -632,8 +658,9 @@ export function summarizeParsed(
   if (data.sofrimentoPersona?.length) lines.push(`✅ ${data.sofrimentoPersona.length} segmento(s) de persona`);
   if (data.doresESolucoes?.length) lines.push(`✅ ${data.doresESolucoes.length} dor(es) & solução`);
   if (data.lotes?.length)      lines.push(`✅ ${data.lotes.length} lote(s)`);
-  if (data.receitaTecnica)     lines.push(`✅ Narrativa / receita técnica`);
-  if (data.paginaCaptura)      lines.push(`✅ Página de captura: ${data.paginaCaptura}`);
+  if (data.receitaTecnica)          lines.push(`✅ Narrativa / receita técnica`);
+  if (data.paginasCaptura?.length)  lines.push(`✅ ${data.paginasCaptura.length} página(s) de captura`);
+  if (data.paginasVenda?.length)    lines.push(`✅ ${data.paginasVenda.length} página(s) de venda`);
   if (!lines.length)           lines.push("⚠️ Nenhum campo reconhecido — verifique o formato do arquivo.");
   return lines;
 }

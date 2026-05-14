@@ -44,6 +44,12 @@ export interface TurmaLink {
   link: string;
 }
 
+export interface PageLink {
+  id: string;
+  label: string;   // ex: "Pré-Especialização", "PEMPA2", "Principal"
+  url: string;
+}
+
 export interface DorSolucao {
   id: string;
   dor: string;
@@ -129,8 +135,8 @@ export interface ProductData {
 
   // ── LINKS DE VENDA ────────────────────────────────────────────────────────
   linksVenda: TurmaLink[];
-  paginaCaptura: string;
-  paginaVendas: string;
+  paginasCaptura: PageLink[];   // múltiplas páginas de captura
+  paginasVenda:   PageLink[];   // múltiplas páginas de venda
 }
 
 // ─── Empty factory ────────────────────────────────────────────────────────────
@@ -168,7 +174,7 @@ export function emptyProduct(type: ProductType): Omit<ProductData, "id" | "creat
     doresESolucoes: [],
     receitaTecnica: "",
     linksVenda: [],
-    paginaCaptura: "",
-    paginaVendas: "",
+    paginasCaptura: [],
+    paginasVenda: [],
   };
 }

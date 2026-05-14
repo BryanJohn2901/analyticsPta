@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  BookOpen, CalendarDays, ChevronRight, Edit3, GraduationCap,
+  BookOpen, CalendarDays, ChevronRight, Copy, Edit3, GraduationCap,
   Package, Plus, Trash2, Users,
 } from "lucide-react";
 import { ProductData, ProductType, COURSE_GROUPS_PRODUCT } from "@/types/product";
@@ -15,10 +15,11 @@ import { TabLanding } from "@/components/TabLanding";
 interface ProductCardProps {
   product: ProductData;
   onEdit: () => void;
+  onDuplicate: () => void;
   onDelete: () => void;
 }
 
-function ProductCard({ product: p, onEdit, onDelete }: ProductCardProps) {
+function ProductCard({ product: p, onEdit, onDuplicate, onDelete }: ProductCardProps) {
   const isPos    = p.type === "pos";
   const course   = COURSE_GROUPS_PRODUCT.find((g) => g.id === p.courseGroup);
 
@@ -53,13 +54,23 @@ function ProductCard({ product: p, onEdit, onDelete }: ProductCardProps) {
           <button
             type="button"
             onClick={onEdit}
+            title="Editar"
             className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             <Edit3 size={12} />
           </button>
           <button
             type="button"
+            onClick={onDuplicate}
+            title="Duplicar"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-amber-50 hover:text-amber-600 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
+          >
+            <Copy size={12} />
+          </button>
+          <button
+            type="button"
             onClick={onDelete}
+            title="Remover"
             className="flex h-7 w-7 items-center justify-center rounded-lg border border-red-100 text-red-400 transition hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-900/20"
           >
             <Trash2 size={12} />
@@ -188,6 +199,18 @@ export function ProductBase() {
     deleteProduct(id);
   };
 
+  const handleDuplicate = (p: ProductData) => {
+    const now = new Date().toISOString();
+    const copy: ProductData = {
+      ...p,
+      id: crypto.randomUUID(),
+      nome: `${p.nome} (Cópia)`,
+      createdAt: now,
+      updatedAt: now,
+    };
+    addProduct(copy);
+  };
+
   const handleSave = (p: ProductData) => {
     if (editing) updateProduct(p);
     else addProduct(p);
@@ -266,7 +289,7 @@ export function ProductBase() {
             { label: "Total de produtos", value: products.length, color: "text-slate-900" },
             { label: "Pós Graduações",    value: posList.length,   color: "text-blue-700" },
             { label: "Imersões",          value: imersaoList.length, color: "text-violet-700" },
-            { label: "Com links de venda",value: products.filter((p) => p.linksVenda.length > 0 || p.paginaVendas).length, color: "text-emerald-700" },
+            { label: "Com links de venda",value: products.filter((p) => p.linksVenda.length > 0 || p.paginasVenda?.length > 0).length, color: "text-emerald-700" },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <p className={`text-2xl font-bold ${color}`}>{value}</p>
@@ -293,6 +316,7 @@ export function ProductBase() {
                 key={p.id}
                 product={p}
                 onEdit={() => handleEdit(p)}
+                onDuplicate={() => handleDuplicate(p)}
                 onDelete={() => handleDelete(p.id)}
               />
             ))}
@@ -325,6 +349,7 @@ export function ProductBase() {
                 key={p.id}
                 product={p}
                 onEdit={() => handleEdit(p)}
+                onDuplicate={() => handleDuplicate(p)}
                 onDelete={() => handleDelete(p.id)}
               />
             ))}
