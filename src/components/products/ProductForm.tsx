@@ -745,26 +745,62 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
           {/* ══ EQUIPE ══ */}
           <Section title="Equipe" defaultOpen={false}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Co-produtores">
-                <input value={form.coProdutores} onChange={(e) => set("coProdutores", e.target.value)} placeholder="Nomes separados por vírgula" className={cls.input} />
-              </Field>
-              <Field label="Coordenador do Pós">
-                <input value={form.coordenador} onChange={(e) => set("coordenador", e.target.value)} placeholder="Nome do coordenador" className={cls.input} />
-              </Field>
-              <Field label="Debate do produto">
-                <input value={form.debateProduto} onChange={(e) => set("debateProduto", e.target.value)} placeholder="Responsável pelo debate" className={cls.input} />
-              </Field>
-              {isPos && (
-                <>
-                  <Field label="Prof. demais slides">
-                    <input value={form.profSlides} onChange={(e) => set("profSlides", e.target.value)} placeholder="Nomes" className={cls.input} />
+            <div className="space-y-4">
+              {/* Produção */}
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>Produção</p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="Co-produtores">
+                    <input value={form.coProdutores} onChange={(e) => set("coProdutores", e.target.value)} placeholder="Nomes separados por vírgula" className={cls.input} />
                   </Field>
-                  <Field label="Pto Digital">
-                    <input value={form.ptoDigital} onChange={(e) => set("ptoDigital", e.target.value)} placeholder="Nome" className={cls.input} />
+                  <Field label="Coordenador do Pós">
+                    <input value={form.coordenador} onChange={(e) => set("coordenador", e.target.value)} placeholder="Nome do coordenador" className={cls.input} />
                   </Field>
-                </>
-              )}
+                  <Field label="Debate do produto">
+                    <input value={form.debateProduto} onChange={(e) => set("debateProduto", e.target.value)} placeholder="Responsável pelo debate" className={cls.input} />
+                  </Field>
+                  {isPos && (
+                    <Field label="Prof. demais slides">
+                      <input value={form.profSlides} onChange={(e) => set("profSlides", e.target.value)} placeholder="Nomes" className={cls.input} />
+                    </Field>
+                  )}
+                </div>
+              </div>
+
+              {/* Marketing & Tráfego */}
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>Marketing & Tráfego</p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="Head de Marketing">
+                    <input value={form.headMarketing} onChange={(e) => set("headMarketing", e.target.value)} placeholder="Nome" className={cls.input} />
+                  </Field>
+                  <Field label="Líder de Lançamentos">
+                    <input value={form.liderLancamentos} onChange={(e) => set("liderLancamentos", e.target.value)} placeholder="Nome" className={cls.input} />
+                  </Field>
+                  <Field label="Gestor de Tráfego">
+                    <input value={form.gestorTrafego} onChange={(e) => set("gestorTrafego", e.target.value)} placeholder="Nome" className={cls.input} />
+                  </Field>
+                  <Field label="Social Media">
+                    <input value={form.socialMedia} onChange={(e) => set("socialMedia", e.target.value)} placeholder="Nome" className={cls.input} />
+                  </Field>
+                </div>
+              </div>
+
+              {/* Criação */}
+              <div>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>Criação</p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="Designer">
+                    <input value={form.designer} onChange={(e) => set("designer", e.target.value)} placeholder="Nome" className={cls.input} />
+                  </Field>
+                  <Field label="Editor de Vídeo">
+                    <input value={form.editorVideo} onChange={(e) => set("editorVideo", e.target.value)} placeholder="Nome" className={cls.input} />
+                  </Field>
+                  <Field label="Web Designer">
+                    <input value={form.webDesigner} onChange={(e) => set("webDesigner", e.target.value)} placeholder="Nome" className={cls.input} />
+                  </Field>
+                </div>
+              </div>
             </div>
           </Section>
 

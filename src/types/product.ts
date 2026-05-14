@@ -89,7 +89,14 @@ export interface ProductData {
   coordenador: string;
   debateProduto: string;
   profSlides: string;       // pos only
-  ptoDigital: string;       // pos only
+  ptoDigital?: string;      // legado — mantido para retrocompatibilidade
+  headMarketing: string;
+  liderLancamentos: string;
+  designer: string;
+  editorVideo: string;
+  socialMedia: string;
+  gestorTrafego: string;
+  webDesigner: string;
 
   // ── PALAVRAS-CHAVE ────────────────────────────────────────────────────────
   palavrasChave: string[];
@@ -140,7 +147,13 @@ export function emptyProduct(type: ProductType): Omit<ProductData, "id" | "creat
     coordenador: "",
     debateProduto: "",
     profSlides: "",
-    ptoDigital: "",
+    headMarketing: "",
+    liderLancamentos: "",
+    designer: "",
+    editorVideo: "",
+    socialMedia: "",
+    gestorTrafego: "",
+    webDesigner: "",
     palavrasChave: [],
     descricaoAvatar: "",
     oQueVaiAprender: [],
