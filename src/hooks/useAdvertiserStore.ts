@@ -16,6 +16,7 @@ export interface AdvertiserProfile {
   adAccountId: string;
   groupId: string;
   campaigns: ActiveCampaign[];
+  instagramUserId?: string;   // 3.1 — vinculado via token IG (optional)
   createdAt: string;
 }
 

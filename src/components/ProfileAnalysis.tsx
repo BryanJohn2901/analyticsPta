@@ -5,13 +5,17 @@ import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import {
-  AlertCircle, ArrowDown, ArrowLeft, ArrowUp, BookMarked, CalendarDays, CheckCircle2, Edit2,
-  GraduationCap, Key, Loader2, Plus, RefreshCw, Repeat, SlidersHorizontal, Trash2, Users, X, Zap,
+  AlertCircle, ArrowDown, ArrowLeft, ArrowUp, AtSign, BookMarked, CalendarDays, CheckCircle2,
+  Edit2, GraduationCap, Key, Loader2, Plus, RefreshCw, Repeat, SlidersHorizontal,
+  Trash2, Users, X, Zap,
 } from "lucide-react";
 import {
   fetchMetaCampaigns, fetchMetaInsights, fetchMetaAdAccounts,
   loadMetaCredentials, MetaInsight, MetaAdAccount,
 } from "@/utils/metaApi";
+import {
+  loadInstagramCredentials, fetchInstagramAccounts, InstagramAccount,
+} from "@/utils/instagramApi";
 import { formatBRL, formatCompact, formatInt, formatPercent } from "@/lib/format";
 import { getTemplate, TEMPLATE_LIST, DEFAULT_PERSONALIZADO_CONFIG } from "@/lib/templates";
 import { TabLanding } from "@/components/TabLanding";
@@ -89,11 +93,13 @@ interface AdsetRow {
   name: string;
   impressions: number;
   reach: number;
-  clicks: number;
+  clicks: number;        // inline_link_clicks (cliques no link)
+  total_clicks: number;  // all clicks (reactions, shares, etc.)
   spend: number;
   revenue: number;
   cpm: number;
-  ctr: number;
+  ctr: number;           // link CTR %
+  ctr_all: number;       // all-click CTR %
   purchases: number;
   leads: number;
   cpa: number;
@@ -132,34 +138,37 @@ function toAdsetRows(data: MetaInsight[]): AdsetRow[] {
     const key = d.adset_name ?? d.campaign_name;
     const cur = map.get(key) ?? {
       name: key,
-      impressions: 0, reach: 0, clicks: 0, spend: 0, revenue: 0,
-      cpm: 0, ctr: 0, purchases: 0, leads: 0, cpa: 0,
+      impressions: 0, reach: 0, clicks: 0, total_clicks: 0, spend: 0, revenue: 0,
+      cpm: 0, ctr: 0, ctr_all: 0, purchases: 0, leads: 0, cpa: 0,
       page_views: 0, new_followers: 0,
     };
-    cur.impressions += parseMetaNum(d.impressions);
-    cur.reach       += parseMetaNum(d.reach);
-    // Prefer inline_link_clicks (matches Meta Ads Manager "Cliques" column)
-    cur.clicks      += d.inline_link_clicks != null
+    cur.impressions   += parseMetaNum(d.impressions);
+    cur.reach         += parseMetaNum(d.reach);
+    // inline_link_clicks = "Cliques no link" (matches Meta Ads Manager default column)
+    cur.clicks        += d.inline_link_clicks != null
       ? parseMetaNum(d.inline_link_clicks)
       : parseMetaNum(d.clicks);
-    cur.spend       += parseMetaNum(d.spend);
+    // raw clicks = all clicks (reactions, shares, profile visits, etc.)
+    cur.total_clicks  += parseMetaNum(d.clicks);
+    cur.spend         += parseMetaNum(d.spend);
     cur.purchases     += getActionValue(d.actions, "purchase");
     cur.leads         += getActionValue(d.actions, "lead")
                        + getActionValue(d.actions, "onsite_conversion.lead_grouped");
     cur.revenue       += pickActionValue(d.action_values, "purchase", "omni_purchase",
                          "offsite_conversion.fb_pixel_purchase");
-    // landing_page_view: fired when the destination page fully loads after an ad click.
-    // More reliable than link clicks for page-view funnels (imersão, personalizado).
+    // landing_page_view: more reliable than link clicks for LP-funnel templates.
     cur.page_views    += getActionValue(d.actions, "landing_page_view");
-    // follow: counts new Instagram followers driven by the ad (requires engagement/traffic objective).
-    cur.new_followers += getActionValue(d.actions, "follow");
+    // new_followers: "follow" (ad engagement objective) OR "page_fan_adds" (traffic-to-profile)
+    cur.new_followers += getActionValue(d.actions, "follow")
+                       + getActionValue(d.actions, "page_fan_adds");
     map.set(key ?? "", cur);
   });
   return Array.from(map.values()).map((r) => ({
     ...r,
-    cpm: r.impressions > 0 ? (r.spend / r.impressions) * 1000 : 0,
-    ctr: r.impressions > 0 ? (r.clicks / r.impressions) * 100 : 0,
-    cpa: r.purchases  > 0 ? r.spend / r.purchases : 0,
+    cpm:     r.impressions   > 0 ? (r.spend / r.impressions) * 1000      : 0,
+    ctr:     r.impressions   > 0 ? (r.clicks / r.impressions) * 100      : 0,
+    ctr_all: r.impressions   > 0 ? (r.total_clicks / r.impressions) * 100 : 0,
+    cpa:     r.purchases     > 0 ? r.spend / r.purchases                 : 0,
   })).sort((a, b) => b.spend - a.spend);
 }
 
@@ -410,10 +419,11 @@ interface ProfileFormData {
   adAccountId: string;
   groupId: string;
   campaigns: ActiveCampaign[];
+  instagramUserId: string;
 }
 
 const EMPTY_FORM: ProfileFormData = {
-  name: "", product: "", adAccountId: "", groupId: "", campaigns: [],
+  name: "", product: "", adAccountId: "", groupId: "", campaigns: [], instagramUserId: "",
 };
 
 function ProfileForm({
@@ -426,6 +436,27 @@ function ProfileForm({
   onCancel: () => void;
 }) {
   const [form, setForm] = useState<ProfileFormData>(initial ?? EMPTY_FORM);
+
+  // ── Instagram picker (3.1) ─────────────────────────────────────────────────
+  const igCreds    = loadInstagramCredentials();
+  const hasIgToken = Boolean(igCreds.accessToken);
+  const [igAccounts, setIgAccounts]     = useState<InstagramAccount[]>([]);
+  const [igLoading, setIgLoading]       = useState(false);
+  const [igError, setIgError]           = useState<string | null>(null);
+  const [showIgPicker, setShowIgPicker] = useState(false);
+
+  const fetchIgAccountsForForm = async () => {
+    setIgLoading(true); setIgError(null);
+    try {
+      const list = await fetchInstagramAccounts(igCreds.accessToken);
+      setIgAccounts(list);
+      setShowIgPicker(true);
+    } catch (e) {
+      setIgError(e instanceof Error ? e.message : "Erro ao buscar contas Instagram.");
+    } finally {
+      setIgLoading(false);
+    }
+  };
 
   const handleGroupChange = (groupId: string) => {
     const auto = campaignConfigs[groupId]?.adAccountId ?? "";
@@ -492,6 +523,73 @@ function ProfileForm({
             </p>
           )}
         </div>
+
+        {/* Instagram (3.1) — conditional on IG token being configured */}
+        {hasIgToken && (
+          <div>
+            <label className={labelCls}>
+              Instagram <span className="font-normal opacity-40">(opcional)</span>
+            </label>
+            {/* Selected account chip */}
+            {form.instagramUserId && !showIgPicker && (
+              <div className="mb-1.5 flex items-center gap-2 rounded-lg border px-3 py-2"
+                style={{ borderColor: "#E1306C44", backgroundColor: "#E1306C11" }}>
+                <AtSign size={12} style={{ color: "#E1306C" }} className="flex-shrink-0" />
+                <span className="flex-1 text-xs font-medium" style={{ color: "var(--dm-text-primary)" }}>
+                  {igAccounts.find(a => a.id === form.instagramUserId)?.username
+                    ? `@${igAccounts.find(a => a.id === form.instagramUserId)!.username}`
+                    : form.instagramUserId}
+                </span>
+                <button type="button" onClick={() => setForm(f => ({ ...f, instagramUserId: "" }))}
+                  className="text-slate-400 hover:text-red-500"><X size={12} /></button>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={form.instagramUserId}
+                onChange={e => setForm(f => ({ ...f, instagramUserId: e.target.value }))}
+                placeholder="ID da conta Instagram"
+                className={inputCls}
+              />
+              <button type="button" onClick={() => void fetchIgAccountsForForm()} disabled={igLoading}
+                className="flex flex-shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-[10px] font-semibold transition disabled:opacity-50"
+                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}>
+                {igLoading ? <Loader2 size={10} className="animate-spin" /> : <AtSign size={10} />}
+                {igLoading ? "Buscando…" : "Buscar"}
+              </button>
+            </div>
+            {/* Dropdown */}
+            {showIgPicker && igAccounts.length > 0 && (
+              <div className="mt-1 overflow-hidden rounded-lg border shadow-md"
+                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}>
+                <div className="flex items-center justify-between border-b px-3 py-1.5"
+                  style={{ borderColor: "var(--dm-border-subtle)" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
+                    Selecione a conta
+                  </p>
+                  <button type="button" onClick={() => setShowIgPicker(false)} style={{ color: "var(--dm-text-tertiary)" }}>
+                    <X size={11} />
+                  </button>
+                </div>
+                {igAccounts.map(acc => (
+                  <button key={acc.id} type="button"
+                    onClick={() => { setForm(f => ({ ...f, instagramUserId: acc.id })); setShowIgPicker(false); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition hover:bg-[var(--dm-bg-elevated)]">
+                    <AtSign size={10} style={{ color: "#E1306C" }} />
+                    <span className="flex-1 font-medium" style={{ color: "var(--dm-text-primary)" }}>
+                      @{acc.username}
+                    </span>
+                    <span className="font-mono text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+                      {formatNumber(acc.followersCount)} seguidores
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {igError && <p className="mt-1 text-[10px] text-red-500">{igError}</p>}
+          </div>
+        )}
 
         {/* Campaign picker — shown once Ad Account is filled */}
         {form.adAccountId.trim() && (
@@ -647,6 +745,7 @@ function CampaignAnalysisPanel({
   const [data, setData]       = useState<AdsetRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"kpis" | "conjunto">("kpis");
   const [funnelStepIds, setFunnelStepIds] = useState<ProfileFunnelStepId[]>(() => loadProfileFunnelConfig(campaign.id));
   const [showFunnelPanel, setShowFunnelPanel] = useState(false);
 
@@ -692,11 +791,11 @@ function CampaignAnalysisPanel({
   const totalRevenue      = data.reduce((s, r) => s + r.revenue,       0);
   const totalPurchases    = data.reduce((s, r) => s + r.purchases,     0);
   const totalClicks       = data.reduce((s, r) => s + r.clicks,        0);
+  const totalAllClicks    = data.reduce((s, r) => s + r.total_clicks,  0);
   const totalImpressions  = data.reduce((s, r) => s + r.impressions,   0);
   const totalLeads        = data.reduce((s, r) => s + r.leads,         0);
   const totalPageViews    = data.reduce((s, r) => s + r.page_views,    0);
   const totalNewFollowers = data.reduce((s, r) => s + r.new_followers, 0);
-  const avgCtr           = totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0;
   const txCaptura        = totalClicks    > 0 ? (totalLeads    / totalClicks)    * 100 : 0;
   const txConversao      = totalLeads     > 0 ? (totalPurchases / totalLeads)    * 100
                          : totalClicks   > 0 ? (totalPurchases / totalClicks)   * 100 : 0;
@@ -734,18 +833,16 @@ function CampaignAnalysisPanel({
   // ── Template-driven values ────────────────────────────────────────────────────
   const tpl = template;
   const rawValues: Record<string, number> = {
-    impressions:   totalImpressions,
-    reach:         data.reduce((s, r) => s + r.reach, 0),
-    clicks:        totalClicks,
-    spend:         totalSpend,
-    revenue:       totalRevenue,
-    leads:         totalLeads,
-    sales:         totalPurchases,
-    tickets:       totalPurchases,   // imersão maps purchases → tickets
-    // page_views / profile_visits / new_followers not returned by campaign-level API
+    impressions:    totalImpressions,
+    reach:          data.reduce((s, r) => s + r.reach, 0),
+    clicks:         totalClicks,
+    total_clicks:   totalAllClicks,
+    spend:          totalSpend,
+    revenue:        totalRevenue,
+    leads:          totalLeads,
+    sales:          totalPurchases,
+    tickets:        totalPurchases,
     page_views:     totalPageViews,
-    // profile_visits is not available from the Meta campaign-level Insights API.
-    // It requires a separate Instagram Graph API call — left as 0 until integrated.
     profile_visits: 0,
     new_followers:  totalNewFollowers,
   };
@@ -761,8 +858,147 @@ function CampaignAnalysisPanel({
     slate: "text-slate-500",
   };
 
+  // ── Análise de Conjunto helpers (3.3) ────────────────────────────────────────
+  const fmt = { brl: formatCurrency, int: formatNumber, pct: formatPercent };
+
   return (
     <div className="space-y-4">
+
+      {/* ── Tab switcher ─────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 rounded-xl p-1" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+        {([ ["kpis", "Visão Geral"], ["conjunto", "Análise de Conjunto"] ] as const).map(([id, label]) => (
+          <button key={id} type="button" onClick={() => setActiveTab(id)}
+            className="flex-1 rounded-lg py-1.5 text-xs font-semibold transition-all"
+            style={activeTab === id
+              ? { backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-primary)", boxShadow: "0 1px 3px rgba(0,0,0,.1)" }
+              : { color: "var(--dm-text-tertiary)" }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Análise de Conjunto (3.3) ─────────────────────────────────────────── */}
+      {activeTab === "conjunto" && (
+        <article className="overflow-hidden rounded-xl border shadow-sm"
+          style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
+          <div className="flex items-center justify-between border-b px-5 py-3"
+            style={{ borderColor: "var(--dm-border-subtle)" }}>
+            <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
+              Análise de Conjunto
+            </h3>
+            {loading && <Loader2 size={13} className="animate-spin" style={{ color: "var(--dm-text-tertiary)" }} />}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left text-xs">
+              <thead>
+                <tr style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+                  {[
+                    { label: "Conjunto Criativo", right: false },
+                    { label: "CPM",               right: true  },
+                    { label: "Cliques no Link",   right: true  },
+                    { label: "CPC (link)",         right: true  },
+                    { label: "CTR (link)",         right: true  },
+                    { label: "Cliques (todos)",    right: true  },
+                    { label: "CTR (todos)",        right: true  },
+                    { label: "CPC (todos)",        right: true  },
+                    { label: "Vis. de Página",     right: true  },
+                    { label: "Custo/Vis.",         right: true  },
+                    { label: "Investimento",       right: true  },
+                  ].map(col => (
+                    <th key={col.label}
+                      className={`px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${col.right ? "text-right" : ""}`}
+                      style={{ color: "var(--dm-text-tertiary)" }}>
+                      {col.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y" style={{ borderColor: "var(--dm-border-subtle)" }}>
+                {data.map(r => {
+                  const cpcLink = r.clicks      > 0 ? r.spend / r.clicks       : 0;
+                  const ctrLink = r.impressions > 0 ? (r.clicks / r.impressions) * 100 : 0;
+                  const cpcAll  = r.total_clicks > 0 ? r.spend / r.total_clicks  : 0;
+                  const ctrAll  = r.impressions > 0 ? (r.total_clicks / r.impressions) * 100 : 0;
+                  const costPV  = r.page_views  > 0 ? r.spend / r.page_views    : 0;
+                  return (
+                    <tr key={r.name} className="transition-colors hover:bg-[var(--dm-bg-elevated)]"
+                      style={{ borderColor: "var(--dm-border-subtle)" }}>
+                      <td className="max-w-[200px] truncate px-4 py-2.5 font-semibold"
+                        style={{ color: "var(--dm-text-primary)" }} title={r.name}>{r.name}</td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                        {r.cpm > 0 ? fmt.brl(r.cpm) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                        {r.clicks > 0 ? fmt.int(r.clicks) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                        {cpcLink > 0 ? fmt.brl(cpcLink) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                        {ctrLink > 0 ? fmt.pct(ctrLink) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                        {r.total_clicks > 0 ? fmt.int(r.total_clicks) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                        {ctrAll > 0 ? fmt.pct(ctrAll) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                        {cpcAll > 0 ? fmt.brl(cpcAll) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                        {r.page_views > 0 ? fmt.int(r.page_views) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                        {costPV > 0 ? fmt.brl(costPV) : "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums font-semibold" style={{ color: "var(--dm-text-primary)" }}>
+                        {fmt.brl(r.spend)}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {/* Totals row */}
+                <tr className="font-semibold" style={{ backgroundColor: "var(--dm-bg-elevated)", borderColor: "var(--dm-border-subtle)" }}>
+                  <td className="px-4 py-2.5 text-[10px] uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>Total</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                    {totalImpressions > 0 ? fmt.brl((totalSpend / totalImpressions) * 1000) : "—"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                    {fmt.int(totalClicks)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                    {totalClicks > 0 ? fmt.brl(totalSpend / totalClicks) : "—"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                    {totalImpressions > 0 ? fmt.pct((totalClicks / totalImpressions) * 100) : "—"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                    {fmt.int(totalAllClicks)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                    {totalImpressions > 0 ? fmt.pct((totalAllClicks / totalImpressions) * 100) : "—"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                    {totalAllClicks > 0 ? fmt.brl(totalSpend / totalAllClicks) : "—"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                    {fmt.int(totalPageViews)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                    {totalPageViews > 0 ? fmt.brl(totalSpend / totalPageViews) : "—"}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-primary)" }}>
+                    {fmt.brl(totalSpend)}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </article>
+      )}
+
+      {activeTab === "kpis" && <>
 
       {/* ── KPIs dirigidos pelo template ─────────────────────────────────────── */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -1002,6 +1238,8 @@ function CampaignAnalysisPanel({
           </div>
         </article>
       )}
+
+      </> /* end activeTab === "kpis" */}
     </div>
   );
 }
@@ -1361,18 +1599,16 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
   }
 
   const handleSave = (data: ProfileFormData) => {
+    const base = {
+      name: data.name, product: data.product,
+      adAccountId: data.adAccountId, groupId: data.groupId,
+      campaigns: data.campaigns,
+      instagramUserId: data.instagramUserId || undefined,
+    };
     if (editingId) {
-      updateProfile(editingId, {
-        name: data.name, product: data.product,
-        adAccountId: data.adAccountId, groupId: data.groupId,
-        campaigns: data.campaigns,
-      });
+      updateProfile(editingId, base);
     } else {
-      addProfile({
-        name: data.name, product: data.product,
-        adAccountId: data.adAccountId, groupId: data.groupId,
-        campaigns: data.campaigns,
-      });
+      addProfile(base);
     }
     setView("list"); setEditingId(null);
   };
@@ -1399,6 +1635,7 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
           adAccountId: editingProfile.adAccountId,
           groupId: editingProfile.groupId,
           campaigns: editingProfile.campaigns,
+          instagramUserId: editingProfile.instagramUserId ?? "",
         }
       : undefined;
 
