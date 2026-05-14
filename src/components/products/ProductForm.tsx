@@ -290,11 +290,28 @@ function DynamicList({
   const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
   const add    = () => onChange([...items, ""]);
 
+  // Se o valor contém vírgula ao pressionar Enter, expande em múltiplos itens
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, i: number) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const parts = items[i].split(",").map((s) => s.trim()).filter((s) => s.length > 0);
+    if (parts.length <= 1) { add(); return; }
+    const next = [...items];
+    next.splice(i, 1, ...parts);
+    onChange(next);
+  };
+
   return (
     <div className="space-y-2">
       {items.map((item, i) => (
         <div key={i} className="flex gap-2">
-          <input value={item} onChange={(e) => update(i, e.target.value)} placeholder={placeholder} className={cls.input} />
+          <input
+            value={item}
+            onChange={(e) => update(i, e.target.value)}
+            onKeyDown={(e) => handleKeyDown(e, i)}
+            placeholder={placeholder}
+            className={cls.input}
+          />
           <button type="button" onClick={() => remove(i)} className={cls.removeBtn}><X size={13} /></button>
         </div>
       ))}
@@ -309,10 +326,15 @@ function DynamicList({
 
 function TagsInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) => void }) {
   const [draft, setDraft] = useState("");
+
   const add = () => {
-    const v = draft.trim();
-    if (v && !tags.includes(v)) { onChange([...tags, v]); setDraft(""); }
+    const newTags = draft
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && !tags.includes(s));
+    if (newTags.length > 0) { onChange([...tags, ...newTags]); setDraft(""); }
   };
+
   return (
     <div>
       <div className="flex flex-wrap gap-1.5 mb-2">
@@ -328,7 +350,7 @@ function TagsInput({ tags, onChange }: { tags: string[]; onChange: (t: string[])
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-          placeholder="Digite e pressione Enter"
+          placeholder="Digite e pressione Enter — use vírgula para adicionar várias"
           className={cls.input}
         />
         <button type="button" onClick={add} className="flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
