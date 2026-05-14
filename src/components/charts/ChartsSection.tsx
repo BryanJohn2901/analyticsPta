@@ -468,8 +468,8 @@ export function ChartsSection({
   return (
     <section className="grid grid-cols-1 gap-5 xl:grid-cols-12">
 
-      {/* ── Trend chart — 8/12 cols ── */}
-      <div className="xl:col-span-8">
+      {/* ── Trend chart — full width ── */}
+      <div className="xl:col-span-12">
         <ChartCard
           title="Evolução Diária"
           subtitle="Cliques e conversões ao longo do tempo"
@@ -515,8 +515,8 @@ export function ChartsSection({
         </ChartCard>
       </div>
 
-      {/* ── Comparison chart — 12/12 cols ── */}
-      <div className="xl:col-span-12">
+      {/* ── Comparison chart — 8/12 cols ── */}
+      <div className="xl:col-span-8">
         <ChartCard
           title="Investimento vs Receita"
           subtitle="Comparativo por campanha no período"
