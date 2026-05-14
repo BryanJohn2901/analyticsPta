@@ -612,7 +612,6 @@ function ProfileCard({
           <p className="mt-2 text-[10px] italic" style={{ color: "var(--dm-text-tertiary)" }}>Sem campanhas configuradas</p>
         )}
 
-        <p className="mt-2 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>Clique para ver a análise →</p>
       </div>
 
       {/* Action buttons — shown on hover */}
@@ -1308,21 +1307,15 @@ function ProfileDetailView({
             className="w-full max-w-3xl rounded-xl border p-6 shadow-2xl"
             style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
           >
-            <h2 className="mb-1 text-base font-semibold" style={{ color: "var(--dm-text-primary)" }}>
+            <h2 className="mb-4 text-base font-semibold" style={{ color: "var(--dm-text-primary)" }}>
               Qual tipo de campanha é essa?
             </h2>
-            <p className="mb-5 text-xs" style={{ color: "var(--dm-text-secondary)" }}>
-              Escolha o template para ver os KPIs e funil corretos para este perfil.
-            </p>
             <TemplateSelector
               current={templateId}
               onChange={handleTemplateChange}
               variant="modal"
               onOpenBuilder={() => setShowBuilder(true)}
             />
-            <p className="mt-4 text-center text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
-              Você pode trocar o template a qualquer momento no header do perfil.
-            </p>
           </div>
         </div>
       )}
@@ -1456,9 +1449,6 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-base font-semibold" style={{ color: "var(--dm-text-primary)" }}>Perfis de Anunciantes</h2>
-          <p className="mt-0.5 text-xs" style={{ color: "var(--dm-text-secondary)" }}>
-            Configure e gerencie os perfis dos seus anunciantes
-          </p>
         </div>
         <button type="button" onClick={() => { setEditingId(null); setView("form"); }}
           className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition"
