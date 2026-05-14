@@ -9,6 +9,12 @@ async function getCurrentUserId(): Promise<string | null> {
   return data.user?.id ?? null;
 }
 
+/** Converts a Supabase PostgrestError (plain object) to a real JS Error. */
+function pgErr(e: { message?: string; details?: string; hint?: string; code?: string }): Error {
+  const parts = [e.message, e.details, e.hint].filter(Boolean);
+  return new Error(parts.join(" — ") || JSON.stringify(e));
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rowToCategory(row: any): UserCategory {
   return {
@@ -56,7 +62,7 @@ export async function fetchUserCategories(): Promise<UserCategory[]> {
     .from("user_categories")
     .select("*")
     .order("position");
-  if (error) throw error;
+  if (error) throw pgErr(error);
   return (data ?? []).map(rowToCategory);
 }
 
@@ -89,7 +95,7 @@ export async function upsertUserCategory(cat: {
     .upsert(payload, { onConflict: "user_id,slug" })
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw pgErr(error);
   return rowToCategory(data);
 }
 
@@ -99,7 +105,7 @@ export async function deleteUserCategory(id: string): Promise<void> {
     .from("user_categories")
     .delete()
     .eq("id", id);
-  if (error) throw error;
+  if (error) throw pgErr(error);
 }
 
 // ─── Account Entries ─────────────────────────────────────────────────────────
@@ -110,7 +116,7 @@ export async function fetchUserAccountEntries(): Promise<UserAccountEntry[]> {
     .from("user_account_entries")
     .select("*")
     .order("created_at");
-  if (error) throw error;
+  if (error) throw pgErr(error);
   return (data ?? []).map(rowToEntry);
 }
 
@@ -145,7 +151,7 @@ export async function upsertUserAccountEntry(entry: {
     .upsert(payload)
     .select()
     .single();
-  if (error) throw error;
+  if (error) throw pgErr(error);
   return rowToEntry(data);
 }
 
@@ -155,5 +161,5 @@ export async function deleteUserAccountEntry(id: string): Promise<void> {
     .from("user_account_entries")
     .delete()
     .eq("id", id);
-  if (error) throw error;
+  if (error) throw pgErr(error);
 }

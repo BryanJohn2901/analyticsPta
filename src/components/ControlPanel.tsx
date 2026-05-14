@@ -327,7 +327,7 @@ function AddEntryForm({
       toast.success("Conta salva! Sincronizando dados…");
       onSaved(entry);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Erro ao salvar.";
+      const msg = e instanceof Error ? e.message : String(e);
       setSaveErrMsg(msg);
       toast.error(`Erro ao salvar: ${msg}`);
     } finally {
