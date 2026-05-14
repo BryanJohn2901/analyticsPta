@@ -541,3 +541,32 @@ body {
   color: var(--dm-value-neutral);
   font-variant-numeric: tabular-nums;
 }
+
+/* ============================================================
+   RICH TEXT EDITOR — Tiptap prose styles
+   ============================================================ */
+.prose { line-height: 1.65; }
+.prose h2 { font-size: 1.125rem; font-weight: 700; margin: 0.75em 0 0.35em; color: var(--dm-text-primary); }
+.prose h3 { font-size: 1rem;     font-weight: 600; margin: 0.65em 0 0.3em;  color: var(--dm-text-primary); }
+.prose p  { margin: 0.35em 0; }
+.prose strong { font-weight: 700; color: var(--dm-text-primary); }
+.prose em     { font-style: italic; }
+.prose u      { text-decoration: underline; }
+.prose ul { list-style-type: disc;   padding-left: 1.4em; margin: 0.4em 0; }
+.prose ol { list-style-type: decimal; padding-left: 1.4em; margin: 0.4em 0; }
+.prose li { margin: 0.2em 0; }
+.prose li p { margin: 0; }
+.prose hr { border: none; border-top: 1px solid var(--dm-border-default); margin: 0.75em 0; }
+.prose [style*="text-align: center"] { text-align: center; }
+.prose [style*="text-align: right"]  { text-align: right; }
+/* placeholder */
+.tiptap.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+.dark .tiptap.ProseMirror p.is-editor-empty:first-child::before {
+  color: #4a5568;
+}

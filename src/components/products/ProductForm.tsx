@@ -12,6 +12,7 @@ import {
   TurmaLink, emptyProduct,
 } from "@/types/product";
 import { parseTxtTemplate, PRODUCT_TXT_TEMPLATE, summarizeParsed } from "@/utils/parseProductTxt";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -983,12 +984,11 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           {/* ══ AVATAR ══ */}
           <Section title="Avatar & Posicionamento">
             <Field label="Descrição do avatar / do produto">
-              <textarea
+              <RichTextEditor
                 value={form.descricaoAvatar}
-                onChange={(e) => set("descricaoAvatar", e.target.value)}
+                onChange={(html) => set("descricaoAvatar", html)}
                 placeholder="Quem é o aluno ideal? O que ele sente, deseja e teme? Como o produto transforma a vida dele?"
-                rows={5}
-                className={cls.textarea}
+                minHeight={160}
               />
             </Field>
           </Section>
@@ -1063,12 +1063,11 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           {/* ══ PÚBLICO-ALVO ══ */}
           <Section title="Público-Alvo">
             <Field label="Para quem é">
-              <textarea
+              <RichTextEditor
                 value={form.paraQuemE}
-                onChange={(e) => set("paraQuemE", e.target.value)}
+                onChange={(html) => set("paraQuemE", html)}
                 placeholder="Descreva o público ideal — profissão, estágio de carreira, objetivos…"
-                rows={3}
-                className={cls.textarea}
+                minHeight={120}
               />
             </Field>
             <Field label="Sofrimento da persona (por segmento)">
@@ -1091,12 +1090,11 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           {isPos && (
             <Section title="Receita Técnica">
               <Field label="Descrição técnica do produto">
-                <textarea
+                <RichTextEditor
                   value={form.receitaTecnica}
-                  onChange={(e) => set("receitaTecnica", e.target.value)}
+                  onChange={(html) => set("receitaTecnica", html)}
                   placeholder="Aqui vai a receita técnica completa do produto — módulos, carga horária, metodologia…"
-                  rows={6}
-                  className={cls.textarea}
+                  minHeight={180}
                 />
               </Field>
             </Section>
