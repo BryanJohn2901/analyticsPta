@@ -229,9 +229,9 @@ function AttachmentPanel({
 // ─── Shared input styles ──────────────────────────────────────────────────────
 
 const cls = {
-  input:    "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:border-blue-500",
-  textarea: "w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:border-blue-500",
-  label:    "block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5 dark:text-slate-500",
+  input:    "h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:border-blue-500 dark:focus:ring-blue-900/40",
+  textarea: "w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 placeholder:text-slate-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:border-blue-500 dark:focus:ring-blue-900/40",
+  label:    "block text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1 dark:text-slate-500",
   addBtn:   "flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 transition dark:text-blue-400 dark:hover:text-blue-300",
   removeBtn:"flex-shrink-0 rounded-md p-1 text-slate-300 transition hover:bg-red-50 hover:text-red-500 dark:text-slate-600 dark:hover:bg-red-900/30 dark:hover:text-red-400",
 };
@@ -241,37 +241,47 @@ const uid = () => crypto.randomUUID();
 // ─── Accordion section ────────────────────────────────────────────────────────
 
 function Section({
-  title, icon: Icon, defaultOpen = false, children,
+  title, icon: Icon, defaultOpen = false, badge, children,
 }: {
-  title: string; icon?: React.ElementType; defaultOpen?: boolean; children: React.ReactNode;
+  title: string; icon?: React.ElementType; defaultOpen?: boolean; badge?: string | number; children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-100 dark:border-slate-700">
+    <div className={`overflow-hidden rounded-xl border transition-colors ${open ? "border-slate-200 dark:border-slate-600" : "border-slate-100 dark:border-slate-700/60"}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100 dark:bg-slate-700/50 dark:hover:bg-slate-700"
+        className={`flex w-full items-center justify-between px-4 py-2.5 text-left transition ${open ? "bg-white dark:bg-slate-800" : "bg-slate-50 hover:bg-slate-100/80 dark:bg-slate-800/50 dark:hover:bg-slate-800"}`}
       >
         <div className="flex items-center gap-2">
-          {Icon && <Icon size={13} className="text-slate-400 dark:text-slate-500" />}
+          {Icon && <Icon size={12} className="text-slate-400 dark:text-slate-500" />}
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</span>
+          {badge !== undefined && (
+            <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-400 dark:bg-slate-700 dark:text-slate-500">{badge}</span>
+          )}
         </div>
-        <ChevronDown size={13} className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={12} className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
-      {open && <div className="space-y-4 p-4 dark:bg-slate-800">{children}</div>}
+      {open && (
+        <div className="space-y-3 border-t border-slate-100 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Field wrapper ────────────────────────────────────────────────────────────
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Field({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className={cls.label}>
-        {label}{required && <span className="ml-0.5 text-blue-500">*</span>}
-      </p>
+      <div className="flex items-baseline gap-2 mb-1">
+        <p className={cls.label + " mb-0"}>
+          {label}{required && <span className="ml-0.5 text-blue-500">*</span>}
+        </p>
+        {hint && <span className="text-[10px] text-slate-400 dark:text-slate-600">{hint}</span>}
+      </div>
       {children}
     </div>
   );
@@ -519,32 +529,30 @@ function DoresSolucoes({
   const add    = () => onChange([...pairs, { id: uid(), dor: "", solucao: "" }]);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       {pairs.length > 0 && (
         <div className="grid grid-cols-[1fr_1fr_28px] gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1 dark:text-slate-500">
           <span>Dor / Objeção</span><span>Solução</span><span />
         </div>
       )}
-      {pairs.map((p) => (
-        <div key={p.id} className="grid grid-cols-[1fr_1fr_28px] gap-2 items-start">
-          <textarea
+      {pairs.map((p, i) => (
+        <div key={p.id} className="grid grid-cols-[1fr_1fr_28px] gap-2 items-center">
+          <input
             value={p.dor}
             onChange={(e) => update(p.id, "dor", e.target.value)}
-            placeholder="Dor ou objeção…"
-            rows={2}
-            className={cls.textarea}
+            placeholder={`Dor ${i + 1}…`}
+            className={cls.input}
           />
-          <textarea
+          <input
             value={p.solucao}
             onChange={(e) => update(p.id, "solucao", e.target.value)}
-            placeholder="Como o produto resolve…"
-            rows={2}
-            className={cls.textarea}
+            placeholder="Solução…"
+            className={cls.input}
           />
-          <button type="button" onClick={() => remove(p.id)} className={`${cls.removeBtn} mt-1`}><X size={13} /></button>
+          <button type="button" onClick={() => remove(p.id)} className={cls.removeBtn}><X size={13} /></button>
         </div>
       ))}
-      <button type="button" onClick={add} className={cls.addBtn}><Plus size={12} /> Adicionar par</button>
+      <button type="button" onClick={add} className={`${cls.addBtn} pt-1`}><Plus size={12} /> Adicionar par</button>
     </div>
   );
 }
@@ -644,7 +652,7 @@ function PersonaSegmentos({
             value={s.pontos}
             onChange={(e) => update(s.id, "pontos", e.target.value)}
             placeholder="Descreva os sofrimentos desse segmento…"
-            rows={3}
+            rows={2}
             className={cls.textarea}
           />
         </div>
@@ -893,20 +901,20 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       {importOverlay}
 
       {/* ── Sticky top bar ─────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-3 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-        <div className="flex items-center gap-3">
+      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-slate-100 bg-white/95 backdrop-blur-sm px-4 lg:px-6 py-2.5 dark:border-slate-700/80 dark:bg-slate-900/95">
+        <div className="flex items-center gap-2.5">
           <button
             type="button"
             onClick={onCancel}
-            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-400 dark:hover:bg-slate-700"
+            className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700 dark:border-slate-700 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
           >
-            <ArrowLeft size={15} />
+            <ArrowLeft size={14} />
           </button>
-          <div>
-            <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${typeBadge} dark:opacity-80`}>
-              {isPos ? "Pós Graduação" : "Imersão"}
+          <div className="flex items-center gap-2">
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${typeBadge} dark:opacity-90`}>
+              {isPos ? "Pós" : "Imersão"}
             </span>
-            <p className="mt-0.5 text-sm font-bold text-slate-900 leading-none dark:text-slate-100">
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate max-w-xs">
               {form.nome || (isEdit ? "Editar produto" : "Novo produto")}
             </p>
           </div>
@@ -915,27 +923,27 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           <button
             type="button"
             onClick={() => setShowImport(true)}
-            className="flex h-9 items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-50 px-3 text-xs font-semibold text-violet-700 transition hover:bg-violet-100 dark:border-violet-700 dark:bg-violet-900/20 dark:text-violet-300 dark:hover:bg-violet-900/40"
+            className="flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-semibold text-slate-600 transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:border-violet-600 dark:hover:bg-violet-900/20 dark:hover:text-violet-300"
           >
-            <Sparkles size={13} /> Importar TXT
+            <Sparkles size={12} className="text-violet-500" /> TXT
           </button>
           <button
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="flex h-9 items-center gap-2 rounded-lg bg-brand px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover disabled:opacity-60"
+            className="flex h-8 items-center gap-1.5 rounded-lg bg-brand px-3 text-sm font-semibold text-white shadow-sm transition hover:bg-brand-hover disabled:opacity-60"
           >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-            {saving ? "Salvando…" : "Salvar produto"}
+            {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+            {saving ? "Salvando…" : "Salvar"}
           </button>
         </div>
       </div>
 
       {/* ── Form body ───────────────────────────────────────────────────────── */}
-      <div className="flex gap-6 p-6">
+      <div className="flex gap-6 p-4 lg:p-6 max-w-[1400px] mx-auto w-full">
 
         {/* Left — attachments panel */}
-        <aside className="hidden w-52 flex-shrink-0 xl:block">
+        <aside className="hidden w-48 flex-shrink-0 xl:block">
           <div className="sticky top-[72px]">
             <div className="mb-2 flex items-center gap-1.5">
               <Paperclip size={12} className="text-slate-400" />
@@ -957,7 +965,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
         </aside>
 
         {/* Right — form fields */}
-        <div className="min-w-0 flex-1 space-y-4">
+        <div className="min-w-0 flex-1 space-y-3 max-w-4xl">
 
           {/* ══ REFERÊNCIAS — mobile only (hidden on xl where left panel shows) ══ */}
           <div className="xl:hidden">
@@ -973,10 +981,15 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           </div>
 
           {/* ══ IDENTIDADE (always open) ══ */}
-          <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-5 space-y-4 dark:border-blue-800/50 dark:bg-blue-900/10">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-blue-400 dark:text-blue-500">Identidade do produto</p>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3 dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${isPos ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400" : "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-400"}`}>
+                {isPos ? "Pós Graduação" : "Imersão"}
+              </span>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Identidade do produto</p>
+            </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               <Field label="Nome do produto" required>
                 <input
                   value={form.nome}
@@ -1001,7 +1014,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 onChange={(e) => set("promessa", e.target.value)}
                 placeholder="A grande transformação que o produto entrega…"
                 rows={2}
-                className={cls.textarea}
+                className={cls.textarea + " min-h-[56px]"}
               />
             </Field>
 
@@ -1032,8 +1045,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
             <div className="space-y-4">
               {/* Produção */}
               <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>Produção</p>
-                <div className="grid gap-4 sm:grid-cols-3">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">Produção</p>
+                <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Co-produtores">
                     <input value={form.coProdutores} onChange={(e) => set("coProdutores", e.target.value)} placeholder="Nomes separados por vírgula" className={cls.input} />
                   </Field>
@@ -1053,8 +1066,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
               {/* Marketing & Tráfego */}
               <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>Marketing & Tráfego</p>
-                <div className="grid gap-4 sm:grid-cols-3">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">Marketing & Tráfego</p>
+                <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Head de Marketing">
                     <input value={form.headMarketing} onChange={(e) => set("headMarketing", e.target.value)} placeholder="Nome" className={cls.input} />
                   </Field>
@@ -1072,8 +1085,8 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
               {/* Criação */}
               <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--dm-text-tertiary)" }}>Criação</p>
-                <div className="grid gap-4 sm:grid-cols-3">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-600">Criação</p>
+                <div className="grid gap-3 sm:grid-cols-3">
                   <Field label="Designer">
                     <input value={form.designer} onChange={(e) => set("designer", e.target.value)} placeholder="Nome" className={cls.input} />
                   </Field>
@@ -1089,7 +1102,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           </Section>
 
           {/* ══ PALAVRAS-CHAVE ══ */}
-          <Section title="Palavras-chave">
+          <Section title="Palavras-chave" badge={form.palavrasChave.length || undefined}>
             <Field label="Tags do produto">
               <TagsInput tags={form.palavrasChave} onChange={(t) => set("palavrasChave", t)} />
             </Field>
@@ -1159,7 +1172,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
           {/* ══ ENTREGÁVEIS & BÔNUS — pos only ══ */}
           {isPos && (
-            <Section title="Entregáveis & Bônus">
+            <Section title="Entregáveis & Bônus" badge={form.entregaveis.length + form.bonus.length || undefined}>
               <Field label="Entregáveis">
                 <EntregavelBlock entregaveis={form.entregaveis} onChange={(e) => set("entregaveis", e)} />
               </Field>
@@ -1175,7 +1188,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           )}
 
           {/* ══ PÚBLICO-ALVO ══ */}
-          <Section title="Público-Alvo">
+          <Section title="Público-Alvo" badge={form.sofrimentoPersona.length || undefined}>
             <Field label="Para quem é">
               <RichTextEditor
                 value={form.paraQuemE}
@@ -1193,7 +1206,7 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
           </Section>
 
           {/* ══ DORES & SOLUÇÕES ══ */}
-          <Section title="Dores & Soluções">
+          <Section title="Dores & Soluções" badge={form.doresESolucoes.length || undefined}>
             <DoresSolucoes
               pairs={form.doresESolucoes}
               onChange={(p) => set("doresESolucoes", p)}
