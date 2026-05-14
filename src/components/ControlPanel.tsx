@@ -6,7 +6,7 @@ import { useTheme } from "next-themes";
 import {
   X, Settings2, ChevronDown, ChevronUp, Plus, Trash2, Loader2,
   Zap, User, Activity, CheckCircle2, XCircle, Link2, Eye, EyeOff,
-  RefreshCw, Save, RotateCcw, Sun, Moon, Database,
+  RefreshCw, Save, RotateCcw, Sun, Moon, Database, AtSign,
 } from "lucide-react";
 import type { UserCategory, UserAccountEntry } from "@/types/userConfig";
 import { FIXED_CATEGORIES, MAX_CUSTOM_CATEGORIES } from "@/types/userConfig";
@@ -30,6 +30,12 @@ import {
   saveMetaCredentials,
   type MetaAdAccount,
 } from "@/utils/metaApi";
+import {
+  loadInstagramCredentials,
+  saveInstagramCredentials,
+  fetchInstagramAccounts,
+  type InstagramAccount,
+} from "@/utils/instagramApi";
 import type { MetaSyncResult } from "@/utils/supabaseCampaigns";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1046,12 +1052,22 @@ function TabAccounts({ categories, accountEntries, onCategoriesChange, onEntries
 // ─── Tab: Integrações ─────────────────────────────────────────────────────────
 
 function TabIntegrations({ onSyncNow }: { onSyncNow?: () => void }) {
+  // ── Meta Ads state ──
   const [token,    setToken]    = useState(() => loadMetaCredentials().accessToken ?? "");
   const [visible,  setVisible]  = useState(false);
   const [testing,  setTesting]  = useState(false);
   const [testOk,   setTestOk]   = useState<boolean | null>(null);
   const [testMsg,  setTestMsg]  = useState("");
   const [saved,    setSaved]    = useState(false);
+
+  // ── Instagram state ──
+  const [igToken,   setIgToken]   = useState(() => loadInstagramCredentials().accessToken ?? "");
+  const [igVisible, setIgVisible] = useState(false);
+  const [igTesting, setIgTesting] = useState(false);
+  const [igTestOk,  setIgTestOk]  = useState<boolean | null>(null);
+  const [igTestMsg, setIgTestMsg] = useState("");
+  const [igSaved,   setIgSaved]   = useState(false);
+  const [igAccounts, setIgAccounts] = useState<InstagramAccount[]>([]);
 
   const handleSave = () => {
     saveMetaCredentials({ accessToken: token.trim() });
@@ -1076,6 +1092,36 @@ function TabIntegrations({ onSyncNow }: { onSyncNow?: () => void }) {
       setTestOk(false);
       setTestMsg(e instanceof Error ? e.message : "Falha ao testar token.");
     } finally { setTesting(false); }
+  };
+
+  const handleIgSave = () => {
+    saveInstagramCredentials({ accessToken: igToken.trim() });
+    setIgSaved(true);
+    setTimeout(() => setIgSaved(false), 2000);
+  };
+
+  const handleIgTest = async () => {
+    const t = igToken.trim();
+    if (!t) return;
+    setIgTesting(true);
+    setIgTestOk(null);
+    setIgTestMsg("");
+    setIgAccounts([]);
+    try {
+      const accounts = await fetchInstagramAccounts(t);
+      setIgTestOk(true);
+      setIgAccounts(accounts);
+      setIgTestMsg(
+        accounts.length > 0
+          ? `${accounts.length} conta${accounts.length !== 1 ? "s" : ""} encontrada${accounts.length !== 1 ? "s" : ""}.`
+          : "Token válido, mas nenhuma conta Instagram Business vinculada.",
+      );
+    } catch (e) {
+      setIgTestOk(false);
+      setIgTestMsg(e instanceof Error ? e.message : "Falha ao testar token.");
+    } finally {
+      setIgTesting(false);
+    }
   };
 
   return (
@@ -1141,6 +1187,87 @@ function TabIntegrations({ onSyncNow }: { onSyncNow?: () => void }) {
         <p className="mt-2 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
           💡 Use um <strong>System User Token</strong> para não expirar.
           Tokens do Graph API Explorer expiram em ~1h.
+        </p>
+      </section>
+
+      {/* Divider */}
+      <div className="h-px" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
+
+      {/* Instagram */}
+      <section>
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+            style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+            <AtSign size={15} style={{ color: "#E1306C" }} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>Instagram</p>
+            <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>Token via Instagram Graph API</p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <div className="relative">
+            <input
+              type={igVisible ? "text" : "password"}
+              value={igToken}
+              onChange={e => setIgToken(e.target.value)}
+              placeholder="EAAxxxxxxxxx…"
+              className="h-9 w-full rounded-lg border pr-9 pl-3 text-xs font-mono outline-none focus:ring-1"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)",
+                color: "var(--dm-text-primary)" }}
+            />
+            <button type="button" onClick={() => setIgVisible(v => !v)}
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+              style={{ color: "var(--dm-text-tertiary)" }}>
+              {igVisible ? <EyeOff size={13} /> : <Eye size={13} />}
+            </button>
+          </div>
+
+          {igTestOk !== null && (
+            <div className={`flex flex-col gap-1 rounded-lg px-3 py-2 text-[11px] font-medium ${
+              igTestOk ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
+                       : "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400"
+            }`}>
+              <div className="flex items-center gap-1.5">
+                {igTestOk ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                {igTestMsg}
+              </div>
+              {igAccounts.length > 0 && (
+                <ul className="ml-4 mt-1 space-y-0.5">
+                  {igAccounts.map((acc) => (
+                    <li key={acc.id} className="flex items-center gap-1">
+                      <AtSign size={10} />
+                      <span className="font-mono">{acc.username}</span>
+                      <span className="ml-auto opacity-60">{acc.followersCount.toLocaleString("pt-BR")} seguidores</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button type="button" onClick={() => void handleIgTest()}
+              disabled={!igToken.trim() || igTesting}
+              className="flex h-8 flex-1 items-center justify-center gap-1 rounded-lg border text-xs font-semibold transition disabled:opacity-50"
+              style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}>
+              {igTesting ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+              Testar
+            </button>
+            <button type="button" onClick={handleIgSave}
+              className="flex h-8 flex-1 items-center justify-center gap-1 rounded-lg text-xs font-bold text-white transition"
+              style={{ backgroundColor: igSaved ? "var(--dm-success-text)" : "#E1306C" }}>
+              {igSaved ? <CheckCircle2 size={11} /> : <Save size={11} />}
+              {igSaved ? "Salvo!" : "Salvar token"}
+            </button>
+          </div>
+        </div>
+
+        <p className="mt-2 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+          💡 Use o mesmo token do Meta ou um <strong>Page Access Token</strong> com permissões
+          <code className="mx-0.5 rounded px-0.5" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>instagram_basic</code> e
+          <code className="mx-0.5 rounded px-0.5" style={{ backgroundColor: "var(--dm-bg-elevated)" }}>instagram_manage_insights</code>.
         </p>
       </section>
     </div>
