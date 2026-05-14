@@ -15,7 +15,9 @@ interface FunnelStepProps {
 }
 
 function FunnelStep({ icon: Icon, label, count, rate, color, isLast }: FunnelStepProps) {
-  const pct = rate !== undefined ? (rate * 100).toFixed(1) : null;
+  const pct = rate !== undefined
+    ? (rate * 100).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+    : null;
   return (
     <div className="flex items-center gap-2">
       <div className="flex flex-col items-center">

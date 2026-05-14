@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
@@ -25,6 +25,7 @@ import { PersonalizadoBuilder } from "@/components/profiles/PersonalizadoBuilder
 import {
   useAdvertiserStore, AdvertiserProfile, ActiveCampaign,
 } from "@/hooks/useAdvertiserStore";
+import { useCampaignStore } from "@/hooks/useCampaignStore";
 import type { CampaignConfig } from "@/hooks/useCampaignStore";
 
 const formatCurrency = formatBRL;
@@ -426,6 +427,15 @@ const EMPTY_FORM: ProfileFormData = {
   name: "", product: "", adAccountId: "", groupId: "", campaigns: [], instagramUserId: "",
 };
 
+function FormSectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-3 text-[10px] font-bold uppercase tracking-widest"
+      style={{ color: "var(--dm-text-tertiary)" }}>
+      {children}
+    </p>
+  );
+}
+
 function ProfileForm({
   initial, groupOptions, campaignConfigs, onSave, onCancel,
 }: {
@@ -436,6 +446,24 @@ function ProfileForm({
   onCancel: () => void;
 }) {
   const [form, setForm] = useState<ProfileFormData>(initial ?? EMPTY_FORM);
+
+  // ── Section labels (built-in + custom) for dropdown optgroups ─────────────
+  const { customSections } = useCampaignStore();
+  const BUILT_IN_SECTION_LABELS: Record<string, string> = {
+    pos: "Pós Graduação", livros: "Livros", ebooks: "Ebooks",
+    perpetuo: "Perpétuo", eventos: "Eventos",
+  };
+  const sectionLabel = (id: string) =>
+    BUILT_IN_SECTION_LABELS[id]
+    ?? customSections.find((s) => s.id === id)?.label
+    ?? id;
+
+  // Group the options by section for <optgroup> rendering
+  const groupedBySec = groupOptions.reduce<Record<string, GroupOption[]>>((acc, g) => {
+    const sec = g.section ?? "__none__";
+    (acc[sec] ??= []).push(g);
+    return acc;
+  }, {});
 
   // ── Instagram picker (3.1) ─────────────────────────────────────────────────
   const igCreds    = loadInstagramCredentials();
@@ -474,76 +502,122 @@ function ProfileForm({
     setForm((f) => ({ ...f, campaigns: f.campaigns.filter((c) => c.id !== id) }));
   };
 
-  const inputCls = "h-9 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-xs text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 dark:focus:border-blue-400 dark:focus:bg-slate-600";
-  const labelCls = "block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1";
+  const inputCls = [
+    "h-9 w-full rounded-lg border px-3 text-xs outline-none transition",
+    "border-[var(--dm-border-default)] bg-[var(--dm-bg-elevated)] text-[var(--dm-text-primary)]",
+    "placeholder:text-[var(--dm-text-tertiary)]",
+    "focus:border-blue-500 focus:bg-[var(--dm-bg-surface)] focus:ring-2 focus:ring-blue-500/10",
+  ].join(" ");
+
+  const labelCls = "block text-xs font-semibold mb-1.5";
+
+  const canSave = form.name.trim() !== "" && form.adAccountId.trim() !== "";
 
   return (
-    <div
-      className="rounded-xl border p-5 shadow-sm sm:p-6"
-      style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
-    >
-      <h3 className="mb-5 text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>
-        {initial ? "Editar Perfil" : "Novo Perfil de Anunciante"}
-      </h3>
-      <div className="space-y-4">
+    <form onSubmit={(e) => { e.preventDefault(); if (canSave) onSave(form); }}>
 
-        <div>
-          <label className={labelCls}>Nome do Anunciante</label>
-          <input type="text" value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="Ex: Rafa Lund" className={inputCls} />
-        </div>
-
-        <div>
-          <label className={labelCls}>Produto / Pós-Graduação</label>
-          <input type="text" value={form.product}
-            onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))}
-            placeholder="Ex: Pós em Treinamento Feminino" className={inputCls} />
-        </div>
-
-        <div>
-          <label className={labelCls}>Grupo de Campanha</label>
-          <select value={form.groupId} onChange={(e) => handleGroupChange(e.target.value)}
-            className={inputCls}>
-            <option value="">— Selecionar grupo —</option>
-            {groupOptions.map((g) => (
-              <option key={g.id} value={g.id}>{g.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className={labelCls}>Ad Account</label>
-          <input type="text" value={form.adAccountId}
-            onChange={(e) => setForm((f) => ({ ...f, adAccountId: e.target.value, campaigns: [] }))}
-            placeholder="act_524658353530105" className={inputCls} />
-          {form.groupId && campaignConfigs[form.groupId]?.adAccountId && (
-            <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
-              Configurado: {campaignConfigs[form.groupId].adAccountId}
-            </p>
-          )}
-        </div>
-
-        {/* Instagram (3.1) — conditional on IG token being configured */}
-        {hasIgToken && (
+      {/* ── Section 1: Identificação ────────────────────────────────────────── */}
+      <div className="px-6 py-5">
+        <FormSectionLabel>Identificação</FormSectionLabel>
+        <div className="space-y-4">
           <div>
-            <label className={labelCls}>
-              Instagram <span className="font-normal opacity-40">(opcional)</span>
+            <label className={labelCls} style={{ color: "var(--dm-text-secondary)" }}>
+              Nome do Anunciante <span className="text-red-500">*</span>
             </label>
+            <input
+              type="text" value={form.name} autoFocus
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              placeholder="Ex: Rafa Lund"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className={labelCls} style={{ color: "var(--dm-text-secondary)" }}>
+              Produto / Nicho
+            </label>
+            <input
+              type="text" value={form.product}
+              onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))}
+              placeholder="Ex: Pós em Treinamento Feminino"
+              className={inputCls}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="border-t" style={{ borderColor: "var(--dm-border-subtle)" }} />
+
+      {/* ── Section 2: Configuração ─────────────────────────────────────────── */}
+      <div className="px-6 py-5">
+        <FormSectionLabel>Configuração da Conta</FormSectionLabel>
+        <div className="space-y-4">
+          <div>
+            <label className={labelCls} style={{ color: "var(--dm-text-secondary)" }}>
+              Grupo de Campanha
+            </label>
+            <select
+              value={form.groupId}
+              onChange={(e) => handleGroupChange(e.target.value)}
+              className={inputCls}
+            >
+              <option value="">— Selecionar grupo —</option>
+              {Object.entries(groupedBySec).map(([secId, opts]) => (
+                <optgroup key={secId} label={sectionLabel(secId)}>
+                  {opts.map((g) => (
+                    <option key={g.id} value={g.id}>{g.label}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelCls} style={{ color: "var(--dm-text-secondary)" }}>
+              Ad Account ID <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text" value={form.adAccountId}
+              onChange={(e) => setForm((f) => ({ ...f, adAccountId: e.target.value, campaigns: [] }))}
+              placeholder="act_524658353530105"
+              className={inputCls}
+            />
+            {form.groupId && campaignConfigs[form.groupId]?.adAccountId && (
+              <p className="mt-1.5 flex items-center gap-1 text-[10px]"
+                style={{ color: "var(--dm-text-tertiary)" }}>
+                <CheckCircle2 size={9} className="text-emerald-500" />
+                Configurado: <span className="font-mono">{campaignConfigs[form.groupId].adAccountId}</span>
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Section 3: Instagram (optional) ────────────────────────────────── */}
+      {hasIgToken && (
+        <>
+          <div className="border-t" style={{ borderColor: "var(--dm-border-subtle)" }} />
+          <div className="px-6 py-5">
+            <FormSectionLabel>
+              Instagram <span className="ml-1 normal-case font-normal tracking-normal opacity-50">(opcional)</span>
+            </FormSectionLabel>
+
             {/* Selected account chip */}
             {form.instagramUserId && !showIgPicker && (
-              <div className="mb-1.5 flex items-center gap-2 rounded-lg border px-3 py-2"
-                style={{ borderColor: "#E1306C44", backgroundColor: "#E1306C11" }}>
+              <div className="mb-3 flex items-center gap-2 rounded-lg border px-3 py-2"
+                style={{ borderColor: "#E1306C44", backgroundColor: "#E1306C0D" }}>
                 <AtSign size={12} style={{ color: "#E1306C" }} className="flex-shrink-0" />
                 <span className="flex-1 text-xs font-medium" style={{ color: "var(--dm-text-primary)" }}>
                   {igAccounts.find(a => a.id === form.instagramUserId)?.username
                     ? `@${igAccounts.find(a => a.id === form.instagramUserId)!.username}`
-                    : form.instagramUserId}
+                    : `ID: ${form.instagramUserId}`}
                 </span>
                 <button type="button" onClick={() => setForm(f => ({ ...f, instagramUserId: "" }))}
-                  className="text-slate-400 hover:text-red-500"><X size={12} /></button>
+                  className="rounded p-0.5 transition hover:text-red-500"
+                  style={{ color: "var(--dm-text-tertiary)" }}>
+                  <X size={12} />
+                </button>
               </div>
             )}
+
             <div className="flex gap-2">
               <input
                 type="text"
@@ -552,32 +626,44 @@ function ProfileForm({
                 placeholder="ID da conta Instagram"
                 className={inputCls}
               />
-              <button type="button" onClick={() => void fetchIgAccountsForForm()} disabled={igLoading}
-                className="flex flex-shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-[10px] font-semibold transition disabled:opacity-50"
-                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}>
+              <button
+                type="button"
+                onClick={() => void fetchIgAccountsForForm()}
+                disabled={igLoading}
+                className="flex flex-shrink-0 items-center gap-1.5 rounded-lg border px-3 text-[10px] font-semibold transition disabled:opacity-50"
+                style={{
+                  borderColor: "var(--dm-border-default)",
+                  backgroundColor: "var(--dm-bg-elevated)",
+                  color: "var(--dm-text-secondary)",
+                  height: "36px",
+                }}
+              >
                 {igLoading ? <Loader2 size={10} className="animate-spin" /> : <AtSign size={10} />}
                 {igLoading ? "Buscando…" : "Buscar"}
               </button>
             </div>
-            {/* Dropdown */}
+
+            {/* Dropdown picker */}
             {showIgPicker && igAccounts.length > 0 && (
-              <div className="mt-1 overflow-hidden rounded-lg border shadow-md"
+              <div className="mt-1.5 overflow-hidden rounded-lg border shadow-lg"
                 style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)" }}>
-                <div className="flex items-center justify-between border-b px-3 py-1.5"
+                <div className="flex items-center justify-between border-b px-3 py-2"
                   style={{ borderColor: "var(--dm-border-subtle)" }}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider"
+                    style={{ color: "var(--dm-text-tertiary)" }}>
                     Selecione a conta
                   </p>
-                  <button type="button" onClick={() => setShowIgPicker(false)} style={{ color: "var(--dm-text-tertiary)" }}>
+                  <button type="button" onClick={() => setShowIgPicker(false)}
+                    style={{ color: "var(--dm-text-tertiary)" }}>
                     <X size={11} />
                   </button>
                 </div>
                 {igAccounts.map(acc => (
                   <button key={acc.id} type="button"
                     onClick={() => { setForm(f => ({ ...f, instagramUserId: acc.id })); setShowIgPicker(false); }}
-                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-[11px] transition hover:bg-[var(--dm-bg-elevated)]">
-                    <AtSign size={10} style={{ color: "#E1306C" }} />
-                    <span className="flex-1 font-medium" style={{ color: "var(--dm-text-primary)" }}>
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left transition hover:bg-[var(--dm-bg-elevated)]">
+                    <AtSign size={11} style={{ color: "#E1306C" }} />
+                    <span className="flex-1 text-xs font-medium" style={{ color: "var(--dm-text-primary)" }}>
                       @{acc.username}
                     </span>
                     <span className="font-mono text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
@@ -587,31 +673,40 @@ function ProfileForm({
                 ))}
               </div>
             )}
-            {igError && <p className="mt-1 text-[10px] text-red-500">{igError}</p>}
+            {igError && <p className="mt-1.5 text-[10px] text-red-500">{igError}</p>}
           </div>
-        )}
+        </>
+      )}
 
-        {/* Campaign picker — shown once Ad Account is filled */}
-        {form.adAccountId.trim() && (
-          <div className="space-y-2">
+      {/* ── Section 4: Campanhas ────────────────────────────────────────────── */}
+      {form.adAccountId.trim() && (
+        <>
+          <div className="border-t" style={{ borderColor: "var(--dm-border-subtle)" }} />
+          <div className="px-6 py-5">
+            <FormSectionLabel>Campanhas Vinculadas</FormSectionLabel>
+
             {form.campaigns.length > 0 && (
-              <div className="space-y-1">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                  Campanhas selecionadas
-                </p>
+              <div className="mb-3 space-y-1.5">
                 {form.campaigns.map((c) => (
-                  <div key={c.id} className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 dark:border-emerald-800 dark:bg-emerald-900/20">
+                  <div key={c.id}
+                    className="flex items-center gap-2 rounded-lg border px-3 py-2"
+                    style={{ borderColor: "#10B98144", backgroundColor: "#10B9810D" }}>
                     <CheckCircle2 size={11} className="flex-shrink-0 text-emerald-500" />
-                    <span className="flex-1 truncate text-[11px] font-medium text-emerald-800 dark:text-emerald-300" title={c.name}>{c.name}</span>
+                    <span className="flex-1 truncate text-[11px] font-medium"
+                      style={{ color: "var(--dm-text-primary)" }} title={c.name}>
+                      {c.name}
+                    </span>
                     <button type="button" onClick={() => handleRemoveCampaign(c.id)}
-                      className="text-emerald-400 transition hover:text-red-500 dark:text-emerald-600">
+                      className="rounded p-0.5 text-emerald-400 transition hover:text-red-500">
                       <X size={11} />
                     </button>
                   </div>
                 ))}
               </div>
             )}
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-2.5 dark:border-slate-600 dark:bg-slate-700/30">
+
+            <div className="rounded-lg border p-3"
+              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)" }}>
               <AddCampaignPanel
                 key={form.adAccountId}
                 defaultAccountId={form.adAccountId}
@@ -620,21 +715,36 @@ function ProfileForm({
               />
             </div>
           </div>
-        )}
+        </>
+      )}
 
-        <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:gap-3">
-          <button type="button" onClick={() => onSave(form)}
-            disabled={!form.name.trim() || !form.adAccountId.trim()}
-            className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-brand text-xs font-semibold text-white transition hover:bg-brand-hover disabled:cursor-not-allowed disabled:opacity-50">
-            Salvar Perfil
+      {/* ── Sticky footer with actions ──────────────────────────────────────── */}
+      <div className="sticky bottom-0 border-t px-6 py-4"
+        style={{
+          borderColor: "var(--dm-border-default)",
+          backgroundColor: "var(--dm-bg-surface)",
+        }}
+      >
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={!canSave}
+            className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ backgroundColor: canSave ? "var(--dm-brand-500)" : "var(--dm-brand-500)" }}
+          >
+            {initial ? "Salvar Alterações" : "Criar Perfil"}
           </button>
-          <button type="button" onClick={onCancel}
-            className="flex h-9 flex-1 items-center justify-center rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex h-9 flex-1 items-center justify-center rounded-lg border text-xs font-semibold transition hover:bg-[var(--dm-bg-elevated)]"
+            style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-secondary)" }}
+          >
             Cancelar
           </button>
         </div>
       </div>
-    </div>
+    </form>
   );
 }
 
@@ -742,10 +852,16 @@ function CampaignAnalysisPanel({
   dateTo: string;
   template: Template;
 }) {
-  const [data, setData]       = useState<AdsetRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
+  // kpiData: campaign-level daily rows → used for totals + funnel + template table
+  // adsetData: adset-level totals → used for Análise de Conjunto
+  const [kpiData, setKpiData]     = useState<AdsetRow[]>([]);
+  const [adsetData, setAdsetData] = useState<AdsetRow[]>([]);
+  const [loading, setLoading]     = useState(false);
+  const [error, setError]         = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"kpis" | "conjunto">("kpis");
+
+  // alias so the rest of the KPI-tab code stays unchanged
+  const data = kpiData;
   const [funnelStepIds, setFunnelStepIds] = useState<ProfileFunnelStepId[]>(() => loadProfileFunnelConfig(campaign.id));
   const [showFunnelPanel, setShowFunnelPanel] = useState(false);
 
@@ -775,8 +891,21 @@ function CampaignAnalysisPanel({
   const load = useCallback(async () => {
     setLoading(true); setError(null);
     try {
-      const raw = await fetchMetaInsights(adAccountId, dateFrom, dateTo, [campaign.id]);
-      setData(toAdsetRows(raw));
+      // Parallel: campaign/daily for KPI totals + adset/all_days for Análise de Conjunto
+      const [rawKpi, rawAdset] = await Promise.all([
+        fetchMetaInsights(adAccountId, dateFrom, dateTo, {
+          level: "campaign",
+          timeIncrement: "1",
+          campaignIds: [campaign.id],
+        }),
+        fetchMetaInsights(adAccountId, dateFrom, dateTo, {
+          level: "adset",
+          timeIncrement: "all_days",
+          campaignIds: [campaign.id],
+        }),
+      ]);
+      setKpiData(toAdsetRows(rawKpi));
+      setAdsetData(toAdsetRows(rawAdset));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao buscar dados.");
     } finally {
@@ -878,125 +1007,134 @@ function CampaignAnalysisPanel({
       </div>
 
       {/* ── Análise de Conjunto (3.3) ─────────────────────────────────────────── */}
-      {activeTab === "conjunto" && (
-        <article className="overflow-hidden rounded-xl border shadow-sm"
-          style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
-          <div className="flex items-center justify-between border-b px-5 py-3"
-            style={{ borderColor: "var(--dm-border-subtle)" }}>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
-              Análise de Conjunto
-            </h3>
-            {loading && <Loader2 size={13} className="animate-spin" style={{ color: "var(--dm-text-tertiary)" }} />}
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
-              <thead>
-                <tr style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
-                  {[
-                    { label: "Conjunto Criativo", right: false },
-                    { label: "CPM",               right: true  },
-                    { label: "Cliques no Link",   right: true  },
-                    { label: "CPC (link)",         right: true  },
-                    { label: "CTR (link)",         right: true  },
-                    { label: "Cliques (todos)",    right: true  },
-                    { label: "CTR (todos)",        right: true  },
-                    { label: "CPC (todos)",        right: true  },
-                    { label: "Vis. de Página",     right: true  },
-                    { label: "Custo/Vis.",         right: true  },
-                    { label: "Investimento",       right: true  },
-                  ].map(col => (
-                    <th key={col.label}
-                      className={`px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${col.right ? "text-right" : ""}`}
-                      style={{ color: "var(--dm-text-tertiary)" }}>
-                      {col.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y" style={{ borderColor: "var(--dm-border-subtle)" }}>
-                {data.map(r => {
-                  const cpcLink = r.clicks      > 0 ? r.spend / r.clicks       : 0;
-                  const ctrLink = r.impressions > 0 ? (r.clicks / r.impressions) * 100 : 0;
-                  const cpcAll  = r.total_clicks > 0 ? r.spend / r.total_clicks  : 0;
-                  const ctrAll  = r.impressions > 0 ? (r.total_clicks / r.impressions) * 100 : 0;
-                  const costPV  = r.page_views  > 0 ? r.spend / r.page_views    : 0;
-                  return (
-                    <tr key={r.name} className="transition-colors hover:bg-[var(--dm-bg-elevated)]"
-                      style={{ borderColor: "var(--dm-border-subtle)" }}>
-                      <td className="max-w-[200px] truncate px-4 py-2.5 font-semibold"
-                        style={{ color: "var(--dm-text-primary)" }} title={r.name}>{r.name}</td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                        {r.cpm > 0 ? fmt.brl(r.cpm) : "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                        {r.clicks > 0 ? fmt.int(r.clicks) : "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                        {cpcLink > 0 ? fmt.brl(cpcLink) : "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                        {ctrLink > 0 ? fmt.pct(ctrLink) : "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                        {r.total_clicks > 0 ? fmt.int(r.total_clicks) : "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                        {ctrAll > 0 ? fmt.pct(ctrAll) : "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                        {cpcAll > 0 ? fmt.brl(cpcAll) : "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                        {r.page_views > 0 ? fmt.int(r.page_views) : "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                        {costPV > 0 ? fmt.brl(costPV) : "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums font-semibold" style={{ color: "var(--dm-text-primary)" }}>
-                        {fmt.brl(r.spend)}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {/* Totals row */}
-                <tr className="font-semibold" style={{ backgroundColor: "var(--dm-bg-elevated)", borderColor: "var(--dm-border-subtle)" }}>
-                  <td className="px-4 py-2.5 text-[10px] uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>Total</td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                    {totalImpressions > 0 ? fmt.brl((totalSpend / totalImpressions) * 1000) : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                    {fmt.int(totalClicks)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                    {totalClicks > 0 ? fmt.brl(totalSpend / totalClicks) : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                    {totalImpressions > 0 ? fmt.pct((totalClicks / totalImpressions) * 100) : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                    {fmt.int(totalAllClicks)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                    {totalImpressions > 0 ? fmt.pct((totalAllClicks / totalImpressions) * 100) : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                    {totalAllClicks > 0 ? fmt.brl(totalSpend / totalAllClicks) : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                    {fmt.int(totalPageViews)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
-                    {totalPageViews > 0 ? fmt.brl(totalSpend / totalPageViews) : "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-primary)" }}>
-                    {fmt.brl(totalSpend)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </article>
-      )}
+      {activeTab === "conjunto" && (() => {
+        // Use adset-level data for this tab; fall back to kpiData if adset not yet loaded
+        const rows = adsetData.length > 0 ? adsetData : kpiData;
+        const totSpend  = rows.reduce((s, r) => s + r.spend,         0);
+        const totClicks = rows.reduce((s, r) => s + r.clicks,        0);
+        const totAll    = rows.reduce((s, r) => s + r.total_clicks,  0);
+        const totImpr   = rows.reduce((s, r) => s + r.impressions,   0);
+        const totPV     = rows.reduce((s, r) => s + r.page_views,    0);
+        return (
+          <article className="overflow-hidden rounded-xl border shadow-sm"
+            style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}>
+            <div className="flex items-center justify-between border-b px-5 py-3"
+              style={{ borderColor: "var(--dm-border-subtle)" }}>
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
+                Análise de Conjunto
+              </h3>
+              {loading && <Loader2 size={13} className="animate-spin" style={{ color: "var(--dm-text-tertiary)" }} />}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead>
+                  <tr style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+                    {[
+                      { label: "Conjunto de Anúncios", right: false },
+                      { label: "CPM",                  right: true  },
+                      { label: "Cliques no Link",      right: true  },
+                      { label: "CPC (link)",            right: true  },
+                      { label: "CTR (link)",            right: true  },
+                      { label: "Cliques (todos)",       right: true  },
+                      { label: "CTR (todos)",           right: true  },
+                      { label: "CPC (todos)",           right: true  },
+                      { label: "Vis. de Página",        right: true  },
+                      { label: "Custo/Vis.",            right: true  },
+                      { label: "Investimento",          right: true  },
+                    ].map(col => (
+                      <th key={col.label}
+                        className={`px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap ${col.right ? "text-right" : ""}`}
+                        style={{ color: "var(--dm-text-tertiary)" }}>
+                        {col.label}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: "var(--dm-border-subtle)" }}>
+                  {rows.map(r => {
+                    const cpcLink = r.clicks       > 0 ? r.spend / r.clicks       : 0;
+                    const ctrLink = r.impressions  > 0 ? (r.clicks / r.impressions) * 100 : 0;
+                    const cpcAll  = r.total_clicks > 0 ? r.spend / r.total_clicks  : 0;
+                    const ctrAll  = r.impressions  > 0 ? (r.total_clicks / r.impressions) * 100 : 0;
+                    const costPV  = r.page_views   > 0 ? r.spend / r.page_views    : 0;
+                    return (
+                      <tr key={r.name} className="transition-colors hover:bg-[var(--dm-bg-elevated)]"
+                        style={{ borderColor: "var(--dm-border-subtle)" }}>
+                        <td className="max-w-[200px] truncate px-4 py-2.5 font-semibold"
+                          style={{ color: "var(--dm-text-primary)" }} title={r.name}>{r.name}</td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                          {r.cpm > 0 ? fmt.brl(r.cpm) : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                          {r.clicks > 0 ? fmt.int(r.clicks) : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                          {cpcLink > 0 ? fmt.brl(cpcLink) : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                          {ctrLink > 0 ? fmt.pct(ctrLink) : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                          {r.total_clicks > 0 ? fmt.int(r.total_clicks) : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                          {ctrAll > 0 ? fmt.pct(ctrAll) : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                          {cpcAll > 0 ? fmt.brl(cpcAll) : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                          {r.page_views > 0 ? fmt.int(r.page_views) : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                          {costPV > 0 ? fmt.brl(costPV) : "—"}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums font-semibold" style={{ color: "var(--dm-text-primary)" }}>
+                          {fmt.brl(r.spend)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {/* Totals row */}
+                  <tr className="font-semibold" style={{ backgroundColor: "var(--dm-bg-elevated)", borderColor: "var(--dm-border-subtle)" }}>
+                    <td className="px-4 py-2.5 text-[10px] uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>Total</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                      {totImpr > 0 ? fmt.brl((totSpend / totImpr) * 1000) : "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                      {fmt.int(totClicks)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                      {totClicks > 0 ? fmt.brl(totSpend / totClicks) : "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                      {totImpr > 0 ? fmt.pct((totClicks / totImpr) * 100) : "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                      {fmt.int(totAll)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                      {totImpr > 0 ? fmt.pct((totAll / totImpr) * 100) : "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                      {totAll > 0 ? fmt.brl(totSpend / totAll) : "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                      {fmt.int(totPV)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-secondary)" }}>
+                      {totPV > 0 ? fmt.brl(totSpend / totPV) : "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums" style={{ color: "var(--dm-text-primary)" }}>
+                      {fmt.brl(totSpend)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        );
+      })()}
 
       {activeTab === "kpis" && <>
 
@@ -1025,120 +1163,121 @@ function CampaignAnalysisPanel({
         })}
       </div>
 
-      {/* ── Layout: funil + tabela lado a lado ──────────────────────────────── */}
-      <div className="grid gap-4 lg:grid-cols-[200px_1fr]">
+      {/* ── Funil de Vendas (horizontal, colapsável) ─────────────────────── */}
+      <article
+        className="rounded-xl border shadow-sm"
+        style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--dm-border-subtle)" }}>
+          <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
+            Funil de Vendas
+          </h3>
+          <button
+            type="button"
+            onClick={() => setShowFunnelPanel((v) => !v)}
+            className="flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[10px] font-semibold transition"
+            style={showFunnelPanel
+              ? { backgroundColor: "var(--dm-brand-500)", borderColor: "var(--dm-brand-500)", color: "#fff" }
+              : { borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
+          >
+            <SlidersHorizontal size={10} />
+            {showFunnelPanel ? "Fechar" : "Personalizar"}
+          </button>
+        </div>
 
-        {/* Funil modular */}
-        <article
-          className="relative min-w-0 overflow-hidden rounded-xl border shadow-sm"
-          style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
-        >
-          <div className="flex items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--dm-border-subtle)" }}>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
-              Funil de Vendas
-            </h3>
+        {/* Painel de configuração — inline, sem overlap */}
+        {showFunnelPanel && (
+          <div className="border-b px-4 py-3" style={{ borderColor: "var(--dm-border-subtle)", backgroundColor: "var(--dm-bg-elevated)" }}>
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
+              Etapas visíveis
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {PROFILE_FUNNEL_STEPS.map((step) => {
+                const selected = funnelStepIds.includes(step.id);
+                const index    = funnelStepIds.indexOf(step.id);
+                return (
+                  <div key={step.id} className="flex items-center gap-1 rounded-lg border px-2.5 py-1"
+                    style={{ borderColor: selected ? step.color + "55" : "var(--dm-border-default)", backgroundColor: selected ? step.color + "11" : "var(--dm-bg-surface)" }}>
+                    <input
+                      type="checkbox"
+                      id={`fs-${step.id}`}
+                      checked={selected}
+                      disabled={selected && funnelStepIds.length === 1}
+                      onChange={() => toggleFunnelStep(step.id)}
+                      className="h-3 w-3 cursor-pointer accent-[var(--dm-brand-500)]"
+                    />
+                    <label htmlFor={`fs-${step.id}`} className="cursor-pointer text-[10px] font-medium" style={{ color: "var(--dm-text-primary)" }}>
+                      {step.label}
+                    </label>
+                    {selected && (
+                      <div className="ml-0.5 flex gap-0.5">
+                        <button type="button" onClick={() => moveFunnelStep(step.id, -1)} disabled={index === 0}
+                          className="rounded p-0.5 transition disabled:opacity-30 hover:bg-[var(--dm-border-subtle)]" style={{ color: "var(--dm-text-tertiary)" }}>
+                          <ArrowUp size={9} />
+                        </button>
+                        <button type="button" onClick={() => moveFunnelStep(step.id, 1)} disabled={index === funnelStepIds.length - 1}
+                          className="rounded p-0.5 transition disabled:opacity-30 hover:bg-[var(--dm-border-subtle)]" style={{ color: "var(--dm-text-tertiary)" }}>
+                          <ArrowDown size={9} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
             <button
               type="button"
-              onClick={() => setShowFunnelPanel((v) => !v)}
-              className="flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-semibold transition hover:opacity-80"
-              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
+              onClick={() => persistFunnelSteps(DEFAULT_FUNNEL_STEP_IDS)}
+              className="mt-2 text-[10px] font-semibold text-blue-500 hover:underline"
             >
-              <SlidersHorizontal size={10} aria-hidden />
-              Personalizar
+              Restaurar padrão
             </button>
           </div>
+        )}
 
-          {/* Painel de personalização */}
-          {showFunnelPanel && (
-            <div
-              className="absolute right-0 top-12 z-30 w-56 rounded-xl border p-3 shadow-lg"
-              style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
-            >
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
-                Etapas visíveis
-              </p>
-              <div className="space-y-1">
-                {PROFILE_FUNNEL_STEPS.map((step) => {
-                  const selected = funnelStepIds.includes(step.id);
-                  const index    = funnelStepIds.indexOf(step.id);
-                  return (
-                    <div key={step.id} className="flex items-center gap-1.5 rounded-md px-1 py-0.5 hover:bg-[var(--dm-bg-elevated)]">
-                      <input
-                        type="checkbox"
-                        checked={selected}
-                        disabled={selected && funnelStepIds.length === 1}
-                        onChange={() => toggleFunnelStep(step.id)}
-                        className="h-3.5 w-3.5 accent-blue-500 disabled:opacity-40"
-                      />
-                      <span className="min-w-0 flex-1 truncate text-xs" style={{ color: "var(--dm-text-secondary)" }}>{step.label}</span>
-                      <button type="button" onClick={() => moveFunnelStep(step.id, -1)}
-                        disabled={!selected || index <= 0}
-                        className="flex h-5 w-5 items-center justify-center rounded border disabled:opacity-30"
-                        style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-tertiary)" }}>
-                        <ArrowUp size={10} />
-                      </button>
-                      <button type="button" onClick={() => moveFunnelStep(step.id, 1)}
-                        disabled={!selected || index < 0 || index >= funnelStepIds.length - 1}
-                        className="flex h-5 w-5 items-center justify-center rounded border disabled:opacity-30"
-                        style={{ borderColor: "var(--dm-border-default)", color: "var(--dm-text-tertiary)" }}>
-                        <ArrowDown size={10} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-              <button
-                type="button"
-                onClick={() => persistFunnelSteps(DEFAULT_FUNNEL_STEP_IDS)}
-                className="mt-2 w-full rounded-md py-1 text-[10px] font-semibold text-blue-500 hover:underline"
-              >
-                Restaurar padrão
-              </button>
-            </div>
-          )}
-
-          <div className="flex flex-col items-stretch gap-0 p-4">
-            {funnelStepIds.map((stepId, i) => {
-              const step = PROFILE_FUNNEL_STEPS.find((s) => s.id === stepId);
-              if (!step) return null;
-              const val  = kpiValues[stepId] ?? 0;
-              const prevId = i > 0 ? funnelStepIds[i - 1] : null;
-              const prev = prevId ? (kpiValues[prevId] ?? 0) : null;
-              const rate = prev !== null && prev > 0 ? val / prev : null;
-              return (
-                <div key={stepId} className="flex flex-col items-center">
-                  {i > 0 && (
-                    <div className="flex flex-col items-center py-1">
-                      <div className="h-3 w-px" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
-                      {rate !== null && step.rateLabel && (
-                        <span
-                          className="z-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold"
-                          style={{ borderColor: "var(--dm-border-subtle)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-brand-500)" }}
-                        >
-                          {step.rateLabel}: {formatPercent(rate * 100)}
-                        </span>
-                      )}
-                      <div className="h-3 w-px" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
-                    </div>
-                  )}
-                  <div
-                    className="w-full min-w-0 overflow-hidden rounded-lg px-3 py-3 text-center"
-                    style={{ backgroundColor: step.color + "22", border: `1px solid ${step.color}44` }}
-                  >
-                    <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: step.color }}>
-                      {step.label}
-                    </p>
-                    <p className="mt-1 truncate text-base font-bold" style={{ color: "var(--dm-text-primary)" }}>
-                      {formatNumber(val)}
-                    </p>
+        {/* Funil horizontal */}
+        <div className="flex items-stretch overflow-x-auto p-4">
+          {funnelStepIds.map((stepId, i) => {
+            const step = PROFILE_FUNNEL_STEPS.find((s) => s.id === stepId);
+            if (!step) return null;
+            const val  = kpiValues[stepId] ?? 0;
+            const prevId = i > 0 ? funnelStepIds[i - 1] : null;
+            const prev = prevId ? (kpiValues[prevId] ?? 0) : null;
+            const rate = prev !== null && prev > 0 ? (val / prev) * 100 : null;
+            return (
+              <div key={stepId} className="flex flex-1 items-stretch">
+                {/* Connector + rate */}
+                {i > 0 && (
+                  <div className="flex flex-col items-center justify-center px-1.5">
+                    <div className="h-px w-5 flex-shrink-0" style={{ backgroundColor: "var(--dm-border-subtle)" }} />
+                    {rate !== null && step.rateLabel && (
+                      <span className="mt-0.5 whitespace-nowrap text-[9px] font-semibold" style={{ color: "var(--dm-brand-500)" }}>
+                        {formatPercent(rate)}
+                      </span>
+                    )}
                   </div>
+                )}
+                {/* Step card */}
+                <div
+                  className="flex min-w-[90px] flex-1 flex-col items-center justify-center rounded-lg px-3 py-3 text-center"
+                  style={{ backgroundColor: step.color + "18", border: `1px solid ${step.color}44` }}
+                >
+                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: step.color }}>
+                    {step.label}
+                  </p>
+                  <p className="mt-1 text-lg font-bold tabular-nums" style={{ color: "var(--dm-text-primary)" }}>
+                    {val > 0 ? formatNumber(val) : "—"}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        </article>
+              </div>
+            );
+          })}
+        </div>
+      </article>
 
-        {/* Tabela dirigida pelo template */}
+      {/* ── Tabela do template ───────────────────────────────────────────────── */}
+      {tpl.table && (
         <article
           className="overflow-hidden rounded-xl border shadow-sm"
           style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
@@ -1150,57 +1289,47 @@ function CampaignAnalysisPanel({
             {loading && <Loader2 size={13} className="animate-spin" style={{ color: "var(--dm-text-tertiary)" }} />}
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-xs">
+            <table className="w-full text-xs">
               <thead>
                 <tr style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
                   {tpl.table.columns.map((col) => (
-                    <th
-                      key={col.id}
-                      className={`px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider ${col.align === "right" ? "text-right" : ""}`}
-                      style={{ color: "var(--dm-text-tertiary)" }}
-                    >
+                    <th key={col.id}
+                      className={`border-b px-4 py-2.5 text-[10px] font-semibold uppercase tracking-wider ${col.align === "right" ? "text-right" : "text-left"}`}
+                      style={{ borderColor: "var(--dm-border-subtle)", color: "var(--dm-text-tertiary)" }}>
                       {col.label}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody style={{ borderColor: "var(--dm-border-subtle)" }} className="divide-y">
+              <tbody className="divide-y" style={{ borderColor: "var(--dm-border-subtle)" }}>
                 {data.map((r) => {
-                  const rowValues: Record<string, number> = {
+                  const rowAll: Record<string, number> = {
+                    ...rawValues,
+                    ...derived,
                     impressions: r.impressions, reach: r.reach, clicks: r.clicks,
-                    spend: r.spend, revenue: r.revenue, leads: r.leads,
-                    sales: r.purchases, tickets: r.purchases, cpa: r.cpa,
+                    total_clicks: r.total_clicks, spend: r.spend, revenue: r.revenue,
+                    leads: r.leads, sales: r.purchases, tickets: r.purchases,
                     page_views: r.page_views, new_followers: r.new_followers,
-                    profile_visits: 0, // not available at campaign level
+                    ...(tpl.derive({ impressions: r.impressions, reach: r.reach, clicks: r.clicks,
+                      total_clicks: r.total_clicks, spend: r.spend, revenue: r.revenue, leads: r.leads,
+                      sales: r.purchases, tickets: r.purchases, page_views: r.page_views,
+                      new_followers: r.new_followers, profile_visits: 0 })),
                   };
-                  const rowDerived = tpl.derive(rowValues);
-                  const rowAll = { ...rowValues, ...rowDerived };
                   return (
-                    <tr key={r.name} className="transition-colors" style={{ borderColor: "var(--dm-border-subtle)" }}>
+                    <tr key={r.name} className="transition-colors hover:bg-[var(--dm-bg-elevated)]">
                       {tpl.table.columns.map((col) => {
-                        if (col.id === "name" || col.id === "campaign") {
-                          return (
-                            <td
-                              key={col.id}
-                              className="max-w-[280px] truncate px-4 py-2.5 text-xs font-semibold"
-                              style={{ color: "var(--dm-text-primary)" }}
-                              title={r.name}
-                            >
-                              {r.name}
-                            </td>
-                          );
-                        }
-                        if (col.id === "adset") {
-                          return <td key={col.id} className="px-4 py-2.5 text-xs" style={{ color: "var(--dm-text-tertiary)" }}>—</td>;
-                        }
+                        if (col.id === "campaign") return (
+                          <td key={col.id} className="max-w-[180px] truncate px-4 py-2.5 text-xs font-semibold" style={{ color: "var(--dm-text-primary)" }} title={r.name}>{r.name}</td>
+                        );
+                        if (col.id === "adset" || col.id === "name") return (
+                          <td key={col.id} className="max-w-[160px] truncate px-4 py-2.5 text-xs" style={{ color: "var(--dm-text-tertiary)" }} title={r.name}>{r.name}</td>
+                        );
                         const v = rowAll[col.id] ?? 0;
                         const formatted = col.format ? (v > 0 ? col.format(v) : "—") : String(v);
                         return (
-                          <td
-                            key={col.id}
+                          <td key={col.id}
                             className={`whitespace-nowrap px-4 py-2.5 text-xs tabular-nums ${col.align === "right" ? "text-right" : ""}`}
-                            style={{ color: "var(--dm-text-secondary)" }}
-                          >
+                            style={{ color: "var(--dm-text-secondary)" }}>
                             {formatted}
                           </td>
                         );
@@ -1208,13 +1337,28 @@ function CampaignAnalysisPanel({
                     </tr>
                   );
                 })}
+                {/* Totals row */}
+                <tr style={{ backgroundColor: "var(--dm-bg-elevated)" }}>
+                  <td className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>Total</td>
+                  {tpl.table.columns.slice(1).map((col) => {
+                    const v = kpiValues[col.id] ?? 0;
+                    const formatted = col.format ? (v > 0 ? col.format(v) : "—") : "—";
+                    return (
+                      <td key={col.id}
+                        className={`whitespace-nowrap px-4 py-2.5 text-xs font-semibold tabular-nums ${col.align === "right" ? "text-right" : ""}`}
+                        style={{ color: "var(--dm-text-primary)" }}>
+                        {formatted}
+                      </td>
+                    );
+                  })}
+                </tr>
               </tbody>
             </table>
           </div>
         </article>
-      </div>
+      )}
 
-      {/* ── Investimento por conjunto (chart) ───────────────────────────────── */}
+      {/* ── Gráfico investimento por conjunto ───────────────────────────────── */}
       {data.length > 1 && (
         <article
           className="rounded-xl border p-5 shadow-sm"
@@ -1243,6 +1387,136 @@ function CampaignAnalysisPanel({
       )}
 
       </> /* end activeTab === "kpis" */}
+    </div>
+  );
+}
+
+// ─── Profile Date Range Picker ────────────────────────────────────────────────
+
+const DATE_PRESETS = [
+  { label: "7d",   days: 6  },
+  { label: "14d",  days: 13 },
+  { label: "30d",  days: 29 },
+  { label: "Mês",  days: -1 }, // first of month
+];
+
+function ProfileDateRange({
+  dateFrom, dateTo, onApply,
+}: { dateFrom: string; dateTo: string; onApply: (from: string, to: string) => void }) {
+  const [open, setOpen]       = useState(false);
+  const [from, setFrom]       = useState(dateFrom);
+  const [to,   setTo]         = useState(dateTo);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Sync internal state when parent props change
+  useEffect(() => { setFrom(dateFrom); setTo(dateTo); }, [dateFrom, dateTo]);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const applyPreset = (days: number) => {
+    const today = todayStr();
+    let start: string;
+    if (days === -1) {
+      const d = new Date();
+      start = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+    } else {
+      start = daysAgoStr(days);
+    }
+    onApply(start, today);
+    setOpen(false);
+  };
+
+  const handleApply = () => {
+    if (!from || !to || from > to) return;
+    onApply(from, to);
+    setOpen(false);
+  };
+
+  const isoToBR = (iso: string) => {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition hover:bg-[var(--dm-bg-elevated)]"
+        style={{ borderColor: "var(--dm-border-default)", backgroundColor: open ? "var(--dm-bg-elevated)" : "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
+      >
+        <CalendarDays size={13} style={{ color: "var(--dm-text-tertiary)" }} />
+        <span>{isoToBR(dateFrom)}</span>
+        <span style={{ color: "var(--dm-text-tertiary)" }}>→</span>
+        <span>{isoToBR(dateTo)}</span>
+      </button>
+
+      {open && (
+        <div
+          className="absolute right-0 top-full z-30 mt-1.5 w-72 rounded-xl border p-4 shadow-xl"
+          style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
+        >
+          {/* Presets */}
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {DATE_PRESETS.map((p) => (
+              <button
+                key={p.label}
+                type="button"
+                onClick={() => applyPreset(p.days)}
+                className="rounded-md border px-2.5 py-1 text-[10px] font-semibold transition"
+                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Manual date inputs */}
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>De</span>
+              <input
+                type="date" value={from} max={to || undefined}
+                onChange={(e) => setFrom(e.target.value)}
+                className="h-8 rounded-lg border px-2 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[10px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>Até</span>
+              <input
+                type="date" value={to} min={from || undefined} max={todayStr()}
+                onChange={(e) => setTo(e.target.value)}
+                className="h-8 rounded-lg border px-2 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-primary)" }}
+              />
+            </label>
+          </div>
+
+          {from > to && (
+            <p className="mt-2 text-[10px] font-semibold text-red-500">Data inicial maior que a data final</p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleApply}
+            disabled={!from || !to || from > to}
+            className="mt-3 w-full rounded-lg py-2 text-xs font-bold text-white transition disabled:opacity-40"
+            style={{ backgroundColor: "var(--dm-brand-500)" }}
+          >
+            Aplicar período
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1406,17 +1680,11 @@ function ProfileDetailView({
               variant="dropdown"
               onOpenBuilder={() => setShowBuilder(true)}
             />
-            <div
-              className="flex items-center gap-2 rounded-lg border px-3 py-1.5"
-              style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)" }}
-            >
-              <CalendarDays size={13} style={{ color: "var(--dm-text-tertiary)" }} />
-              <input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); persistDates(e.target.value, dateTo); }}
-                className="bg-transparent text-xs font-medium outline-none" style={{ color: "var(--dm-text-primary)" }} />
-              <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>até</span>
-              <input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); persistDates(dateFrom, e.target.value); }}
-                className="bg-transparent text-xs font-medium outline-none" style={{ color: "var(--dm-text-primary)" }} />
-            </div>
+            <ProfileDateRange
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onApply={(from, to) => { setDateFrom(from); setDateTo(to); persistDates(from, to); }}
+            />
           </div>
         </div>
 
@@ -1589,7 +1857,9 @@ function ProfileDetailView({
 
 export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: ProfileAnalysisProps) {
   const { profiles, addProfile, updateProfile, deleteProfile } = useAdvertiserStore();
-  const [view, setView]               = useState<"list" | "form" | "detail">("list");
+  const { customSections } = useCampaignStore();
+  const [view, setView]               = useState<"list" | "detail">("list");
+  const [showForm, setShowForm]       = useState(false);
   const [selectedId, setSelectedId]   = useState<string | null>(null);
   const [editingId, setEditingId]     = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -1613,10 +1883,10 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
     } else {
       addProfile(base);
     }
-    setView("list"); setEditingId(null);
+    setShowForm(false); setEditingId(null);
   };
 
-  const handleEdit = (id: string) => { setEditingId(id); setView("form"); };
+  const handleEdit = (id: string) => { setEditingId(id); setShowForm(true); };
 
   const handleDelete = (id: string) => {
     if (confirmDeleteId === id) {
@@ -1629,31 +1899,17 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
     }
   };
 
-  // ── Form view ────────────────────────────────────────────────────────────────
-  if (view === "form") {
-    const editingForm: ProfileFormData | undefined = editingProfile
-      ? {
-          name: editingProfile.name,
-          product: editingProfile.product,
-          adAccountId: editingProfile.adAccountId,
-          groupId: editingProfile.groupId,
-          campaigns: editingProfile.campaigns,
-          instagramUserId: editingProfile.instagramUserId ?? "",
-        }
-      : undefined;
-
-    return (
-      <div className="mx-auto max-w-lg py-4">
-        <ProfileForm
-          initial={editingForm}
-          groupOptions={campaignGroupOptions}
-          campaignConfigs={campaignConfigs}
-          onSave={handleSave}
-          onCancel={() => { setView("list"); setEditingId(null); }}
-        />
-      </div>
-    );
-  }
+  // ── Shared form data for editing ─────────────────────────────────────────────
+  const editingForm: ProfileFormData | undefined = editingProfile
+    ? {
+        name: editingProfile.name,
+        product: editingProfile.product,
+        adAccountId: editingProfile.adAccountId,
+        groupId: editingProfile.groupId,
+        campaigns: editingProfile.campaigns,
+        instagramUserId: editingProfile.instagramUserId ?? "",
+      }
+    : undefined;
 
   // ── Detail view ──────────────────────────────────────────────────────────────
   if (view === "detail" && selectedProfile) {
@@ -1668,20 +1924,36 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
   }
 
   // ── List view ────────────────────────────────────────────────────────────────
-  const sectionKeys = Object.keys(SECTION_META) as (keyof typeof SECTION_META)[];
-  const profilesBySection = sectionKeys.map((sec) => ({
-    sec,
-    meta: SECTION_META[sec],
-    items: profiles.filter((p) => {
-      const grp = campaignGroupOptions.find((g) => g.id === p.groupId);
-      return grp?.section === sec;
-    }),
-  })).filter((s) => s.items.length > 0);
+  // Build a unified label map: built-in SECTION_META + user custom sections
+  const sectionLabelMap: Record<string, string> = {
+    pos:      "Pós Graduação",
+    livros:   "Livros",
+    ebooks:   "Ebooks",
+    perpetuo: "Perpétuo",
+    eventos:  "Eventos",
+    ...Object.fromEntries(customSections.map((s) => [s.id, s.label])),
+  };
 
-  const ungrouped = profiles.filter((p) => {
-    const grp = campaignGroupOptions.find((g) => g.id === p.groupId);
-    return !grp;
-  });
+  // Dynamically group profiles by their group's section (handles any section ID)
+  const sectionMap = new Map<string, AdvertiserProfile[]>();
+  const ungrouped: AdvertiserProfile[] = [];
+
+  for (const profile of profiles) {
+    const grp = campaignGroupOptions.find((g) => g.id === profile.groupId);
+    if (!grp) {
+      ungrouped.push(profile);
+    } else {
+      const secId = grp.section;
+      sectionMap.set(secId, [...(sectionMap.get(secId) ?? []), profile]);
+    }
+  }
+
+  const profilesBySection = Array.from(sectionMap.entries()).map(([secId, items]) => ({
+    secId,
+    meta: SECTION_META[secId as keyof typeof SECTION_META] ?? null,
+    label: sectionLabelMap[secId] ?? secId,
+    items,
+  }));
 
   return (
     <div className="space-y-6">
@@ -1690,8 +1962,8 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
         <div>
           <h2 className="text-base font-semibold" style={{ color: "var(--dm-text-primary)" }}>Perfis de Anunciantes</h2>
         </div>
-        <button type="button" onClick={() => { setEditingId(null); setView("form"); }}
-          className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition"
+        <button type="button" onClick={() => { setEditingId(null); setShowForm(true); }}
+          className="flex h-8 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold text-white transition hover:opacity-90"
           style={{ backgroundColor: "var(--dm-brand-500)" }}
         >
           <Plus size={13} /> Novo Perfil
@@ -1714,18 +1986,19 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
             { label: "Conecte ao Meta Ads",     description: "Vincule o Access Token para buscar dados reais da conta." },
             { label: "Analise e compare",       description: "Veja métricas de cada perfil e compare lado a lado." },
           ]}
-          cta={{ label: "Criar primeiro perfil", onClick: () => { setEditingId(null); setView("form"); } }}
+          cta={{ label: "Criar primeiro perfil", onClick: () => { setEditingId(null); setShowForm(true); } }}
         />
       )}
 
-      {/* Profiles grouped by section */}
-      {profilesBySection.map(({ sec, meta, items }) => {
-        const SectionIcon = meta.icon;
+      {/* Profiles grouped by section (dynamic — works for built-in + custom sections) */}
+      {profilesBySection.map(({ secId, meta, label, items }) => {
+        const SectionIcon = meta?.icon ?? Users;
+        const colorCls   = meta?.color ?? "text-slate-500";
         return (
-          <section key={sec}>
+          <section key={secId}>
             <div className="mb-3 flex items-center gap-2 border-b pb-2" style={{ borderColor: "var(--dm-border-subtle)" }}>
-              <SectionIcon size={13} className={meta.color} />
-              <span className={`text-xs font-semibold ${meta.color}`}>{meta.label}</span>
+              <SectionIcon size={13} className={colorCls} />
+              <span className={`text-xs font-semibold ${colorCls}`}>{label}</span>
               <span className="ml-auto text-[10px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>
                 {items.length} perfil{items.length !== 1 ? "s" : ""}
               </span>
@@ -1763,7 +2036,12 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
       {/* Ungrouped profiles */}
       {ungrouped.length > 0 && (
         <section>
-          <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Sem grupo</p>
+          <div className="mb-3 flex items-center gap-2 border-b pb-2" style={{ borderColor: "var(--dm-border-subtle)" }}>
+            <span className="text-xs font-semibold" style={{ color: "var(--dm-text-tertiary)" }}>Sem grupo</span>
+            <span className="ml-auto text-[10px] font-medium" style={{ color: "var(--dm-text-tertiary)" }}>
+              {ungrouped.length} perfil{ungrouped.length !== 1 ? "s" : ""}
+            </span>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {ungrouped.map((profile) => (
               <div key={profile.id} className="relative">
@@ -1791,6 +2069,63 @@ export function ProfileAnalysis({ campaignGroupOptions, campaignConfigs }: Profi
             ))}
           </div>
         </section>
+      )}
+
+      {/* ── Slide-over form drawer ──────────────────────────────────────────── */}
+      {showForm && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px]"
+            onClick={() => { setShowForm(false); setEditingId(null); }}
+          />
+
+          {/* Drawer panel */}
+          <div
+            className="fixed inset-y-0 right-0 z-50 flex w-full flex-col overflow-hidden border-l shadow-2xl sm:max-w-[480px]"
+            style={{
+              backgroundColor: "var(--dm-bg-surface)",
+              borderColor: "var(--dm-border-default)",
+            }}
+          >
+            {/* Drawer header */}
+            <div
+              className="flex flex-shrink-0 items-center justify-between border-b px-6 py-4"
+              style={{ borderColor: "var(--dm-border-default)" }}
+            >
+              <div>
+                <h2 className="text-sm font-semibold" style={{ color: "var(--dm-text-primary)" }}>
+                  {editingId ? "Editar Perfil" : "Novo Perfil de Anunciante"}
+                </h2>
+                <p className="mt-0.5 text-[11px]" style={{ color: "var(--dm-text-secondary)" }}>
+                  {editingId
+                    ? "Atualize os dados do anunciante"
+                    : "Configure um anunciante para análise personalizada"}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setShowForm(false); setEditingId(null); }}
+                className="rounded-lg p-1.5 transition hover:bg-[var(--dm-bg-elevated)]"
+                style={{ color: "var(--dm-text-tertiary)" }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto">
+              <ProfileForm
+                key={editingId ?? "new"}
+                initial={editingForm}
+                groupOptions={campaignGroupOptions}
+                campaignConfigs={campaignConfigs}
+                onSave={handleSave}
+                onCancel={() => { setShowForm(false); setEditingId(null); }}
+              />
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -105,25 +105,45 @@ export interface MetaInsight {
   action_values?: MetaAction[]; // conversion revenue values
 }
 
+export interface FetchInsightsOptions {
+  /** API breakdown level. "campaign" = one row per campaign (default). "adset" = one row per ad set. */
+  level?: "campaign" | "adset";
+  /**
+   * Time aggregation. "1" = daily rows (useful for trend charts).
+   * "all_days" = single totals row per campaign/adset over the whole period.
+   */
+  timeIncrement?: "1" | "all_days";
+  /** Limit results to specific campaign IDs. */
+  campaignIds?: string[];
+}
+
 /**
- * Fetches campaign insights from Meta API for a given ad account and date range.
- * Returns one row per campaign per day (daily breakdown).
+ * Fetches insights from the Meta API for a given ad account and date range.
  *
- * @param campaignIds — optional list of campaign IDs to filter by (undefined = all)
+ * Default: campaign-level, daily breakdown (one row per campaign per day).
+ * Pass `level: "adset"` + `timeIncrement: "all_days"` for adset breakdowns without daily splitting.
  */
 export async function fetchMetaInsights(
   adAccountId: string,
   dateFrom: string,
   dateTo: string,
-  campaignIds?: string[],
+  campaignIdsOrOptions?: string[] | FetchInsightsOptions,
 ): Promise<MetaInsight[]> {
   const { accessToken } = loadMetaCredentials();
   if (!accessToken) throw new Error("Token de acesso Meta não configurado.");
 
+  // Backwards-compatible overload: if 4th arg is an array, treat as campaignIds
+  const opts: FetchInsightsOptions = Array.isArray(campaignIdsOrOptions)
+    ? { campaignIds: campaignIdsOrOptions }
+    : (campaignIdsOrOptions ?? {});
+
   const params = new URLSearchParams({ adAccountId, dateFrom, dateTo, accessToken });
-  if (campaignIds && campaignIds.length > 0) {
-    params.set("campaignIds", campaignIds.join(","));
+  if (opts.campaignIds && opts.campaignIds.length > 0) {
+    params.set("campaignIds", opts.campaignIds.join(","));
   }
+  if (opts.level)         params.set("level",         opts.level);
+  if (opts.timeIncrement) params.set("timeIncrement", opts.timeIncrement);
+
   const res = await fetch(`/api/meta/insights?${params.toString()}`);
 
   if (!res.ok) {

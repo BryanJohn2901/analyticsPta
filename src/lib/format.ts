@@ -40,13 +40,18 @@ export function formatInt(n: number): string {
   return Math.round(safeNumber(n)).toLocaleString("pt-BR");
 }
 
-/** Percentage: 0.0234 → "2,34%". */
+/**
+ * Percentage: 6.17 → "6,17%".
+ * Espera valor em escala 0–100 (já multiplicado por 100).
+ * Usa locale pt-BR para separador decimal com vírgula.
+ */
 export function formatPercent(n: number, digits = 2): string {
-  return safeNumber(n).toLocaleString("pt-BR", {
-    style: "percent",
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
+  return (
+    safeNumber(n).toLocaleString("pt-BR", {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }) + "%"
+  );
 }
 
 /** Safe division — returns 0 when denominator is zero. */

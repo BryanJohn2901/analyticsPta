@@ -99,7 +99,7 @@ function CreativeCard({ campaign: c, creative, isEditing, isSaving, isSupabaseSa
           id={`placeholder-${c.campaignName}`}
         >
           <ImageIcon size={28} style={{ color: "var(--dm-border-strong)" }} />
-          <span className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>Sem criativo</span>
+          <span className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>Criativo não disponível</span>
         </div>
 
         {/* Star badge (top-left) */}

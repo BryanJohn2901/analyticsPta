@@ -143,7 +143,12 @@ export const formatNumber = (value: number): string => {
 };
 
 export const formatPercent = (value: number): string => {
-  return `${value.toFixed(2)}%`;
+  return (
+    value.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }) + "%"
+  );
 };
 
 export const aggregateByCampaign = (campaigns: CampaignData[]): AggregatedCampaign[] => {

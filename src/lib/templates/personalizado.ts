@@ -1,5 +1,5 @@
 import type { Template, KpiSpec, FunnelStage, PersonalizadoConfig } from "./types";
-import { formatBRL, formatInt, safeDivide } from "@/lib/format";
+import { formatBRL, formatInt, formatPercent, safeDivide } from "@/lib/format";
 
 // ─── KPI Group structure (used by PersonalizadoBuilder for grouped display) ───
 
@@ -20,15 +20,15 @@ export const ALL_KPI_OPTIONS: KpiSpec[] = [
   // Alcance e entrega
   { id: "reach",         label: "Alcance",                 format: formatInt,                    color: "sky" },
   { id: "impressions",   label: "Impressões",              format: formatInt,                    color: "sky" },
-  { id: "frequency",     label: "Frequência",              format: (n) => n.toFixed(2),          color: "sky",   tooltip: "Frequência — quantas vezes em média cada pessoa viu o anúncio" },
+  { id: "frequency",     label: "Frequência",              format: (n) => n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }), color: "sky", tooltip: "Frequência — quantas vezes em média cada pessoa viu o anúncio" },
   { id: "cpm",           label: "CPM",                     format: formatBRL,                    color: "rose",  invert: true, tooltip: "Custo por Mil Impressões" },
   // Cliques e tráfego
   { id: "clicks",        label: "Cliques no link",         format: formatInt,                    color: "sky" },
   { id: "total_clicks",  label: "Cliques (todos)",         format: formatInt,                    color: "sky",   tooltip: "Todos os cliques: links, reações, compartilhamentos, etc." },
   { id: "cpc_link",      label: "CPC (link)",              format: formatBRL,                    color: "rose",  invert: true, tooltip: "Custo por Clique no Link" },
   { id: "cpc_all",       label: "CPC (todos)",             format: formatBRL,                    color: "rose",  invert: true, tooltip: "Custo por Clique (todos os cliques)" },
-  { id: "ctr",           label: "CTR (link) %",            format: (n) => `${n.toFixed(2)}%`,   color: "brand", tooltip: "Taxa de Clique no Link = Cliques no link ÷ Impressões" },
-  { id: "ctr_all",       label: "CTR (todos) %",           format: (n) => `${n.toFixed(2)}%`,   color: "brand", tooltip: "Taxa de Clique (todos) = Cliques totais ÷ Impressões" },
+  { id: "ctr",           label: "CTR (link) %",            format: (n) => formatPercent(n),      color: "brand", tooltip: "Taxa de Clique no Link = Cliques no link ÷ Impressões" },
+  { id: "ctr_all",       label: "CTR (todos) %",           format: (n) => formatPercent(n),      color: "brand", tooltip: "Taxa de Clique (todos) = Cliques totais ÷ Impressões" },
   { id: "page_views",    label: "Vis. de página",          format: formatInt,                    color: "sky",   tooltip: "Visualizações da Página de Destino após clique no anúncio" },
   { id: "cpv",           label: "Custo por visualização",  format: formatBRL,                    color: "rose",  invert: true, tooltip: "Custo por Visualização de Página de Destino" },
   // Investimento

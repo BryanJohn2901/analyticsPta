@@ -11,15 +11,22 @@ interface MetaAdRaw {
   preview_shareable_link?: string;
   creative?: {
     thumbnail_url?: string;
-    /** Image URL for static image ads — fallback when thumbnail_url is absent */
+    /** Image URL for static image ads */
     image_url?: string;
+    /** Rendered picture of the creative (most reliable for image ads) */
+    picture?: string;
     /** Permalink to the Instagram post/reel used as the ad */
     instagram_permalink_url?: string;
     /** Direct preview URL for Instagram Story ads */
     effective_instagram_story_url?: string;
     object_story_spec?: {
-      link_data?:  { link?: string };
-      video_data?: { call_to_action?: { value?: { link?: string } } };
+      link_data?: {
+        link?: string;
+        picture?: string;
+        /** Carousel child attachments */
+        child_attachments?: Array<{ picture?: string; image_url?: string }>;
+      };
+      video_data?: { call_to_action?: { value?: { link?: string } }; image_url?: string };
     };
   };
 }
@@ -57,7 +64,13 @@ export async function GET(request: NextRequest) {
     `https://graph.facebook.com/${META_API_VERSION}/act_${accountId}/ads?` +
     new URLSearchParams({
       access_token:     accessToken,
-      fields:           "name,campaign_id,campaign{name},preview_shareable_link,creative{thumbnail_url,image_url,instagram_permalink_url,effective_instagram_story_url,object_story_spec}",
+      fields: [
+        "name",
+        "campaign_id",
+        "campaign{name}",
+        "preview_shareable_link",
+        "creative{thumbnail_url,image_url,picture,instagram_permalink_url,effective_instagram_story_url,object_story_spec{link_data{link,picture,child_attachments{picture,image_url}},video_data{image_url,call_to_action{value{link}}}}}",
+      ].join(","),
       effective_status: JSON.stringify(["ACTIVE", "PAUSED"]),
       limit:            "200",
     }).toString();
@@ -89,21 +102,31 @@ export async function GET(request: NextRequest) {
     const existing = byCampaign.get(campaignName);
     if (existing?.thumbnailUrl && existing?.adLink) continue; // already complete
 
-    // thumbnail: video thumbnail → static image → nothing
+    const spec = ad.creative?.object_story_spec;
+
+    // thumbnail: video thumbnail → picture (rendered) → image_url → carousel 1st child → nothing
+    const carouselPicture =
+      spec?.link_data?.child_attachments?.[0]?.picture ??
+      spec?.link_data?.child_attachments?.[0]?.image_url;
     const thumbnailUrl =
       ad.creative?.thumbnail_url ??
+      ad.creative?.picture ??
       ad.creative?.image_url ??
+      spec?.video_data?.image_url ??
+      spec?.link_data?.picture ??
+      carouselPicture ??
       "";
 
-    // adLink: shareable preview (all formats) → Instagram permalink → story URL → object_story_spec fallbacks
-    const spec    = ad.creative?.object_story_spec;
-    const adLink  =
+    // adLink (5.2): Ads Library URL sempre válido por ad_id → nunca expira, funciona para todos os formatos.
+    // Complementa com preview_shareable_link e outros fallbacks.
+    const adsLibraryUrl = `https://www.facebook.com/ads/library/?id=${ad.id}`;
+    const adLink =
       ad.preview_shareable_link ??
       ad.creative?.instagram_permalink_url ??
       ad.creative?.effective_instagram_story_url ??
       spec?.link_data?.link ??
       spec?.video_data?.call_to_action?.value?.link ??
-      "";
+      adsLibraryUrl;
 
     byCampaign.set(campaignName, {
       campaignId:   ad.campaign_id,

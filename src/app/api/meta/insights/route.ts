@@ -8,7 +8,9 @@ export async function GET(request: NextRequest) {
   const adAccountId = sp.get("adAccountId");
   const dateFrom    = sp.get("dateFrom");
   const dateTo      = sp.get("dateTo");
-  const campaignIds = sp.get("campaignIds"); // optional: comma-separated campaign IDs
+  const campaignIds     = sp.get("campaignIds");     // optional: comma-separated campaign IDs
+  const level           = sp.get("level") ?? "campaign"; // "campaign" | "adset"
+  const timeIncrement   = sp.get("timeIncrement") ?? "1"; // "1" (daily) | "all_days" (totals)
 
   if (!accessToken || !adAccountId || !dateFrom || !dateTo) {
     return NextResponse.json({ error: "Parâmetros obrigatórios ausentes." }, { status: 400 });
@@ -18,7 +20,8 @@ export async function GET(request: NextRequest) {
   // The Meta API endpoint already expects "act_{id}" — we add it ourselves.
   const accountId = adAccountId.replace(/^act_/, "");
 
-  const fields = [
+  // adset-level queries include adset identification fields
+  const baseFields = [
     "campaign_name",
     "campaign_id",
     "impressions",
@@ -33,14 +36,20 @@ export async function GET(request: NextRequest) {
     "date_stop",
     "actions",        // contains conversion counts (purchase, lead, onsite_conversion.follow, etc.)
     "action_values",  // contains conversion revenue values
-  ].join(",");
+  ];
+
+  if (level === "adset") {
+    baseFields.push("adset_name", "adset_id");
+  }
+
+  const fields = baseFields.join(",");
 
   const params = new URLSearchParams({
     access_token:   accessToken,
     fields,
     time_range:     JSON.stringify({ since: dateFrom, until: dateTo }),
-    level:          "campaign",   // one row per campaign (not adset)
-    time_increment: "1",          // daily breakdown for trend charts
+    level,                        // "campaign" (default) or "adset"
+    time_increment: timeIncrement, // "1" = daily breakdown; "all_days" = single totals row
     limit:          "500",        // max per page — pagination handles overflow
   });
 
