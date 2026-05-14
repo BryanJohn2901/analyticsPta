@@ -277,6 +277,26 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
+// ─── Paste → lines helper ─────────────────────────────────────────────────────
+
+/**
+ * Splits pasted text into clean lines.
+ * Handles: bullet symbols (•, -, *, ✅, ✔, 🎁, –, —), numbered items (1. 2.)
+ * and leading/trailing whitespace. Returns only non-empty strings.
+ */
+function pasteToLines(text: string): string[] {
+  return text
+    .split(/\r?\n/)
+    .map((l) =>
+      l
+        .replace(/^\s*[•‣◦⁃∙\-\*\–\—]\s*/, "") // bullet chars
+        .replace(/^\s*\d+[\.\)]\s+/, "")                                   // numbered list
+        .replace(/^[✅✔\uD83C-􏰀-\uDFFF]+\s*/u, "")    // leading emoji
+        .trim()
+    )
+    .filter(Boolean);
+}
+
 // ─── Dynamic string list ──────────────────────────────────────────────────────
 
 function DynamicList({
@@ -293,7 +313,7 @@ function DynamicList({
   const remove = (i: number) => onChange(items.filter((_, idx) => idx !== i));
   const add    = () => onChange([...items, ""]);
 
-  // Se o valor contém vírgula ao pressionar Enter, expande em múltiplos itens
+  // Vírgula ou Enter expande em múltiplos itens
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, i: number) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -301,6 +321,17 @@ function DynamicList({
     if (parts.length <= 1) { add(); return; }
     const next = [...items];
     next.splice(i, 1, ...parts);
+    onChange(next);
+  };
+
+  // Paste com múltiplas linhas → expande em itens separados
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>, i: number) => {
+    const raw = e.clipboardData.getData("text");
+    const lines = pasteToLines(raw);
+    if (lines.length <= 1) return; // cola normal, 1 linha
+    e.preventDefault();
+    const next = [...items];
+    next.splice(i, 1, ...lines);
     onChange(next);
   };
 
@@ -312,6 +343,7 @@ function DynamicList({
             value={item}
             onChange={(e) => update(i, e.target.value)}
             onKeyDown={(e) => handleKeyDown(e, i)}
+            onPaste={(e) => handlePaste(e, i)}
             placeholder={placeholder}
             className={cls.input}
           />
@@ -330,12 +362,21 @@ function DynamicList({
 function TagsInput({ tags, onChange }: { tags: string[]; onChange: (t: string[]) => void }) {
   const [draft, setDraft] = useState("");
 
-  const add = () => {
-    const newTags = draft
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !tags.includes(s));
+  const addRaw = (raw: string) => {
+    // Split by comma OR newlines, strip bullets
+    const lines = raw.includes("\n")
+      ? pasteToLines(raw)
+      : raw.split(",").map((s) => s.trim()).filter(Boolean);
+    const newTags = lines.filter((s) => s.length > 0 && !tags.includes(s));
     if (newTags.length > 0) { onChange([...tags, ...newTags]); setDraft(""); }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const raw = e.clipboardData.getData("text");
+    const lines = pasteToLines(raw);
+    if (lines.length <= 1) return; // cola normal de 1 linha
+    e.preventDefault();
+    addRaw(raw);
   };
 
   return (
@@ -352,11 +393,12 @@ function TagsInput({ tags, onChange }: { tags: string[]; onChange: (t: string[])
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addRaw(draft); } }}
+          onPaste={handlePaste}
           placeholder="Digite e pressione Enter — use vírgula para adicionar várias"
           className={cls.input}
         />
-        <button type="button" onClick={add} className="flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
+        <button type="button" onClick={() => addRaw(draft)} className="flex h-9 items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600">
           <Plus size={12} /> Add
         </button>
       </div>
@@ -411,6 +453,24 @@ function EntregavelBlock({
   const remove = (id: string) => onChange(entregaveis.filter((e) => e.id !== id));
   const add    = () => onChange([...entregaveis, { id: uid(), titulo: `Entregável ${entregaveis.length + 1}`, itens: [] }]);
 
+  // Paste com múltiplas linhas → expande os itens do bloco
+  const handleItemPaste = (
+    e: React.ClipboardEvent<HTMLInputElement>,
+    eid: string,
+    iid: string,
+  ) => {
+    const raw = e.clipboardData.getData("text");
+    const lines = pasteToLines(raw);
+    if (lines.length <= 1) return;
+    e.preventDefault();
+    const block = entregaveis.find((b) => b.id === eid)!;
+    const idx   = block.itens.findIndex((i) => i.id === iid);
+    const newItems = lines.map((l) => ({ id: uid(), text: l }));
+    const next = [...block.itens];
+    next.splice(idx, 1, ...newItems);
+    updateItens(eid, next);
+  };
+
   return (
     <div className="space-y-4">
       {entregaveis.map((e) => (
@@ -430,6 +490,7 @@ function EntregavelBlock({
                 <input
                   value={item.text}
                   onChange={(ev) => updateItem(e.id, item.id, ev.target.value)}
+                  onPaste={(ev) => handleItemPaste(ev, e.id, item.id)}
                   placeholder="Item incluído"
                   className={cls.input}
                 />
