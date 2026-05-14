@@ -10,8 +10,8 @@ export const posTemplate: Template = {
     { id: "spend",   label: "Investimento", format: formatBRL, color: "brand" },
     { id: "revenue", label: "Faturamento",  format: formatBRL, color: "green" },
     { id: "sales",   label: "Vendas",       format: formatInt, color: "green" },
-    { id: "cpa",     label: "CPA Médio",    format: formatBRL, color: "rose", invert: true },
-    { id: "roas",    label: "ROAS",         format: (n) => `${n.toFixed(2)}x`, color: "brand" },
+    { id: "cpa",     label: "CPA Médio",    format: formatBRL, color: "rose",  invert: true, tooltip: "Custo por Aquisição = Investimento ÷ Vendas" },
+    { id: "roas",    label: "ROAS",         format: (n) => `${n.toFixed(2)}x`, color: "brand", tooltip: "Retorno sobre Investimento em Anúncios = Faturamento ÷ Investimento" },
   ],
   funnel: [
     { id: "impressions", label: "Impressões",      bg: "#EEF2FF" },

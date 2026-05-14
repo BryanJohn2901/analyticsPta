@@ -1011,10 +1011,13 @@ function CampaignAnalysisPanel({
               className="flex flex-col rounded-xl border p-4 shadow-sm"
               style={{ backgroundColor: "var(--dm-bg-surface)", borderColor: "var(--dm-border-default)" }}
             >
-              <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>
+              <p
+                className="dm-metric-label"
+                {...(kpi.tooltip ? { "data-dm-tip": kpi.tooltip } : {})}
+              >
                 {kpi.label}
               </p>
-              <p className={`mt-1.5 text-xl font-bold tabular-nums tracking-tight ${KPI_ACCENT[kpi.color] ?? ""}`}>
+              <p className={`mt-1.5 text-2xl font-bold tabular-nums tracking-tight ${KPI_ACCENT[kpi.color] ?? ""}`}>
                 {display}
               </p>
             </article>

@@ -9,8 +9,8 @@ export const imersaoTemplate: Template = {
   kpis: [
     { id: "spend",      label: "Investimento",      format: formatBRL, color: "brand" },
     { id: "tickets",    label: "Ingressos vendidos", format: formatInt, color: "green" },
-    { id: "cpa_ticket", label: "CPA por ingresso",  format: formatBRL, color: "rose", invert: true },
-    { id: "roas",       label: "ROAS",              format: (n) => `${n.toFixed(2)}x`, color: "brand" },
+    { id: "cpa_ticket", label: "CPA por ingresso",  format: formatBRL, color: "rose",  invert: true, tooltip: "Custo por Ingresso = Investimento ÷ Ingressos Vendidos" },
+    { id: "roas",       label: "ROAS",              format: (n) => `${n.toFixed(2)}x`, color: "brand", tooltip: "Retorno sobre Investimento em Anúncios = Faturamento ÷ Investimento" },
     { id: "revenue",    label: "Faturamento",       format: formatBRL, color: "green" },
   ],
   funnel: [

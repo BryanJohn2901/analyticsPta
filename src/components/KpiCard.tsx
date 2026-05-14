@@ -2,6 +2,7 @@ import { LucideIcon, TrendingDown, TrendingUp } from "lucide-react";
 
 interface KpiCardProps {
   title: string;
+  tooltip?: string;           // 4.4 — texto expandido para métricas abreviadas (CPM, ROAS, CTR…)
   value: string;
   subtitle?: string;
   icon: LucideIcon;
@@ -32,7 +33,7 @@ function goalColor(pct: number, invert: boolean): { bar: string; text: string; b
 }
 
 export function KpiCard({
-  title, value, subtitle, icon: Icon,
+  title, tooltip, value, subtitle, icon: Icon,
   trend, trendLabel = "vs período anterior",
   accentColor = "blue",
   invertTrend = false,
@@ -48,31 +49,50 @@ export function KpiCard({
   const gc = hasGoal ? goalColor(goalPct!, goalInvert) : null;
   const barWidth = hasGoal ? Math.min(goalPct!, 100) : 0;
 
+  // 4.3 — cores semânticas para delta (positivo / negativo)
+  const deltaStyle = isPositiveTrend !== null ? {
+    backgroundColor: isPositiveTrend
+      ? "var(--dm-value-positive-bg)"
+      : "var(--dm-value-negative-bg)",
+    color: isPositiveTrend
+      ? "var(--dm-value-positive)"
+      : "var(--dm-value-negative)",
+  } : undefined;
+
   return (
     <article
       className="group relative overflow-hidden rounded-xl border bg-white/80 dark:bg-[#161616]/80 glass-panel shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
       style={{ borderColor: "var(--dm-border-default)" }}
     >
       <div className="p-5">
-        {/* Header */}
+        {/* Header — 4.1: label 10px / 600 / uppercase / tracking */}
         <div className="mb-3 flex items-start justify-between">
-          <p className="text-xs font-medium" style={{ color: "var(--dm-text-secondary)" }}>{title}</p>
+          <p
+            className="dm-metric-label"
+            {...(tooltip ? { "data-dm-tip": tooltip } : {})}
+          >
+            {title}
+          </p>
           <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${a.bg} ${a.dark}`}>
             <Icon size={16} className={a.icon} />
           </span>
         </div>
 
-        {/* Value */}
-        <p className="text-2xl font-bold tracking-tight font-[family-name:var(--font-outfit)]" style={{ color: "var(--dm-text-primary)" }}>{value}</p>
+        {/* Value — 4.1: 24px / 700 */}
+        <p
+          className="text-2xl font-bold tracking-tight font-[family-name:var(--font-outfit)]"
+          style={{ color: "var(--dm-text-primary)" }}
+        >
+          {value}
+        </p>
 
-        {/* Trend + subtitle */}
+        {/* Trend + subtitle — 4.3: cores semânticas */}
         <div className="mt-2 flex items-center gap-2">
           {trend !== undefined && (
-            <span className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${
-              isPositiveTrend
-                ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
-                : "bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-            }`}>
+            <span
+              className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold"
+              style={deltaStyle}
+            >
               {isPositiveTrend ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
               {Math.abs(trend).toFixed(1)}%
             </span>

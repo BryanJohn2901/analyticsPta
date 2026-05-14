@@ -145,14 +145,24 @@
   --dm-info-base:      #2563EB;
 
   /* ----------------------------------------------------------
+     VALORES SEMÂNTICOS (4.3) — positivo / negativo / neutro
+     ---------------------------------------------------------- */
+  --dm-value-positive:    #00C48C;
+  --dm-value-positive-bg: #00C48C18;
+  --dm-value-negative:    #FF4D4F;
+  --dm-value-negative-bg: #FF4D4F18;
+  --dm-value-neutral:     #999999;
+  --dm-value-neutral-bg:  #99999918;
+
+  /* ----------------------------------------------------------
      DATA VIZ
      ---------------------------------------------------------- */
-  --dm-delta-up:       #059669;
-  --dm-delta-up-bg:    #ECFDF5;
-  --dm-delta-down:     #DC2626;
-  --dm-delta-down-bg:  #FFF1F2;
-  --dm-delta-flat:     #6B7280;
-  --dm-delta-flat-bg:  #F3F4F6;
+  --dm-delta-up:       #00C48C;
+  --dm-delta-up-bg:    #00C48C18;
+  --dm-delta-down:     #FF4D4F;
+  --dm-delta-down-bg:  #FF4D4F18;
+  --dm-delta-flat:     #999999;
+  --dm-delta-flat-bg:  #99999918;
 
   --dm-chart-1:  #3B82F6;
   --dm-chart-2:  #059669;
@@ -196,11 +206,11 @@
   --dm-border-strong:    #333333;
 
   /* ----------------------------------------------------------
-     TIPOGRAFIA DARK
+     TIPOGRAFIA DARK (4.3 — contraste mínimo 4.5:1)
      ---------------------------------------------------------- */
-  --dm-text-primary:     #F5F5F5;
-  --dm-text-secondary:   #909090;
-  --dm-text-tertiary:    #4A4A4A;
+  --dm-text-primary:     #F5F5F5;  /* ~16:1 on #161616 */
+  --dm-text-secondary:   #A3A3A3;  /* ~4.6:1 on #161616 — AA ✓ */
+  --dm-text-tertiary:    #525252;  /* decorativo */
   --dm-text-disabled:    #2A2A2A;
   --dm-text-inverse:     #0C0C0C;
 
@@ -312,14 +322,24 @@
   --dm-info-base:      #60A5FA;
 
   /* ----------------------------------------------------------
+     VALORES SEMÂNTICOS DARK (4.3)
+     ---------------------------------------------------------- */
+  --dm-value-positive:    #00C48C;
+  --dm-value-positive-bg: #00C48C20;
+  --dm-value-negative:    #FF4D4F;
+  --dm-value-negative-bg: #FF4D4F20;
+  --dm-value-neutral:     #999999;
+  --dm-value-neutral-bg:  #99999920;
+
+  /* ----------------------------------------------------------
      DATA VIZ DARK
      ---------------------------------------------------------- */
-  --dm-delta-up:       #10B981;
-  --dm-delta-up-bg:    #052E1C;
-  --dm-delta-down:     #F87171;
-  --dm-delta-down-bg:  #2A0808;
-  --dm-delta-flat:     #909090;
-  --dm-delta-flat-bg:  #1A1A1A;
+  --dm-delta-up:       #00C48C;
+  --dm-delta-up-bg:    #00C48C20;
+  --dm-delta-down:     #FF4D4F;
+  --dm-delta-down-bg:  #FF4D4F20;
+  --dm-delta-flat:     #999999;
+  --dm-delta-flat-bg:  #99999920;
 
   --dm-chart-1:  #60A5FA;
   --dm-chart-2:  #34D399;
@@ -439,4 +459,85 @@ body {
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ============================================================
+   FASE 4 — SISTEMA DE DESIGN GLOBAL
+   ============================================================ */
+
+/* 4.1 — Escala tipográfica normalizada */
+.dm-metric-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dm-text-tertiary);
+}
+.dm-metric-value {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--dm-text-primary);
+}
+.dm-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dm-text-tertiary);
+}
+.dm-table-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--dm-text-tertiary);
+}
+.dm-table-cell {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--dm-text-secondary);
+}
+.dm-filter-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--dm-text-primary);
+}
+
+/* 4.4 — Tooltip para métricas abreviadas */
+[data-dm-tip] {
+  position: relative;
+  cursor: help;
+}
+[data-dm-tip]::after {
+  content: attr(data-dm-tip);
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: var(--dm-bg-elevated);
+  color: var(--dm-text-primary);
+  border: 1px solid var(--dm-border-default);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+[data-dm-tip]:hover::after {
+  opacity: 1;
+}
+
+/* 4.3 — Valores sem dado: em dash centralizado */
+.dm-empty-value {
+  color: var(--dm-value-neutral);
+  font-variant-numeric: tabular-nums;
 }

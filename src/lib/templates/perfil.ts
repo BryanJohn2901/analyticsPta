@@ -11,7 +11,7 @@ export const perfilTemplate: Template = {
     { id: "reach",           label: "Alcance",            format: formatInt, color: "sky" },
     { id: "profile_visits",  label: "Visitas ao perfil",  format: formatInt, color: "green" },
     { id: "new_followers",   label: "Novos seguidores",   format: formatInt, color: "green" },
-    { id: "cpf",             label: "Custo por seguidor", format: formatBRL, color: "rose", invert: true },
+    { id: "cpf",             label: "Custo por seguidor", format: formatBRL, color: "rose", invert: true, tooltip: "Custo por Novo Seguidor = Investimento ÷ Novos Seguidores" },
   ],
   funnel: [
     { id: "reach",          label: "Alcance",           bg: "#D1FAE5" },

@@ -9,6 +9,7 @@ export interface PersonalizadoConfig {
 export interface KpiSpec {
   id: string;
   label: string;
+  tooltip?: string;   // 4.4 — texto expandido para métricas abreviadas
   format: (value: number) => string;
   color: "brand" | "sky" | "green" | "rose" | "amber" | "slate";
   invert?: boolean;   // true = menor é melhor (CPA, CPC, CPM)
