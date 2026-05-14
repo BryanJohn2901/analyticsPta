@@ -274,8 +274,17 @@ export default function Home() {
       return;
     }
 
+    // Desconecta campanhas de todas as contas (limpa lista buscada + filtro selecionado)
+    await supabaseClient
+      .from("user_account_entries")
+      .update({ campaigns: [], selected_campaign_ids: [] })
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
     setCampaigns([]);
     setDataSource(null);
+    replaceUserAccountEntries(
+      userAccountEntriesRef.current.map((e) => ({ ...e, campaigns: [], selectedCampaignIds: [] })),
+    );
   };
 
   const handleGenerateDashboard = async (sheetUrl: string): Promise<void> => {
