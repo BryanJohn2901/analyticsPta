@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   BookOpen, CalendarDays, ChevronRight, Copy, Edit3, GraduationCap,
-  Package, Plus, Trash2, Users,
+  Loader2, Package, Plus, Trash2, Users,
 } from "lucide-react";
 import { ProductData, ProductType, COURSE_GROUPS_PRODUCT } from "@/types/product";
 import { useProductStore } from "@/hooks/useProductStore";
@@ -179,7 +179,7 @@ export function ProductBase() {
   const [view, setView]       = useState<View>("list");
   const [editing, setEditing] = useState<ProductData | null>(null);
 
-  const { products, addProduct, updateProduct, deleteProduct } = useProductStore();
+  const { products, addProduct, updateProduct, deleteProduct, syncStatus } = useProductStore();
 
   const posList    = products.filter((p) => p.type === "pos");
   const imersaoList = products.filter((p) => p.type === "imersao");
@@ -268,6 +268,12 @@ export function ProductBase() {
               <Package size={16} className="text-white" />
             </div>
             <h1 className="text-lg font-bold text-slate-900 dark:text-slate-100">Base de Produtos</h1>
+            {syncStatus === "loading" && (
+              <span className="flex items-center gap-1 text-[10px] text-slate-400"><Loader2 size={11} className="animate-spin" /> Sincronizando…</span>
+            )}
+            {syncStatus === "synced" && (
+              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">✓ Sincronizado</span>
+            )}
           </div>
           <p className="mt-1 text-xs text-slate-400 ml-11 dark:text-slate-500">
             Cadastre pós-graduações e imersões com promessa, entregáveis e links de venda

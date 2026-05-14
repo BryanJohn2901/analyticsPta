@@ -1,0 +1,76 @@
+import { supabaseClient } from "@/lib/supabase";
+import { ProductData } from "@/types/product";
+
+// ─── Products ─────────────────────────────────────────────────────────────────
+
+export async function fetchProducts(): Promise<ProductData[]> {
+  if (!supabaseClient) return [];
+  const { data, error } = await supabaseClient
+    .from("products")
+    .select("data")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((row) => row.data as ProductData);
+}
+
+export async function upsertProduct(p: ProductData): Promise<void> {
+  if (!supabaseClient) return;
+  const userId = (await supabaseClient.auth.getUser()).data.user?.id;
+  if (!userId) return;
+  const { error } = await supabaseClient.from("products").upsert(
+    { id: p.id, user_id: userId, type: p.type, data: p, updated_at: new Date().toISOString() },
+    { onConflict: "id" },
+  );
+  if (error) throw error;
+}
+
+export async function deleteProductRemote(id: string): Promise<void> {
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient.from("products").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ─── Custom tags ──────────────────────────────────────────────────────────────
+
+export type HistoricalKind = "lancamento" | "evento" | "perpetuo" | "instagram";
+
+export async function fetchUserTags(): Promise<Record<HistoricalKind, string[]>> {
+  const empty: Record<HistoricalKind, string[]> = {
+    lancamento: [], evento: [], perpetuo: [], instagram: [],
+  };
+  if (!supabaseClient) return empty;
+  const { data, error } = await supabaseClient
+    .from("user_tags")
+    .select("kind, name")
+    .order("created_at", { ascending: true });
+  if (error) return empty;
+  const result = { ...empty };
+  for (const row of data ?? []) {
+    const kind = row.kind as HistoricalKind;
+    if (result[kind]) result[kind].push(row.name as string);
+  }
+  return result;
+}
+
+export async function addUserTag(kind: HistoricalKind, name: string): Promise<void> {
+  if (!supabaseClient) return;
+  const userId = (await supabaseClient.auth.getUser()).data.user?.id;
+  if (!userId) return;
+  const { error } = await supabaseClient
+    .from("user_tags")
+    .insert({ user_id: userId, kind, name });
+  if (error) throw error;
+}
+
+export async function deleteUserTag(kind: HistoricalKind, name: string): Promise<void> {
+  if (!supabaseClient) return;
+  const userId = (await supabaseClient.auth.getUser()).data.user?.id;
+  if (!userId) return;
+  const { error } = await supabaseClient
+    .from("user_tags")
+    .delete()
+    .eq("user_id", userId)
+    .eq("kind", kind)
+    .eq("name", name);
+  if (error) throw error;
+}

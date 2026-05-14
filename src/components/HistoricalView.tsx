@@ -10,7 +10,7 @@ import {
   Upload, TrendingUp, ShoppingCart, DollarSign, Target,
   ArrowRight, CheckCircle2, XCircle, Plus, Pencil, Trash2, X,
   BarChart2, Package, Cloud, CloudOff, Loader2, CalendarDays, Camera, Repeat, Wallet,
-  ArrowUpDown, ArrowUp, ArrowDown,
+  ArrowUpDown, ArrowUp, ArrowDown, Tag,
 } from "lucide-react";
 import { TabLanding } from "@/components/TabLanding";
 import { HISTORICAL_KIND_LABELS, HistoricalKind, HistoricalMeta, HistoricalRow } from "@/types/historical";
@@ -22,6 +22,20 @@ import {
   insertHistoricalRow, updateHistoricalRow, deleteHistoricalRowById,
   replaceHistoricalData,
 } from "@/utils/supabaseHistorical";
+import {
+  fetchUserTags, addUserTag, deleteUserTag,
+} from "@/utils/supabaseProducts";
+
+// ─── Predefined product category tags (per kind) ─────────────────────────────
+
+const PREDEFINED_TAGS: Record<HistoricalKind, string[]> = {
+  lancamento: ["Biomecânica", "Treinamento Feminino", "Treinamento Funcional", "Musculação", "Bodybuilding", "Fisiologia"],
+  evento:     ["Biomecânica", "Treinamento Feminino", "Treinamento Funcional", "Musculação", "Bodybuilding", "Fisiologia"],
+  perpetuo:   ["Biomecânica", "Treinamento Feminino", "Treinamento Funcional", "Musculação", "Bodybuilding", "Fisiologia"],
+  instagram:  ["Biomecânica", "Treinamento Feminino", "Treinamento Funcional", "Musculação", "Bodybuilding", "Fisiologia"],
+};
+
+const MAX_CUSTOM_TAGS = 5;
 
 type SyncStatus = "idle" | "loading" | "synced" | "local" | "error";
 
@@ -597,7 +611,12 @@ export function HistoricalView() {
   const [rows,  setRowsState]  = useState<HistoricalRow[]>(loadRows);
   const [metas, setMetasState] = useState<HistoricalMeta[]>(loadMetas);
   const [selectedKind, setSelectedKind] = useState<HistoricalKind>("lancamento");
-  const [selectedProduct, setSelectedProduct] = useState("all");
+  const [selectedTag, setSelectedTag]   = useState("all");
+  const [customTags, setCustomTags]     = useState<Record<HistoricalKind, string[]>>({
+    lancamento: [], evento: [], perpetuo: [], instagram: [],
+  });
+  const [addingTag, setAddingTag]       = useState(false);
+  const [newTagDraft, setNewTagDraft]   = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>(
@@ -632,12 +651,13 @@ export function HistoricalView() {
   useEffect(() => {
     if (!isSupabaseConfigured) return;
     setSyncStatus("loading");
-    Promise.all([fetchHistoricalRows(), fetchHistoricalMetas()])
-      .then(([remoteRows, remoteMetas]) => {
+    Promise.all([fetchHistoricalRows(), fetchHistoricalMetas(), fetchUserTags()])
+      .then(([remoteRows, remoteMetas, remoteTags]) => {
         setRowsState(remoteRows);
         setMetasState(remoteMetas);
         saveRows(remoteRows);
         saveMetas(remoteMetas);
+        setCustomTags(remoteTags);
         setSyncStatus("synced");
       })
       .catch(() => {
@@ -646,18 +666,38 @@ export function HistoricalView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Unique product names for autocomplete in form ──
   const products = useMemo(() => Array.from(new Set(rows.map((r) => r.product))).sort(), [rows]);
 
+  // ── Available tags for the current kind (only those with matching rows) ──
+  const kindRows = useMemo(
+    () => rows.filter((r) => r.kind === selectedKind),
+    [rows, selectedKind],
+  );
+
+  const availableTags = useMemo(() => {
+    const predefined = PREDEFINED_TAGS[selectedKind].filter((tag) =>
+      kindRows.some((r) => r.product.toLowerCase().includes(tag.toLowerCase())),
+    );
+    const custom = (customTags[selectedKind] ?? []).filter((tag) =>
+      kindRows.some((r) => r.product.toLowerCase().includes(tag.toLowerCase())),
+    );
+    return [...predefined, ...custom];
+  }, [kindRows, selectedKind, customTags]);
+
+  // custom tags that exist but have no data yet (still show in management)
+  const allCustomTags = customTags[selectedKind] ?? [];
+
   const filtered = useMemo(
-    () => (selectedProduct === "all"
-      ? rows.filter((r) => r.kind === selectedKind)
-      : rows.filter((r) => r.kind === selectedKind && r.product === selectedProduct)),
-    [rows, selectedKind, selectedProduct],
+    () => (selectedTag === "all"
+      ? kindRows
+      : kindRows.filter((r) => r.product.toLowerCase().includes(selectedTag.toLowerCase()))),
+    [kindRows, selectedTag],
   );
 
   const activeMeta = useMemo(
-    () => metas.find((m) => m.product === selectedProduct) ?? metas[0] ?? null,
-    [metas, selectedProduct],
+    () => metas.find((m) => m.product.toLowerCase().includes(selectedTag.toLowerCase())) ?? metas[0] ?? null,
+    [metas, selectedTag],
   );
 
   // ── CSV upload ──
@@ -679,7 +719,7 @@ export function HistoricalView() {
         setRows(result.rows);
         setMetas(result.metas);
       }
-      setSelectedProduct("all");
+      setSelectedTag("all");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao processar arquivo.");
       if (isSupabaseConfigured) setSyncStatus("error");
@@ -857,7 +897,7 @@ export function HistoricalView() {
             <button
               key={id}
               type="button"
-              onClick={() => setSelectedKind(id)}
+              onClick={() => { setSelectedKind(id); setSelectedTag("all"); setAddingTag(false); setNewTagDraft(""); }}
               className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition ${
                 selectedKind === id
                   ? "bg-brand text-white shadow-sm"
@@ -876,7 +916,7 @@ export function HistoricalView() {
             <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Histórico de Lançamentos</h2>
             <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               {hasData
-                ? `${filtered.length} registro${filtered.length !== 1 ? "s" : ""} em ${HISTORICAL_KIND_LABELS[selectedKind]} · ${products.length} produto${products.length !== 1 ? "s" : ""}`
+                ? `${filtered.length} registro${filtered.length !== 1 ? "s" : ""} em ${HISTORICAL_KIND_LABELS[selectedKind]} · ${kindRows.length} produto${kindRows.length !== 1 ? "s" : ""}`
                 : "Nenhum dado ainda. Importe um CSV ou adicione manualmente."}
             </p>
           </div>
@@ -923,24 +963,105 @@ export function HistoricalView() {
           <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{error}</p>
         )}
 
-        {/* ── Product filter tabs ── */}
+        {/* ── Tag filters ── */}
         {hasData && (
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedProduct("all")}
-              className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition ${selectedProduct === "all" ? "border-blue-200 bg-brand text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"}`}
-            >
-              <Package size={11} /> Todos
-            </button>
-            {products.map((pr) => (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* "Todos" pill — always visible */}
               <button
-                key={pr}
-                onClick={() => setSelectedProduct(pr)}
-                className={`rounded-md border px-3 py-1.5 text-xs font-medium transition ${selectedProduct === pr ? "border-blue-200 bg-brand text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"}`}
+                onClick={() => setSelectedTag("all")}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${selectedTag === "all" ? "border-blue-200 bg-brand text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"}`}
               >
-                {pr}
+                <Package size={10} /> Todos
               </button>
-            ))}
+
+              {/* Predefined + custom tags (only those with data) */}
+              {availableTags.map((tag) => {
+                const isCustom = allCustomTags.includes(tag);
+                return (
+                  <div key={tag} className="flex items-center gap-0.5">
+                    <button
+                      onClick={() => setSelectedTag(selectedTag === tag ? "all" : tag)}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${selectedTag === tag ? "border-blue-200 bg-brand text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"}`}
+                    >
+                      {isCustom && <Tag size={9} className="opacity-70" />}
+                      {tag}
+                    </button>
+                    {isCustom && (
+                      <button
+                        onClick={async () => {
+                          const next = { ...customTags, [selectedKind]: allCustomTags.filter(t => t !== tag) };
+                          setCustomTags(next);
+                          if (selectedTag === tag) setSelectedTag("all");
+                          try { await deleteUserTag(selectedKind, tag); } catch { /* silent */ }
+                        }}
+                        className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-slate-400 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400 transition"
+                        title="Remover tag"
+                      >
+                        <X size={9} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* "+ tag" button — visible only if under the limit */}
+              {allCustomTags.length < MAX_CUSTOM_TAGS && isSupabaseConfigured && (
+                addingTag ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={newTagDraft}
+                      onChange={(e) => setNewTagDraft(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter") {
+                          const name = newTagDraft.trim();
+                          if (!name || allCustomTags.includes(name)) { setAddingTag(false); setNewTagDraft(""); return; }
+                          const next = { ...customTags, [selectedKind]: [...allCustomTags, name] };
+                          setCustomTags(next);
+                          setNewTagDraft(""); setAddingTag(false);
+                          try { await addUserTag(selectedKind, name); } catch { /* silent */ }
+                        }
+                        if (e.key === "Escape") { setAddingTag(false); setNewTagDraft(""); }
+                      }}
+                      placeholder="Nome da tag…"
+                      className="h-7 rounded-full border border-blue-300 bg-white px-3 text-xs outline-none focus:ring-2 focus:ring-blue-100 dark:border-blue-600 dark:bg-slate-800 dark:text-slate-200"
+                    />
+                    <button onClick={() => { setAddingTag(false); setNewTagDraft(""); }} className="text-slate-400 hover:text-slate-600"><X size={12} /></button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setAddingTag(true)}
+                    className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-3 py-1 text-xs font-medium text-slate-400 transition hover:border-blue-400 hover:text-blue-500 dark:border-slate-600 dark:text-slate-500 dark:hover:border-blue-500 dark:hover:text-blue-400"
+                  >
+                    <Plus size={10} /> Tag personalizada
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* Show tag count hint when custom tags exist without data */}
+            {allCustomTags.filter(t => !availableTags.includes(t)).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {allCustomTags.filter(t => !availableTags.includes(t)).map(tag => (
+                  <div key={tag} className="flex items-center gap-0.5">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-200 px-2.5 py-0.5 text-[10px] text-slate-400 dark:border-slate-700 dark:text-slate-600">
+                      <Tag size={8} /> {tag} <span className="opacity-60">· sem dados</span>
+                    </span>
+                    <button
+                      onClick={async () => {
+                        const next = { ...customTags, [selectedKind]: allCustomTags.filter(t2 => t2 !== tag) };
+                        setCustomTags(next);
+                        try { await deleteUserTag(selectedKind, tag); } catch { /* silent */ }
+                      }}
+                      className="ml-0.5 flex h-4 w-4 items-center justify-center rounded-full text-slate-300 hover:bg-red-100 hover:text-red-400 transition"
+                    >
+                      <X size={8} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

@@ -1,52 +1,80 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ProductData } from "@/types/product";
+import { isSupabaseConfigured } from "@/lib/supabase";
+import { fetchProducts, upsertProduct, deleteProductRemote } from "@/utils/supabaseProducts";
+
+// ─── Local cache ───────────────────────────────────────────────────────────────
 
 const STORAGE_KEY = "pta_products_v1";
 
-function load(): ProductData[] {
+function loadLocal(): ProductData[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? (JSON.parse(raw) as ProductData[]) : [];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
 
-function save(products: ProductData[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
-  } catch { /* storage unavailable */ }
+function saveLocal(products: ProductData[]): void {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(products)); }
+  catch { /* unavailable */ }
 }
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+export type ProductSyncStatus = "local" | "loading" | "synced" | "error";
 
 export function useProductStore() {
-  const [products, setProducts] = useState<ProductData[]>(load);
+  const [products, setProductsRaw] = useState<ProductData[]>(loadLocal);
+  const [syncStatus, setSyncStatus] = useState<ProductSyncStatus>(
+    isSupabaseConfigured ? "loading" : "local",
+  );
 
-  const addProduct = useCallback((p: ProductData) => {
-    setProducts((prev) => {
-      const next = [p, ...prev];
-      save(next);
-      return next;
-    });
+  // keep local state + localStorage in sync
+  const setProducts = useCallback((next: ProductData[]) => {
+    setProductsRaw(next);
+    saveLocal(next);
   }, []);
 
-  const updateProduct = useCallback((p: ProductData) => {
-    setProducts((prev) => {
-      const next = prev.map((x) => (x.id === p.id ? p : x));
-      save(next);
-      return next;
-    });
+  // ── Load from Supabase on mount ──
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    setSyncStatus("loading");
+    fetchProducts()
+      .then((remote) => { setProducts(remote); setSyncStatus("synced"); })
+      .catch(() => setSyncStatus("error"));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const deleteProduct = useCallback((id: string) => {
-    setProducts((prev) => {
-      const next = prev.filter((x) => x.id !== id);
-      save(next);
-      return next;
-    });
-  }, []);
+  const addProduct = useCallback(async (p: ProductData) => {
+    // optimistic update using latest local state
+    const current = loadLocal();
+    setProducts([p, ...current]);
+    if (isSupabaseConfigured) {
+      try { await upsertProduct(p); setSyncStatus("synced"); }
+      catch { setSyncStatus("error"); }
+    }
+  }, [setProducts]);
 
-  return { products, addProduct, updateProduct, deleteProduct };
+  const updateProduct = useCallback(async (p: ProductData) => {
+    const current = loadLocal();
+    setProducts(current.map((x) => (x.id === p.id ? p : x)));
+    if (isSupabaseConfigured) {
+      try { await upsertProduct(p); setSyncStatus("synced"); }
+      catch { setSyncStatus("error"); }
+    }
+  }, [setProducts]);
+
+  const deleteProduct = useCallback(async (id: string) => {
+    const current = loadLocal();
+    setProducts(current.filter((x) => x.id !== id));
+    if (isSupabaseConfigured) {
+      try { await deleteProductRemote(id); setSyncStatus("synced"); }
+      catch { setSyncStatus("error"); }
+    }
+  }, [setProducts]);
+
+  return { products, addProduct, updateProduct, deleteProduct, syncStatus };
 }
