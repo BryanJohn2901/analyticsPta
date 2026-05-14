@@ -1042,7 +1042,7 @@ function CampaignPanel({
       {/* Header — curso vs filtros */}
       <div className="flex min-h-12 flex-shrink-0 flex-col justify-center gap-0.5 border-b px-4 py-2" style={{ borderColor: "var(--dm-border-default)" }}>
         <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
-          {showCourseGroups ? "Cursos e campanhas" : "Refinar resultados"}
+          {showCourseGroups ? "Grupos e campanhas" : "Filtros"}
         </p>
         <p className="text-[10px] leading-snug" style={{ color: "var(--dm-text-tertiary)" }}>
           {showCourseGroups
@@ -1272,7 +1272,7 @@ function CampaignPanel({
         {/* Filter header */}
         <div className="flex items-center justify-between px-4 py-3">
           <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>
-            <SlidersHorizontal size={11} aria-hidden /> Cortar por tempo e nome
+            <SlidersHorizontal size={11} aria-hidden /> Período e busca
           </p>
           {hasActiveFilters && (
             <button
@@ -1807,9 +1807,8 @@ export function Dashboard({
 
   const navContent = (
     <nav className="flex-1 overflow-y-auto px-3 py-4">
-      <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-widest" style={{ color: "var(--dm-text-tertiary)" }}>Navegação</p>
       <p className="mb-3 px-2 text-[10px] leading-snug" style={{ color: "var(--dm-text-tertiary)" }}>
-        Relatórios e bases — escolha a área principal
+        Escolha uma seção
       </p>
       <ul className="space-y-0.5">
         {MAIN_TABS.map(({ id, label, icon: Icon }) => (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { toast } from "@/hooks/useToast";
 import { useTheme } from "next-themes";
 import {
   X, Settings2, ChevronDown, ChevronUp, Plus, Trash2, Loader2,
@@ -323,9 +324,12 @@ function AddEntryForm({
         campaigns,
         selectedCampaignIds: selected.length < campaigns.length ? selected : [],
       });
+      toast.success("Conta salva! Sincronizando dados…");
       onSaved(entry);
     } catch (e) {
-      setSaveErrMsg(e instanceof Error ? e.message : "Erro ao salvar.");
+      const msg = e instanceof Error ? e.message : "Erro ao salvar.";
+      setSaveErrMsg(msg);
+      toast.error(`Erro ao salvar: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -1146,6 +1150,22 @@ function TabIntegrations({ onSyncNow }: { onSyncNow?: () => void }) {
 // ─── Tab: Sincronização ───────────────────────────────────────────────────────
 
 const META_SYNC_LOOKBACK_DAYS = 30;
+const SYNC_LOOKBACK_LS_KEY = "pta_sync_lookback_days";
+const LOOKBACK_OPTIONS = [
+  { label: "Últimos 7 dias",   value: 7   },
+  { label: "Últimos 15 dias",  value: 15  },
+  { label: "Últimos 30 dias",  value: 30  },
+  { label: "Últimos 60 dias",  value: 60  },
+  { label: "Últimos 90 dias",  value: 90  },
+  { label: "Máximo (2 anos)",  value: 730 },
+];
+
+function readSavedLookback(): number {
+  try {
+    const v = parseInt(localStorage.getItem(SYNC_LOOKBACK_LS_KEY) ?? "30", 10);
+    return LOOKBACK_OPTIONS.some((o) => o.value === v) ? v : 30;
+  } catch { return 30; }
+}
 
 interface TabSyncProps {
   syncStatus?:    { syncing: boolean; result?: MetaSyncResult; error?: string };
@@ -1158,6 +1178,14 @@ interface TabSyncProps {
 function TabSync({ syncStatus, campaignCount, dataSource, onRefresh, onClearData }: TabSyncProps) {
   const [clearing, setClearing] = useState(false);
   const hasToken = Boolean(loadMetaCredentials().accessToken);
+  const [lookback, setLookback] = useState<number>(() =>
+    typeof window !== "undefined" ? readSavedLookback() : META_SYNC_LOOKBACK_DAYS,
+  );
+
+  const handleLookbackChange = (val: number) => {
+    setLookback(val);
+    try { localStorage.setItem(SYNC_LOOKBACK_LS_KEY, String(val)); } catch { /* noop */ }
+  };
 
   const handleClear = async () => {
     if (!onClearData) return;
@@ -1187,11 +1215,18 @@ function TabSync({ syncStatus, campaignCount, dataSource, onRefresh, onClearData
           )}
         </div>
 
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Período</p>
-          <span className="text-[11px]" style={{ color: "var(--dm-text-tertiary)" }}>
-            Últimos {META_SYNC_LOOKBACK_DAYS} dias
-          </span>
+        <div className="flex items-center justify-between gap-3">
+          <p className="shrink-0 text-xs font-semibold" style={{ color: "var(--dm-text-secondary)" }}>Período</p>
+          <select
+            value={lookback}
+            onChange={(e) => handleLookbackChange(Number(e.target.value))}
+            className="h-7 rounded-lg border px-2 text-[11px] outline-none"
+            style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-surface)", color: "var(--dm-text-primary)" }}
+          >
+            {LOOKBACK_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </div>
 
         <div className="flex items-center justify-between">

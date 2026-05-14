@@ -43,8 +43,17 @@ export interface DataSource {
   label: string;
 }
 
-/** Janela padrão de busca de insights Meta (dias) — alinhada ao uso analítico do dashboard. */
-const META_SYNC_LOOKBACK_DAYS = 30;
+/** Chave localStorage para o período de busca selecionado pelo usuário. */
+const SYNC_LOOKBACK_LS_KEY = "pta_sync_lookback_days";
+const VALID_LOOKBACK_VALUES = [7, 15, 30, 60, 90, 730] as const;
+
+function readLookbackDays(): number {
+  if (typeof window === "undefined") return 30;
+  try {
+    const v = parseInt(localStorage.getItem(SYNC_LOOKBACK_LS_KEY) ?? "30", 10);
+    return (VALID_LOOKBACK_VALUES as readonly number[]).includes(v) ? v : 30;
+  } catch { return 30; }
+}
 
 export default function Home() {
   const [campaigns, setCampaigns]       = useState<CampaignData[]>([]);
@@ -154,11 +163,17 @@ export default function Home() {
       }
     }
 
-    if (accountItems.length === 0) return;
+    if (accountItems.length === 0) {
+      if (!options?.silent) {
+        setSyncStatus({ syncing: false, error: "Nenhuma conta configurada. Adicione uma conta na aba Contas do Painel de Controle." });
+      }
+      return;
+    }
 
+    const lookbackDays = readLookbackDays();
     const dateTo   = new Date();
     const dateFrom = new Date(dateTo);
-    dateFrom.setDate(dateFrom.getDate() - META_SYNC_LOOKBACK_DAYS);
+    dateFrom.setDate(dateFrom.getDate() - lookbackDays);
     // Use local date — toISOString() returns UTC, which past 21h (UTC-3) gives "tomorrow".
     const fmt = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
