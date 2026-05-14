@@ -10,6 +10,7 @@ import {
   Upload, TrendingUp, ShoppingCart, DollarSign, Target,
   ArrowRight, CheckCircle2, XCircle, Plus, Pencil, Trash2, X,
   BarChart2, Package, Cloud, CloudOff, Loader2, CalendarDays, Camera, Repeat, Wallet,
+  ArrowUpDown, ArrowUp, ArrowDown,
 } from "lucide-react";
 import { TabLanding } from "@/components/TabLanding";
 import { HISTORICAL_KIND_LABELS, HistoricalKind, HistoricalMeta, HistoricalRow } from "@/types/historical";
@@ -74,9 +75,11 @@ const MONTH_LABELS: Record<string, string> = {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+type TableSortKey = "date-asc" | "date-desc" | "invest-desc" | "invest-asc";
+
 interface FormState {
   kind: HistoricalKind;
-  product: string; month: string; year: string; campaignEndDate: string;
+  product: string; turma: string; month: string; year: string; campaignEndDate: string;
   investment: string; cpm: string; reach: string; clicks: string;
   pageViews: string; preCheckouts: string; sales: string; revenue: string;
   // Perpétuo extras
@@ -95,7 +98,7 @@ const HISTORY_TABS: Array<{ id: HistoricalKind; icon: React.ElementType }> = [
 
 const EMPTY_FORM: FormState = {
   kind: "lancamento",
-  product: "", month: "JANEIRO", year: String(new Date().getFullYear()), campaignEndDate: "",
+  product: "", turma: "", month: "JANEIRO", year: String(new Date().getFullYear()), campaignEndDate: "",
   investment: "", cpm: "", reach: "", clicks: "",
   pageViews: "", preCheckouts: "", sales: "", revenue: "",
   leads: "", mrr: "", churn: "",
@@ -127,7 +130,9 @@ const buildRow = (form: FormState, kind: HistoricalKind): HistoricalRow => {
 
   const base = {
     kind,
-    product: form.product.trim(), month: form.month, year, monthKey,
+    product: form.product.trim(),
+    turma: form.turma.trim() || undefined,
+    month: form.month, year, monthKey,
     monthLabel: `${abbr}/${String(year).slice(2)}`,
     campaignEndDate: form.campaignEndDate || undefined,
     investment, revenue, reach, clicks, cpm: p(form.cpm),
@@ -160,7 +165,7 @@ const buildRow = (form: FormState, kind: HistoricalKind): HistoricalRow => {
 
 const rowToForm = (r: HistoricalRow): FormState => ({
   kind: r.kind,
-  product: r.product, month: r.month, year: String(r.year),
+  product: r.product, turma: r.turma ?? "", month: r.month, year: String(r.year),
   campaignEndDate: r.campaignEndDate ?? "",
   investment: r.investment > 0 ? String(r.investment) : "",
   cpm: r.cpm > 0 ? String(r.cpm) : "",
@@ -259,10 +264,19 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
           <div className="px-4 py-5 sm:px-6">
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Identificação</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <label className={labelCls}>
+              <label className={`${labelCls} sm:col-span-2`}>
                 Produto / Campanha *
                 <input list="products-list" required value={form.product} onChange={set("product")} placeholder="Ex: Biomecânica" className={fieldCls} />
                 <datalist id="products-list">{products.map((pr) => <option key={pr} value={pr} />)}</datalist>
+              </label>
+              <label className={labelCls}>
+                Turma / Edição
+                <input
+                  value={form.turma}
+                  onChange={set("turma")}
+                  placeholder="Ex: 3"
+                  className={fieldCls}
+                />
               </label>
               <label className={labelCls}>
                 Mês *
@@ -398,6 +412,21 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
   );
 }
 
+// ─── Product + Turma cell ─────────────────────────────────────────────────────
+
+function ProductCell({ product, turma }: { product: string; turma?: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span>{product}</span>
+      {turma && (
+        <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+          T{turma}
+        </span>
+      )}
+    </span>
+  );
+}
+
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
 interface StatCardProps {
@@ -441,7 +470,8 @@ export function HistoricalView() {
   );
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Form state
+  // Sort + form state
+  const [tableSort, setTableSort]   = useState<TableSortKey>("date-asc");
   const [showForm, setShowForm]     = useState(false);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   const [form, setForm]             = useState<FormState>(EMPTY_FORM);
@@ -647,10 +677,16 @@ export function HistoricalView() {
     ];
   }, [filtered, selectedKind]);
 
-  const sortedFiltered = useMemo(
-    () => [...filtered].sort((a, b) => a.monthKey.localeCompare(b.monthKey)),
-    [filtered],
-  );
+  const sortedFiltered = useMemo(() => {
+    const arr = [...filtered];
+    switch (tableSort) {
+      case "date-asc":    return arr.sort((a, b) => a.monthKey.localeCompare(b.monthKey));
+      case "date-desc":   return arr.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+      case "invest-desc": return arr.sort((a, b) => b.investment - a.investment);
+      case "invest-asc":  return arr.sort((a, b) => a.investment - b.investment);
+      default:            return arr;
+    }
+  }, [filtered, tableSort]);
 
   const hasData = rows.length > 0;
 
@@ -922,7 +958,35 @@ export function HistoricalView() {
           <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Dados Mensais Detalhados</h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500">{sortedFiltered.length} registros</p>
+              <div className="flex items-center gap-2">
+                {/* Sort control */}
+                <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 p-0.5 dark:border-slate-600 dark:bg-slate-700">
+                  {([
+                    { key: "date-asc",    Icon: ArrowUp,   title: "Mais antigo primeiro" },
+                    { key: "date-desc",   Icon: ArrowDown, title: "Mais novo primeiro"   },
+                    { key: "invest-desc", Icon: ArrowUpDown, title: "Maior investimento" },
+                    { key: "invest-asc",  Icon: ArrowDown, title: "Menor investimento"  },
+                  ] as const).map(({ key, Icon, title }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      title={title}
+                      onClick={() => setTableSort(key)}
+                      className={`flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold transition ${
+                        tableSort === key
+                          ? "bg-white text-blue-600 shadow-sm dark:bg-slate-800 dark:text-blue-400"
+                          : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+                      }`}
+                    >
+                      <Icon size={10} />
+                      {key === "date-asc"    ? "Antigo"  :
+                       key === "date-desc"   ? "Novo"    :
+                       key === "invest-desc" ? "Maior $" : "Menor $"}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-400 dark:text-slate-500">{sortedFiltered.length} registros</p>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-700">
@@ -934,7 +998,7 @@ export function HistoricalView() {
                       ? ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Leads","Vendas","Receita","MRR","CAC","ROAS",""]
                       : ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk", selectedKind === "evento" ? "Ingressos" : "Vendas","Faturamento","CAC","ROAS",""]
                     ).map((h) => (
-                      <th key={h} className="px-3 py-2 font-semibold">{h}</th>
+                      <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -965,7 +1029,9 @@ export function HistoricalView() {
                       return (
                         <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
                           <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
-                          <td className="whitespace-nowrap px-3 py-2">{r.product}</td>
+                          <td className="whitespace-nowrap px-3 py-2">
+                            <ProductCell product={r.product} turma={r.turma} />
+                          </td>
                           <td className="whitespace-nowrap px-3 py-2 text-emerald-600 dark:text-emerald-400 font-semibold">{formatNumber(gained)}</td>
                           <td className="whitespace-nowrap px-3 py-2 text-red-500">{lost > 0 ? `-${formatNumber(lost)}` : "—"}</td>
                           <td className="whitespace-nowrap px-3 py-2">{visits > 0 ? formatNumber(visits) : "—"}</td>
@@ -985,7 +1051,9 @@ export function HistoricalView() {
                       return (
                         <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
                           <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
-                          <td className="whitespace-nowrap px-3 py-2">{r.product}</td>
+                          <td className="whitespace-nowrap px-3 py-2">
+                            <ProductCell product={r.product} turma={r.turma} />
+                          </td>
                           <td className="whitespace-nowrap px-3 py-2">{r.investment > 0 ? formatCurrency(r.investment) : "—"}</td>
                           <td className="whitespace-nowrap px-3 py-2">{r.reach > 0 ? formatNumber(r.reach) : "—"}</td>
                           <td className="whitespace-nowrap px-3 py-2">{r.clicks > 0 ? formatNumber(r.clicks) : "—"}</td>
@@ -1004,7 +1072,9 @@ export function HistoricalView() {
                     return (
                       <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
                         <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
-                        <td className="whitespace-nowrap px-3 py-2">{r.product}</td>
+                        <td className="whitespace-nowrap px-3 py-2">
+                          <ProductCell product={r.product} turma={r.turma} />
+                        </td>
                         <td className="whitespace-nowrap px-3 py-2">{r.investment > 0 ? formatCurrency(r.investment) : "—"}</td>
                         <td className="whitespace-nowrap px-3 py-2">{r.reach > 0 ? formatNumber(r.reach) : "—"}</td>
                         <td className="whitespace-nowrap px-3 py-2">{r.clicks > 0 ? formatNumber(r.clicks) : "—"}</td>

@@ -15,6 +15,8 @@ interface HistoricalRowBase {
   id?: string;
   kind: HistoricalKind;
   product: string;
+  /** Turma / edição do lançamento — ex.: "1", "2", "3ª" etc. (opcional) */
+  turma?: string;
   month: string;
   year: number;
   monthKey: string;
