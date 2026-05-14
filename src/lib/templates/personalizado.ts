@@ -1,40 +1,78 @@
 import type { Template, KpiSpec, FunnelStage, PersonalizadoConfig } from "./types";
 import { formatBRL, formatInt, safeDivide } from "@/lib/format";
 
-// ─── Catalog of all available KPIs ───────────────────────────────────────────
+// ─── KPI Group structure (used by PersonalizadoBuilder for grouped display) ───
+
+export interface KpiGroup {
+  label: string;
+  kpiIds: string[];
+  igOnly?: boolean; // only shown when Instagram token is configured
+}
+
+// ─── Catalog of all available KPIs (3.5) ─────────────────────────────────────
 
 export const ALL_KPI_OPTIONS: KpiSpec[] = [
-  { id: "spend",          label: "Investimento",        format: formatBRL,                         color: "brand" },
-  { id: "impressions",    label: "Impressões",          format: formatInt,                         color: "sky" },
-  { id: "reach",          label: "Alcance",             format: formatInt,                         color: "sky" },
-  { id: "clicks",         label: "Cliques",             format: formatInt,                         color: "sky" },
-  { id: "cpm",            label: "CPM",                 format: formatBRL,                         color: "rose", invert: true },
-  { id: "ctr",            label: "CTR (%)",             format: (n) => `${n.toFixed(2)}%`,        color: "brand" },
-  { id: "leads",          label: "Leads",               format: formatInt,                         color: "green" },
-  { id: "sales",          label: "Vendas",              format: formatInt,                         color: "green" },
-  { id: "revenue",        label: "Faturamento",         format: formatBRL,                         color: "green" },
-  { id: "cpa",            label: "CPA",                 format: formatBRL,                         color: "rose", invert: true },
-  { id: "roas",           label: "ROAS",                format: (n) => `${n.toFixed(2)}x`,        color: "brand" },
-  { id: "page_views",     label: "Visualizações",       format: formatInt,                         color: "sky" },
-  { id: "profile_visits", label: "Visitas ao perfil",   format: formatInt,                         color: "green" },
-  { id: "new_followers",  label: "Novos seguidores",    format: formatInt,                         color: "green" },
-  { id: "tickets",        label: "Ingressos",           format: formatInt,                         color: "green" },
-  { id: "cpf",            label: "Custo por seguidor",  format: formatBRL,                         color: "rose", invert: true },
-  { id: "cpa_ticket",     label: "CPA por ingresso",    format: formatBRL,                         color: "rose", invert: true },
+  // Resultados
+  { id: "sales",         label: "Resultados",              format: formatInt,                    color: "green" },
+  { id: "leads",         label: "Leads",                   format: formatInt,                    color: "green" },
+  { id: "cpa",           label: "Custo por resultado",     format: formatBRL,                    color: "rose", invert: true },
+  { id: "cpl",           label: "Custo por lead",          format: formatBRL,                    color: "rose", invert: true },
+  // Alcance e entrega
+  { id: "reach",         label: "Alcance",                 format: formatInt,                    color: "sky" },
+  { id: "impressions",   label: "Impressões",              format: formatInt,                    color: "sky" },
+  { id: "frequency",     label: "Frequência",              format: (n) => n.toFixed(2),          color: "sky" },
+  { id: "cpm",           label: "CPM",                     format: formatBRL,                    color: "rose", invert: true },
+  // Cliques e tráfego
+  { id: "clicks",        label: "Cliques no link",         format: formatInt,                    color: "sky" },
+  { id: "total_clicks",  label: "Cliques (todos)",         format: formatInt,                    color: "sky" },
+  { id: "cpc_link",      label: "CPC (link)",              format: formatBRL,                    color: "rose", invert: true },
+  { id: "cpc_all",       label: "CPC (todos)",             format: formatBRL,                    color: "rose", invert: true },
+  { id: "ctr",           label: "CTR (link) %",            format: (n) => `${n.toFixed(2)}%`,   color: "brand" },
+  { id: "ctr_all",       label: "CTR (todos) %",           format: (n) => `${n.toFixed(2)}%`,   color: "brand" },
+  { id: "page_views",    label: "Vis. de página",          format: formatInt,                    color: "sky" },
+  { id: "cpv",           label: "Custo por visualização",  format: formatBRL,                    color: "rose", invert: true },
+  // Investimento
+  { id: "spend",         label: "Investimento",            format: formatBRL,                    color: "brand" },
+  { id: "revenue",       label: "Faturamento",             format: formatBRL,                    color: "green" },
+  { id: "roas",          label: "ROAS",                    format: (n) => `${n.toFixed(2)}x`,   color: "brand" },
+  // Perfil
+  { id: "profile_visits", label: "Visitas ao perfil",     format: formatInt,                    color: "green" },
+  { id: "new_followers", label: "Novos seguidores",        format: formatInt,                    color: "green" },
+  { id: "cpf",           label: "Custo por seguidor",      format: formatBRL,                    color: "rose", invert: true },
+  // Instagram orgânico (igOnly)
+  { id: "ig_followers",  label: "Seguidores (IG)",         format: formatInt,                    color: "sky" },
+  { id: "ig_growth",     label: "Crescimento IG",          format: formatInt,                    color: "green" },
+  { id: "ig_reach",      label: "Alcance orgânico",        format: formatInt,                    color: "sky" },
+  { id: "ig_impressions", label: "Impressões do perfil",   format: formatInt,                    color: "sky" },
+  // Outros
+  { id: "tickets",       label: "Ingressos",               format: formatInt,                    color: "green" },
+  { id: "cpa_ticket",    label: "CPA por ingresso",        format: formatBRL,                    color: "rose", invert: true },
+];
+
+// ─── KPI groups for builder UI (3.5) ─────────────────────────────────────────
+
+export const KPI_GROUPS: KpiGroup[] = [
+  { label: "Resultados",        kpiIds: ["sales", "leads", "cpa", "cpl"] },
+  { label: "Alcance e entrega", kpiIds: ["reach", "impressions", "frequency", "cpm"] },
+  { label: "Cliques e tráfego", kpiIds: ["clicks", "total_clicks", "cpc_link", "cpc_all", "ctr", "ctr_all", "page_views", "cpv"] },
+  { label: "Investimento",      kpiIds: ["spend", "revenue", "roas"] },
+  { label: "Perfil",            kpiIds: ["profile_visits", "new_followers", "cpf"] },
+  { label: "Instagram",         kpiIds: ["ig_followers", "ig_growth", "ig_reach", "ig_impressions"], igOnly: true },
+  { label: "Outros",            kpiIds: ["tickets", "cpa_ticket"] },
 ];
 
 // ─── Catalog of all available funnel stages ───────────────────────────────────
 
 export const ALL_FUNNEL_OPTIONS: FunnelStage[] = [
-  { id: "reach",          label: "Alcance",                bg: "#DBEAFE" },
-  { id: "impressions",    label: "Impressões",             bg: "#BFDBFE" },
-  { id: "clicks",         label: "Cliques no link",        bg: "#93C5FD", rateFromPrev: "CTR" },
-  { id: "page_views",     label: "Visualizações de página",bg: "#67E8F9", rateFromPrev: "Tx. Visita" },
-  { id: "leads",          label: "Leads",                  bg: "#FEF08A", rateFromPrev: "Tx. Captura" },
-  { id: "sales",          label: "Vendas",                 bg: "#BBF7D0", rateFromPrev: "Tx. Conversão" },
-  { id: "profile_visits", label: "Visitas ao perfil",      bg: "#A7F3D0", rateFromPrev: "Tx. Visita" },
-  { id: "new_followers",  label: "Novos seguidores",       bg: "#6EE7B7", rateFromPrev: "Tx. Follow" },
-  { id: "tickets",        label: "Ingressos vendidos",     bg: "#D1FAE5", rateFromPrev: "Tx. Conversão" },
+  { id: "reach",          label: "Alcance",                  bg: "#DBEAFE" },
+  { id: "impressions",    label: "Impressões",               bg: "#BFDBFE" },
+  { id: "clicks",         label: "Cliques no link",          bg: "#93C5FD", rateFromPrev: "CTR" },
+  { id: "page_views",     label: "Visualizações de página",  bg: "#67E8F9", rateFromPrev: "Tx. Visita" },
+  { id: "leads",          label: "Leads",                    bg: "#FEF08A", rateFromPrev: "Tx. Captura" },
+  { id: "sales",          label: "Vendas",                   bg: "#BBF7D0", rateFromPrev: "Tx. Conversão" },
+  { id: "profile_visits", label: "Visitas ao perfil",        bg: "#A7F3D0", rateFromPrev: "Tx. Visita" },
+  { id: "new_followers",  label: "Novos seguidores",         bg: "#6EE7B7", rateFromPrev: "Tx. Follow" },
+  { id: "tickets",        label: "Ingressos vendidos",       bg: "#D1FAE5", rateFromPrev: "Tx. Conversão" },
 ];
 
 const KPI_MAP    = Object.fromEntries(ALL_KPI_OPTIONS.map((k) => [k.id, k]));
@@ -45,13 +83,13 @@ export const DEFAULT_PERSONALIZADO_CONFIG: PersonalizadoConfig = {
   funnelIds: ["impressions", "clicks", "leads", "sales"],
 };
 
-// ─── Dynamic template builder ────────────────────────────────────────────────
+// ─── Dynamic template builder ─────────────────────────────────────────────────
 
 export function buildPersonalizadoTemplate(config: PersonalizadoConfig): Template {
   const kpis   = config.kpiIds.map((id) => KPI_MAP[id]).filter(Boolean);
   const funnel = config.funnelIds.map((id) => FUNNEL_MAP[id]).filter(Boolean);
 
-  // Table: campaign + adset fixed, then one column per selected KPI; spend always last if not already included
+  // Table: campaign + adset fixed, then one column per selected KPI; spend always last if missing
   const kpiCols = kpis.map((k) => ({ id: k.id, label: k.label, align: "right" as const, format: k.format }));
   const hasSpend = kpis.some((k) => k.id === "spend");
   const tableColumns = [
@@ -63,18 +101,24 @@ export function buildPersonalizadoTemplate(config: PersonalizadoConfig): Templat
 
   return {
     id: "personalizado",
-    label: "Personalizado",
+    label: config.name ?? "Personalizado",
     description: "Dashboard montado por você",
     color: "#7C3AED",
     kpis,
     funnel,
     table: { title: "Performance por Conjunto", columns: tableColumns },
     derive: (raw) => ({
-      cpa:       safeDivide(raw.spend, raw.sales ?? 0),
-      cpm:       raw.impressions > 0 ? (raw.spend / raw.impressions) * 1000 : 0,
-      ctr:       raw.impressions > 0 ? (raw.clicks / raw.impressions) * 100 : 0,
-      roas:      safeDivide(raw.revenue, raw.spend),
-      cpf:       safeDivide(raw.spend, raw.new_followers ?? 0),
+      cpa:        safeDivide(raw.spend, raw.sales ?? 0),
+      cpl:        safeDivide(raw.spend, raw.leads ?? 0),
+      cpm:        raw.impressions > 0 ? (raw.spend / raw.impressions) * 1000 : 0,
+      frequency:  safeDivide(raw.impressions, raw.reach ?? 0),
+      ctr:        raw.impressions > 0 ? (raw.clicks / raw.impressions) * 100 : 0,
+      ctr_all:    raw.impressions > 0 ? ((raw.total_clicks ?? 0) / raw.impressions) * 100 : 0,
+      cpc_link:   safeDivide(raw.spend, raw.clicks ?? 0),
+      cpc_all:    safeDivide(raw.spend, raw.total_clicks ?? 0),
+      cpv:        safeDivide(raw.spend, raw.page_views ?? 0),
+      roas:       safeDivide(raw.revenue, raw.spend),
+      cpf:        safeDivide(raw.spend, raw.new_followers ?? 0),
       cpa_ticket: safeDivide(raw.spend, raw.tickets ?? 0),
     }),
   };

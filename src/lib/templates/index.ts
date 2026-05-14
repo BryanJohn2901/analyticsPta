@@ -6,6 +6,7 @@ import {
   DEFAULT_PERSONALIZADO_CONFIG,
   ALL_KPI_OPTIONS,
   ALL_FUNNEL_OPTIONS,
+  KPI_GROUPS,
 } from "./personalizado";
 import type { Template, TemplateId, PersonalizadoConfig } from "./types";
 
@@ -32,4 +33,4 @@ export function getTemplate(id: TemplateId | undefined, personalizadoConfig?: Pe
 }
 
 export type { Template, TemplateId, PersonalizadoConfig };
-export { ALL_KPI_OPTIONS, ALL_FUNNEL_OPTIONS, DEFAULT_PERSONALIZADO_CONFIG, buildPersonalizadoTemplate };
+export { ALL_KPI_OPTIONS, ALL_FUNNEL_OPTIONS, KPI_GROUPS, DEFAULT_PERSONALIZADO_CONFIG, buildPersonalizadoTemplate };

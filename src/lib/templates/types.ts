@@ -1,7 +1,8 @@
 export type TemplateId = "pos" | "imersao" | "perfil" | "personalizado";
 
 export interface PersonalizadoConfig {
-  kpiIds: string[];    // ordered, max 5
+  name?: string;       // 3.7 — nome do layout salvo
+  kpiIds: string[];    // ordered, max 10
   funnelIds: string[]; // ordered
 }
 
