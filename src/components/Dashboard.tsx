@@ -2112,36 +2112,6 @@ export function Dashboard({
             </div>
           </div>
 
-          {(dataSourcePill || lastSyncHint || syncStatus?.syncing) && (
-            <div
-              className="flex flex-wrap items-center gap-x-5 gap-y-1 border-t px-3 py-2 text-[11px] md:px-6"
-              style={{ borderColor: "var(--dm-border-subtle)", backgroundColor: "var(--dm-bg-elevated)", color: "var(--dm-text-secondary)" }}
-            >
-              {syncStatus?.syncing && (
-                <span className="inline-flex items-center gap-1.5 font-medium text-blue-700 dark:text-blue-300">
-                  <Loader2 size={12} className="animate-spin flex-shrink-0" aria-hidden />
-                  A sincronizar com a Meta…
-                </span>
-              )}
-              {dataSourcePill && !syncStatus?.syncing && (
-                <span>
-                  <span className="font-semibold" style={{ color: "var(--dm-text-primary)" }}>Fonte: </span>
-                  {dataSourcePill.title}
-                  {dataSourcePill.subtitle ? (
-                    <span className="ml-1 opacity-90" title={dataSourcePill.subtitle}>
-                      — <span className="line-clamp-1 sm:line-clamp-none">{dataSourcePill.subtitle}</span>
-                    </span>
-                  ) : null}
-                </span>
-              )}
-              {lastSyncHint && !syncStatus?.syncing && (
-                <span className="opacity-95">
-                  <span className="font-semibold" style={{ color: "var(--dm-text-primary)" }}>Última carga Meta: </span>
-                  {lastSyncHint}
-                </span>
-              )}
-            </div>
-          )}
         </header>
 
         {/* Main scrollable content */}
