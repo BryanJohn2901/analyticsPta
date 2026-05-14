@@ -62,6 +62,16 @@ function reconstructFromSupabase(record: Record<string, unknown>): HistoricalRow
   return { ...base, ...legacy, ...extra } as HistoricalRow;
 }
 
+// Colunas legadas que existem como colunas reais na tabela (retrocompatibilidade)
+const LEGACY_COLUMNS = new Set([
+  "cpm", "reach", "ctr", "clicks",
+  "page_view_rate", "page_views",
+  "pre_checkout_rate", "pre_checkouts",
+  "sales_rate", "sales",
+  "cac", "roas",
+  "campaign_end_date",
+]);
+
 function toDbRow(r: HistoricalRow): Record<string, unknown> {
   const { top, extra } = splitForSupabase(r);
 
@@ -78,10 +88,10 @@ function toDbRow(r: HistoricalRow): Record<string, unknown> {
     extra,
   };
 
-  // Preencher colunas antigas para retrocompatibilidade dos relatórios já existentes
+  // Espelhar apenas colunas legadas conhecidas (novos extras ficam só no JSONB)
   for (const [key, value] of Object.entries(extra)) {
     const snake = toSnakeCase(key);
-    if (!(snake in db)) db[snake] = value;
+    if (LEGACY_COLUMNS.has(snake) && !(snake in db)) db[snake] = value;
   }
   return db;
 }

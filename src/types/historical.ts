@@ -42,7 +42,16 @@ interface HistoricalRowBase {
 // ─── Per-kind extras ──────────────────────────────────────────────────────────
 
 export interface LancamentoExtras {
-  // reservado para campos exclusivos de lançamento no futuro
+  /** Nome do evento/imersão que antecede o lançamento */
+  imersao?: string;
+  /** Ingressos vendidos na imersão */
+  ingressosVendidos?: number;
+  /** Faturamento gerado pelos ingressos da imersão */
+  faturamentoIngresso?: number;
+  /** Vendas da pós-graduação após a imersão */
+  vendasPos?: number;
+  /** Faturamento gerado pelas vendas da pós-graduação */
+  faturamentoPos?: number;
 }
 
 export interface EventoExtras {

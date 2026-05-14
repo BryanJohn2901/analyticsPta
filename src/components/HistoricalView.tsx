@@ -82,6 +82,10 @@ interface FormState {
   product: string; turma: string; month: string; year: string; campaignEndDate: string;
   investment: string; cpm: string; reach: string; clicks: string;
   pageViews: string; preCheckouts: string; sales: string; revenue: string;
+  // Lançamento extras
+  imersao: string;
+  ingressosVendidos: string; faturamentoIngresso: string;
+  vendasPos: string;         faturamentoPos: string;
   // Perpétuo extras
   leads: string; mrr: string; churn: string;
   // Instagram extras
@@ -101,6 +105,7 @@ const EMPTY_FORM: FormState = {
   product: "", turma: "", month: "JANEIRO", year: String(new Date().getFullYear()), campaignEndDate: "",
   investment: "", cpm: "", reach: "", clicks: "",
   pageViews: "", preCheckouts: "", sales: "", revenue: "",
+  imersao: "", ingressosVendidos: "", faturamentoIngresso: "", vendasPos: "", faturamentoPos: "",
   leads: "", mrr: "", churn: "",
   followersGained: "", followersLost: "", profileVisits: "",
   impressionsCount: "", likes: "", comments: "", shares: "",
@@ -123,6 +128,12 @@ const buildRow = (form: FormState, kind: HistoricalKind): HistoricalRow => {
   const followersGained = p(form.followersGained), followersLost = p(form.followersLost);
   const profileVisits = p(form.profileVisits), impressionsCount = p(form.impressionsCount);
   const likes = p(form.likes), comments = p(form.comments), shares = p(form.shares);
+  // Lançamento extras
+  const ingressosVendidos  = p(form.ingressosVendidos);
+  const faturamentoIngresso = p(form.faturamentoIngresso);
+  const vendasPos          = p(form.vendasPos);
+  const faturamentoPos     = p(form.faturamentoPos);
+
   const monthNum = MONTHS.indexOf(form.month as typeof MONTHS[number]) + 1 || 1;
   const year = parseInt(form.year) || new Date().getFullYear();
   const monthKey = `${year}-${String(monthNum).padStart(2, "0")}`;
@@ -144,6 +155,24 @@ const buildRow = (form: FormState, kind: HistoricalKind): HistoricalRow => {
     roas: investment > 0 && revenue > 0 ? revenue / investment : 0,
   };
 
+  if (kind === "lancamento") {
+    const totalRev = faturamentoIngresso + faturamentoPos;
+    return {
+      ...base,
+      // Sobrescreve campos base com valores específicos do lançamento
+      sales: vendasPos,
+      revenue: totalRev || revenue,  // fallback para retrocompat
+      salesRate: ingressosVendidos > 0 ? (vendasPos / ingressosVendidos) * 100 : 0,
+      cac: vendasPos > 0 ? investment / vendasPos : 0,
+      roas: investment > 0 && (totalRev || revenue) > 0 ? (totalRev || revenue) / investment : 0,
+      // Campos extras armazenados em JSONB
+      imersao: form.imersao.trim() || undefined,
+      ingressosVendidos: ingressosVendidos || undefined,
+      faturamentoIngresso: faturamentoIngresso || undefined,
+      vendasPos: vendasPos || undefined,
+      faturamentoPos: faturamentoPos || undefined,
+    } as HistoricalRow;
+  }
   if (kind === "perpetuo") {
     return { ...base, leads, mrr, churn,
       cac: leads > 0 ? investment / leads : 0 } as HistoricalRow;
@@ -156,38 +185,50 @@ const buildRow = (form: FormState, kind: HistoricalKind): HistoricalRow => {
       accountsEngaged: likes + comments + shares,
       saves: shares, likes, comments, shares,
       engagementRate: impressionsCount > 0 ? ((likes + comments + shares) / impressionsCount) * 100 : 0,
-      // store in standard fields for compat
       reach: profileVisits, clicks: followersGained,
     } as HistoricalRow;
   }
   return base as HistoricalRow;
 };
 
-const rowToForm = (r: HistoricalRow): FormState => ({
-  kind: r.kind,
-  product: r.product, turma: r.turma ?? "", month: r.month, year: String(r.year),
-  campaignEndDate: r.campaignEndDate ?? "",
-  investment: r.investment > 0 ? String(r.investment) : "",
-  cpm: r.cpm > 0 ? String(r.cpm) : "",
-  reach: r.reach > 0 ? String(r.reach) : "",
-  clicks: r.clicks > 0 ? String(r.clicks) : "",
-  pageViews: r.pageViews > 0 ? String(r.pageViews) : "",
-  preCheckouts: r.preCheckouts > 0 ? String(r.preCheckouts) : "",
-  sales: r.sales > 0 ? String(r.sales) : "",
-  revenue: r.revenue > 0 ? String(r.revenue) : "",
-  // Perpetuo
-  leads: (r as { leads?: number }).leads ? String((r as { leads?: number }).leads) : "",
-  mrr:   (r as { mrr?: number }).mrr   ? String((r as { mrr?: number }).mrr)   : "",
-  churn: (r as { churn?: number }).churn ? String((r as { churn?: number }).churn) : "",
-  // Instagram
-  followersGained: (r as { newFollowers?: number }).newFollowers ? String((r as { newFollowers?: number }).newFollowers) : "",
-  followersLost: "",
-  profileVisits: r.kind === "instagram" ? String(r.reach) : "",
-  impressionsCount: (r as { accountsReached?: number }).accountsReached ? String((r as { accountsReached?: number }).accountsReached) : "",
-  likes: (r as { likes?: number }).likes ? String((r as { likes?: number }).likes) : "",
-  comments: (r as { comments?: number }).comments ? String((r as { comments?: number }).comments) : "",
-  shares: (r as { shares?: number }).shares ? String((r as { shares?: number }).shares) : "",
-});
+const rowToForm = (r: HistoricalRow): FormState => {
+  const rx = r as unknown as Record<string, unknown>;
+  const num = (k: string) => (rx[k] as number | undefined) ?? 0;
+  const str = (k: string) => num(k) > 0 ? String(num(k)) : "";
+
+  return {
+    kind: r.kind,
+    product: r.product, turma: r.turma ?? "", month: r.month, year: String(r.year),
+    campaignEndDate: r.campaignEndDate ?? "",
+    investment: r.investment > 0 ? String(r.investment) : "",
+    cpm: r.cpm > 0 ? String(r.cpm) : "",
+    reach: r.reach > 0 ? String(r.reach) : "",
+    clicks: r.clicks > 0 ? String(r.clicks) : "",
+    pageViews: r.pageViews > 0 ? String(r.pageViews) : "",
+    preCheckouts: r.preCheckouts > 0 ? String(r.preCheckouts) : "",
+    sales: r.sales > 0 ? String(r.sales) : "",
+    revenue: r.revenue > 0 ? String(r.revenue) : "",
+    // Lançamento extras
+    imersao: (rx.imersao as string | undefined) ?? "",
+    ingressosVendidos: str("ingressosVendidos"),
+    faturamentoIngresso: str("faturamentoIngresso"),
+    // Retrocompat: se vendasPos não existe, usa sales; se faturamentoPos não existe, usa revenue
+    vendasPos: str("vendasPos") || (r.kind === "lancamento" && r.sales > 0 ? String(r.sales) : ""),
+    faturamentoPos: str("faturamentoPos") || (r.kind === "lancamento" && num("faturamentoIngresso") === 0 && r.revenue > 0 ? String(r.revenue) : ""),
+    // Perpetuo
+    leads: str("leads"),
+    mrr:   str("mrr"),
+    churn: str("churn"),
+    // Instagram
+    followersGained: str("newFollowers"),
+    followersLost: "",
+    profileVisits: r.kind === "instagram" ? String(r.reach) : "",
+    impressionsCount: str("accountsReached"),
+    likes: str("likes"),
+    comments: str("comments"),
+    shares: str("shares"),
+  };
+};
 
 // ─── Entry Form modal ─────────────────────────────────────────────────────────
 
@@ -208,6 +249,12 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
     const reach = p(form.reach), clicks = p(form.clicks);
     const pageViews = p(form.pageViews), preCheckouts = p(form.preCheckouts);
     const sales = p(form.sales);
+    // Lançamento-specific
+    const ingressos   = p(form.ingressosVendidos);
+    const fatIngresso = p(form.faturamentoIngresso);
+    const vendPos     = p(form.vendasPos);
+    const fatPos      = p(form.faturamentoPos);
+    const totalRev    = fatIngresso + fatPos;
     return {
       ctr: reach > 0 ? (clicks / reach) * 100 : null,
       pageViewRate: clicks > 0 ? (pageViews / clicks) * 100 : null,
@@ -215,6 +262,13 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
       salesRate: preCheckouts > 0 ? (sales / preCheckouts) * 100 : null,
       cac: sales > 0 && inv > 0 ? inv / sales : null,
       roas: inv > 0 && rev > 0 ? rev / inv : null,
+      // lancamento
+      txIngresso: preCheckouts > 0 && ingressos > 0 ? (ingressos / preCheckouts) * 100 : null,
+      txPos: ingressos > 0 && vendPos > 0 ? (vendPos / ingressos) * 100 : null,
+      cacLanc: vendPos > 0 && inv > 0 ? inv / vendPos : null,
+      roasLanc: inv > 0 && totalRev > 0 ? totalRev / inv : null,
+      fatIngresso: fatIngresso || null,
+      fatPos: fatPos || null,
     };
   }, [form]);
 
@@ -271,13 +325,14 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
               </label>
               <label className={labelCls}>
                 Turma / Edição
-                <input
-                  value={form.turma}
-                  onChange={set("turma")}
-                  placeholder="Ex: 3"
-                  className={fieldCls}
-                />
+                <input value={form.turma} onChange={set("turma")} placeholder="Ex: 3" className={fieldCls} />
               </label>
+              {form.kind === "lancamento" && (
+                <label className={`${labelCls} sm:col-span-3`}>
+                  Nome da Imersão <span className="font-normal text-slate-400">(opcional)</span>
+                  <input value={form.imersao} onChange={set("imersao")} placeholder="Ex: Pré-Especialização em Treinamento Feminino" className={fieldCls} />
+                </label>
+              )}
               <label className={labelCls}>
                 Mês *
                 <select required value={form.month} onChange={set("month")} className={fieldCls}>
@@ -361,8 +416,88 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
                 </div>
               </div>
             </div>
+          ) : form.kind === "lancamento" ? (
+            /* Lançamento: funil + breakdown imersão / pós */
+            <div className="px-4 py-5 sm:px-6 space-y-4">
+              {/* Funil de tráfego */}
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Funil de tráfego</p>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} placeholder="185665" className={fieldCls} /></label>
+                  <label className={labelCls}>CPM (R$)<input value={form.cpm} onChange={set("cpm")} placeholder="11.47" className={fieldCls} /></label>
+                  <label className={labelCls}>Alcance<input value={form.reach} onChange={set("reach")} placeholder="12027081" className={fieldCls} /></label>
+                  <label className={labelCls}>Cliques<input value={form.clicks} onChange={set("clicks")} placeholder="89536" className={fieldCls} /></label>
+                  <label className={labelCls}>Visualiz. de Página<input value={form.pageViews} onChange={set("pageViews")} placeholder="67996" className={fieldCls} /></label>
+                  <label className={labelCls}>Pré-checkout<input value={form.preCheckouts} onChange={set("preCheckouts")} placeholder="2720" className={fieldCls} /></label>
+                </div>
+              </div>
+
+              {/* Imersão */}
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Imersão{form.imersao ? ` — ${form.imersao}` : ""}
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className={labelCls}>Ingressos Vendidos<input value={form.ingressosVendidos} onChange={set("ingressosVendidos")} placeholder="1140" className={fieldCls} /></label>
+                  <label className={labelCls}>Faturamento do Ingresso (R$)<input value={form.faturamentoIngresso} onChange={set("faturamentoIngresso")} placeholder="28213.80" className={fieldCls} /></label>
+                </div>
+              </div>
+
+              {/* Pós-graduação */}
+              <div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Pós-graduação</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <label className={labelCls}>Vendas de Pós *<input required value={form.vendasPos} onChange={set("vendasPos")} placeholder="93" className={fieldCls} /></label>
+                  <label className={labelCls}>Faturamento do Pós (R$)<input value={form.faturamentoPos} onChange={set("faturamentoPos")} placeholder="16503.00" className={fieldCls} /></label>
+                </div>
+              </div>
+
+              {/* Calculado automaticamente */}
+              <div className="bg-slate-50 rounded-lg px-3 py-3 dark:bg-slate-700/40">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Calculado automaticamente</p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "CTR",          val: preview.ctr !== null           ? `${preview.ctr.toFixed(2)}%`           : "—" },
+                    { label: "Tx. Página",   val: preview.pageViewRate !== null   ? `${preview.pageViewRate.toFixed(1)}%`  : "—" },
+                    { label: "Tx. Pré-chk", val: preview.preCheckoutRate !== null ? `${preview.preCheckoutRate.toFixed(1)}%` : "—" },
+                    { label: "Tx. Ingresso", val: preview.txIngresso !== null     ? `${preview.txIngresso.toFixed(1)}%`    : "—" },
+                    { label: "Tx. Pós",     val: preview.txPos !== null           ? `${preview.txPos.toFixed(1)}%`          : "—" },
+                    { label: "CAC",         val: preview.cacLanc !== null         ? formatCurrency(preview.cacLanc)          : "—" },
+                    { label: "ROAS",        val: preview.roasLanc !== null        ? `${preview.roasLanc.toFixed(2)}x`        : "—" },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-600 dark:bg-slate-700">
+                      <p className="text-xs text-slate-400 dark:text-slate-500">{label}</p>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{val}</p>
+                    </div>
+                  ))}
+                  {/* Breakdown de faturamento */}
+                  {(preview.fatIngresso !== null || preview.fatPos !== null) && (
+                    <div className="w-full mt-1 flex flex-wrap gap-2">
+                      {preview.fatIngresso !== null && (
+                        <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 dark:border-indigo-700 dark:bg-indigo-900/20">
+                          <p className="text-xs text-indigo-400 dark:text-indigo-400">Fat. Ingresso</p>
+                          <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">{formatCurrency(preview.fatIngresso)}</p>
+                        </div>
+                      )}
+                      {preview.fatPos !== null && (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 dark:border-emerald-700 dark:bg-emerald-900/20">
+                          <p className="text-xs text-emerald-400 dark:text-emerald-400">Fat. Pós</p>
+                          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">{formatCurrency(preview.fatPos)}</p>
+                        </div>
+                      )}
+                      {preview.fatIngresso !== null && preview.fatPos !== null && (
+                        <div className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-600 dark:bg-slate-700">
+                          <p className="text-xs text-slate-400 dark:text-slate-500">Total</p>
+                          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(preview.fatIngresso + preview.fatPos)}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           ) : (
-            /* Lançamento + Evento: standard funnel with context labels */
+            /* Evento: funil padrão */
             <div className="px-4 py-5 sm:px-6">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Funil de tráfego</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -372,7 +507,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
                 <label className={labelCls}>Cliques<input value={form.clicks} onChange={set("clicks")} placeholder="4074" className={fieldCls} /></label>
                 <label className={labelCls}>Visualiz. de Página<input value={form.pageViews} onChange={set("pageViews")} placeholder="2107" className={fieldCls} /></label>
                 <label className={labelCls}>Pré-checkout<input value={form.preCheckouts} onChange={set("preCheckouts")} placeholder="717" className={fieldCls} /></label>
-                <label className={labelCls}>{form.kind === "evento" ? "Ingressos Vendidos" : "Vendas"} *
+                <label className={labelCls}>Ingressos Vendidos *
                   <input required value={form.sales} onChange={set("sales")} placeholder="46" className={fieldCls} />
                 </label>
                 <label className={labelCls}>Faturamento (R$)<input value={form.revenue} onChange={set("revenue")} placeholder="16309.00" className={fieldCls} /></label>
@@ -381,12 +516,12 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Calculado automaticamente</p>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { label: "CTR",        val: preview.ctr !== null             ? `${preview.ctr.toFixed(2)}%`             : "—" },
-                    { label: "Tx. Página", val: preview.pageViewRate !== null     ? `${preview.pageViewRate.toFixed(1)}%`     : "—" },
-                    { label: "Tx. Pré-chk",val: preview.preCheckoutRate !== null ? `${preview.preCheckoutRate.toFixed(1)}%` : "—" },
-                    { label: form.kind === "evento" ? "Tx. Ingresso" : "Tx. Vendas", val: preview.salesRate !== null ? `${preview.salesRate.toFixed(1)}%` : "—" },
-                    { label: "CAC",        val: preview.cac !== null              ? formatCurrency(preview.cac)              : "—" },
-                    { label: "ROAS",       val: preview.roas !== null             ? `${preview.roas.toFixed(2)}x`             : "—" },
+                    { label: "CTR",          val: preview.ctr !== null             ? `${preview.ctr.toFixed(2)}%`             : "—" },
+                    { label: "Tx. Página",   val: preview.pageViewRate !== null     ? `${preview.pageViewRate.toFixed(1)}%`    : "—" },
+                    { label: "Tx. Pré-chk", val: preview.preCheckoutRate !== null  ? `${preview.preCheckoutRate.toFixed(1)}%` : "—" },
+                    { label: "Tx. Ingresso", val: preview.salesRate !== null        ? `${preview.salesRate.toFixed(1)}%`       : "—" },
+                    { label: "CAC",          val: preview.cac !== null              ? formatCurrency(preview.cac)              : "—" },
+                    { label: "ROAS",         val: preview.roas !== null             ? `${preview.roas.toFixed(2)}x`            : "—" },
                   ].map(({ label, val }) => (
                     <div key={label} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 dark:border-slate-600 dark:bg-slate-700">
                       <p className="text-xs text-slate-400 dark:text-slate-500">{label}</p>
@@ -996,7 +1131,9 @@ export function HistoricalView() {
                       ? ["Mês","Produto","Seguid. Ganhos","Perdidos","Visitas","Alcance","Cliques","Curtidas","Comentários","Compart.","Tx. Eng.",""]
                       : selectedKind === "perpetuo"
                       ? ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Leads","Vendas","Receita","MRR","CAC","ROAS",""]
-                      : ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk", selectedKind === "evento" ? "Ingressos" : "Vendas","Faturamento","CAC","ROAS",""]
+                      : selectedKind === "lancamento"
+                      ? ["Mês","Produto","Imersão","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Fat. Ingresso","Vendas Pós","Fat. Pós","CAC","ROAS",""]
+                      : ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Faturamento","CAC","ROAS",""]
                     ).map((h) => (
                       <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">{h}</th>
                     ))}
@@ -1068,7 +1205,41 @@ export function HistoricalView() {
                         </tr>
                       );
                     }
-                    // lancamento / evento
+                    // lancamento
+                    if (r.kind === "lancamento") {
+                      const ingressos   = (rx.ingressosVendidos   as number) || 0;
+                      const fatIngresso = (rx.faturamentoIngresso  as number) || 0;
+                      const vendPos     = (rx.vendasPos            as number) || r.sales;
+                      // Retrocompat: se fatPos/fatIngresso não existem, revenue vai tudo em Fat. Pós
+                      const fatPos      = (rx.faturamentoPos       as number) ||
+                                          (fatIngresso === 0 ? r.revenue : 0);
+                      const imersao     = (r as unknown as Record<string, unknown>).imersao as string | undefined;
+                      return (
+                        <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                          <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
+                          <td className="whitespace-nowrap px-3 py-2">
+                            <ProductCell product={r.product} turma={r.turma} />
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2 max-w-[120px] truncate text-slate-400 dark:text-slate-500" title={imersao}>
+                            {imersao ?? "—"}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-2">{r.investment > 0 ? formatCurrency(r.investment) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{r.reach > 0 ? formatNumber(r.reach) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{r.clicks > 0 ? formatNumber(r.clicks) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{r.ctr > 0 ? `${r.ctr.toFixed(2)}%` : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{r.pageViews > 0 ? formatNumber(r.pageViews) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{r.preCheckouts > 0 ? formatNumber(r.preCheckouts) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2 font-semibold text-indigo-600 dark:text-indigo-400">{ingressos > 0 ? formatNumber(ingressos) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-indigo-600 dark:text-indigo-400">{fatIngresso > 0 ? formatCurrency(fatIngresso) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2 font-semibold text-emerald-600 dark:text-emerald-400">{vendPos > 0 ? formatNumber(vendPos) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2 text-emerald-600 dark:text-emerald-400">{fatPos > 0 ? formatCurrency(fatPos) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{r.cac > 0 ? formatCurrency(r.cac) : "—"}</td>
+                          <td className="whitespace-nowrap px-3 py-2">{r.roas > 0 ? `${r.roas.toFixed(2)}x` : "—"}</td>
+                          {actionBtns}
+                        </tr>
+                      );
+                    }
+                    // evento
                     return (
                       <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
                         <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
