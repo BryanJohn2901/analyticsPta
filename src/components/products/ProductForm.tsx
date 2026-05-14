@@ -563,8 +563,10 @@ export function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   );
 
   // ── Form state ──────────────────────────────────────────────────────────────
+  // Ao editar, mescla com emptyProduct como base para garantir que campos
+  // adicionados após o produto ter sido salvo nunca fiquem como undefined.
   const [form, setForm] = useState<Omit<ProductData, "id" | "createdAt" | "updatedAt">>(() =>
-    isEdit ? { ...product! } : emptyProduct("pos"),
+    isEdit ? { ...emptyProduct(product!.type), ...product! } : emptyProduct("pos"),
   );
 
   const set = <K extends keyof typeof form>(key: K, val: (typeof form)[K]) =>
