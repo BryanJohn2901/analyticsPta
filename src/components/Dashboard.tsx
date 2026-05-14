@@ -80,7 +80,14 @@ function formatDataSourcePill(ds: DataSource | null | undefined): { title: strin
   return { title: titles[ds.type], subtitle: ds.label };
 }
 
-type MainTab = "overview" | "history" | "analysis" | "creatives" | "profiles" | "products";
+type MainTab = "overview" | "history" | "profiles" | "products";
+type DashSubTab = "overview" | "analysis" | "creatives";
+
+const DASH_SUB_TABS: Array<{ id: DashSubTab; label: string; icon: React.ElementType }> = [
+  { id: "overview",  label: "Visão Geral", icon: LayoutDashboard },
+  { id: "analysis",  label: "Análise",     icon: LineChart },
+  { id: "creatives", label: "Criativos",   icon: Sparkles },
+];
 
 type SortBy = "date-desc" | "date-asc" | "invest-desc" | "invest-asc" | "roas-desc" | "ctr-desc";
 
@@ -96,11 +103,9 @@ const SORT_LABELS: Record<SortBy, string> = {
 // ─── Nav config ───────────────────────────────────────────────────────────────
 
 const MAIN_TABS: Array<{ id: MainTab; label: string; shortLabel: string; icon: React.ElementType }> = [
-  { id: "overview",  label: "Visão Geral",      shortLabel: "Visão Geral",  icon: LayoutDashboard },
+  { id: "overview",  label: "Dashboard",         shortLabel: "Dashboard",    icon: LayoutDashboard },
   { id: "history",   label: "Histórico",         shortLabel: "Histórico",    icon: History },
-  { id: "analysis",  label: "Análise",           shortLabel: "Análise",      icon: LineChart },
-  { id: "creatives", label: "Criativos",         shortLabel: "Criativos",    icon: Sparkles },
-  { id: "profiles",  label: "Perfil de Anunciantes", shortLabel: "Perfil",    icon: Target },
+  { id: "profiles",  label: "Perfil de Anunciantes", shortLabel: "Perfil",   icon: Target },
   { id: "products",  label: "Base de Produtos",  shortLabel: "Produtos",     icon: Database },
 ];
 
@@ -1411,6 +1416,7 @@ export function Dashboard({
   onOpenControlPanel,
 }: DashboardProps) {
   const [mainTab, setMainTab]               = useState<MainTab>("overview");
+  const [dashSubTab, setDashSubTab]         = useState<DashSubTab>("overview");
   const [dateFrom, setDateFrom]             = useState<string>(() => {
     try { return localStorage.getItem("pta_date_from_v1") ?? ""; } catch { return ""; }
   });
@@ -2204,6 +2210,26 @@ export function Dashboard({
             ) : (
               /* ── Dashboard com dados (todas as campanhas até escolher categoria no topo) ── */
               <div className="space-y-6">
+
+                {/* ── Sub-tab switcher ── */}
+                <nav className="flex gap-1 rounded-xl border p-1" style={{ borderColor: "var(--dm-border-default)", backgroundColor: "var(--dm-bg-elevated)" }}>
+                  {DASH_SUB_TABS.map(({ id, label, icon: Icon }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setDashSubTab(id)}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+                      style={dashSubTab === id
+                        ? { backgroundColor: "var(--dm-brand-500)", color: "#fff" }
+                        : { color: "var(--dm-text-secondary)" }}
+                    >
+                      <Icon size={13} aria-hidden />
+                      {label}
+                    </button>
+                  ))}
+                </nav>
+
+                {dashSubTab === "overview" && (<>
                 {overviewSelectionSummary && (
                   <section
                     className="rounded-2xl border px-4 py-4 shadow-sm md:px-5"
@@ -2457,61 +2483,62 @@ export function Dashboard({
                   dateTo={dateTo || undefined}
                 />
                 <CampaignTable campaigns={sortedCampaigns} isMetricVisible={isMetricVisible} />
+                </>)}
+
+                {dashSubTab === "analysis" && (
+                  aggregated.length === 0 ? (
+                    <TabLanding
+                      icon={BarChart2}
+                      title="Análise de Campanhas"
+                      subtitle="Mergulhe fundo nos dados: diagnósticos automáticos, pontos críticos e oportunidades de melhoria para cada campanha."
+                      features={[
+                        { icon: Target,       label: "Score de Saúde",             description: "Pontuação de 0 a 100 baseada em KPIs reais da campanha." },
+                        { icon: CheckCircle2, label: "Diagnósticos Automáticos",   description: "Pontos positivos, críticos e tarefas de otimização gerados automaticamente." },
+                        { icon: Trophy,       label: "Top Performers",             description: "Identifique os criativos e conjuntos de anúncios com melhor resultado." },
+                      ]}
+                      steps={[
+                        { label: "Importe os dados",     description: "Conecte Meta Ads, Google Sheets ou envie um CSV." },
+                        { label: "Selecione a campanha", description: "Use o painel lateral para escolher o grupo a analisar." },
+                        { label: "Leia o diagnóstico",   description: "Veja o score, alertas e ações recomendadas." },
+                      ]}
+                      cta={{ label: "Importar dados agora", onClick: () => onOpenControlPanel ? onOpenControlPanel() : openImport("sheets") }}
+                    />
+                  ) : (
+                    <CampaignAnalysis campaigns={aggregated} selectedCategory={selectedCategory as ProductCategory | null} isMetricVisible={isMetricVisible} />
+                  )
+                )}
+
+                {dashSubTab === "creatives" && (
+                  aggregated.length === 0 ? (
+                    <TabLanding
+                      icon={ImageIcon}
+                      title="Análise de Criativos"
+                      subtitle="Identifique quais criativos performam melhor e construa uma biblioteca visual de referências de sucesso."
+                      features={[
+                        { icon: TrendingUp, label: "Ranking de Criativos",      description: "Ordene por CTR, ROAS ou conversões para achar os vencedores." },
+                        { icon: ImageIcon,  label: "Thumbnails Visuais",        description: "Conecte via Meta Ads e veja as imagens reais de cada anúncio." },
+                        { icon: BookOpen,   label: "Biblioteca de Referências", description: "Salve e organize os melhores criativos como referência futura." },
+                      ]}
+                      steps={[
+                        { label: "Conecte o Meta Ads",  description: "Use seu Access Token para trazer dados em tempo real." },
+                        { label: "Selecione campanhas", description: "Escolha quais conjuntos de anúncios monitorar." },
+                        { label: "Veja o ranking",      description: "Criativos ordenados por performance com thumbnails." },
+                      ]}
+                      cta={{ label: "Conectar Meta Ads", onClick: () => onOpenControlPanel ? onOpenControlPanel() : openImport("sheets") }}
+                      ctaSecondary={{ label: "Importar CSV", onClick: () => openImport("csv") }}
+                    />
+                  ) : (
+                    <BestCreatives
+                      campaigns={aggregated}
+                      adAccountId={selectedGroup !== "all" ? campaignConfigs[selectedGroup]?.adAccountId : undefined}
+                    />
+                  )
+                )}
               </div>
             )
           )}
 
-          {mainTab === "history"   && <HistoricalView />}
-
-          {mainTab === "analysis" && (
-            aggregated.length === 0 ? (
-              <TabLanding
-                icon={BarChart2}
-                title="Análise de Campanhas"
-                subtitle="Mergulhe fundo nos dados: diagnósticos automáticos, pontos críticos e oportunidades de melhoria para cada campanha."
-                features={[
-                  { icon: Target,     label: "Score de Saúde",          description: "Pontuação de 0 a 100 baseada em KPIs reais da campanha." },
-                  { icon: CheckCircle2, label: "Diagnósticos Automáticos", description: "Pontos positivos, críticos e tarefas de otimização gerados automaticamente." },
-                  { icon: Trophy,     label: "Top Performers",           description: "Identifique os criativos e conjuntos de anúncios com melhor resultado." },
-                ]}
-                steps={[
-                  { label: "Importe os dados",      description: "Conecte Meta Ads, Google Sheets ou envie um CSV." },
-                  { label: "Selecione a campanha",  description: "Use o painel lateral para escolher o grupo a analisar." },
-                  { label: "Leia o diagnóstico",    description: "Veja o score, alertas e ações recomendadas." },
-                ]}
-                cta={{ label: "Importar dados agora", onClick: () => onOpenControlPanel ? onOpenControlPanel() : openImport("sheets") }}
-              />
-            ) : (
-              <CampaignAnalysis campaigns={aggregated} selectedCategory={selectedCategory as ProductCategory | null} isMetricVisible={isMetricVisible} />
-            )
-          )}
-
-          {mainTab === "creatives" && (
-            aggregated.length === 0 ? (
-              <TabLanding
-                icon={ImageIcon}
-                title="Análise de Criativos"
-                subtitle="Identifique quais criativos performam melhor e construa uma biblioteca visual de referências de sucesso."
-                features={[
-                  { icon: TrendingUp, label: "Ranking de Criativos",    description: "Ordene por CTR, ROAS ou conversões para achar os vencedores." },
-                  { icon: ImageIcon,  label: "Thumbnails Visuais",      description: "Conecte via Meta Ads e veja as imagens reais de cada anúncio." },
-                  { icon: BookOpen,   label: "Biblioteca de Referências", description: "Salve e organize os melhores criativos como referência futura." },
-                ]}
-                steps={[
-                  { label: "Conecte o Meta Ads",    description: "Use seu Access Token para trazer dados em tempo real." },
-                  { label: "Selecione campanhas",   description: "Escolha quais conjuntos de anúncios monitorar." },
-                  { label: "Veja o ranking",         description: "Criativos ordenados por performance com thumbnails." },
-                ]}
-                cta={{ label: "Conectar Meta Ads", onClick: () => onOpenControlPanel ? onOpenControlPanel() : openImport("sheets") }}
-                ctaSecondary={{ label: "Importar CSV", onClick: () => openImport("csv") }}
-              />
-            ) : (
-              <BestCreatives
-                campaigns={aggregated}
-                adAccountId={selectedGroup !== "all" ? campaignConfigs[selectedGroup]?.adAccountId : undefined}
-              />
-            )
-          )}
+          {mainTab === "history" && <HistoricalView />}
 
           {mainTab === "products"  && <ProductBase />}
           {mainTab === "profiles" && (
