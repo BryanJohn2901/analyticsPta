@@ -19,10 +19,10 @@
   /* ----------------------------------------------------------
      FUNDAÇÃO — Dashfolio Neo: off-white quente, cards brancos
      ---------------------------------------------------------- */
-  --dm-bg-page:          #F7F7F7;
+  --dm-bg-page:          #F4F7FE;
   --dm-bg-surface:       #FFFFFF;
   --dm-bg-sidebar:       #FFFFFF;
-  --dm-bg-elevated:      #F0F0F0;
+  --dm-bg-elevated:      #EEF2FB;
 
   --dm-border-subtle:    #F0F0F0;
   --dm-border-default:   #E5E5E5;
@@ -38,39 +38,39 @@
   --dm-text-inverse:     #FFFFFF;
 
   /* ----------------------------------------------------------
-     MARCA — Azul (único destaque, alinhado Dashfolio Neo)
+     MARCA — Indigo DashMonster (#313491 Horizon-adapted)
      ---------------------------------------------------------- */
-  --dm-brand-50:         #EFF6FF;
-  --dm-brand-100:        #DBEAFE;
-  --dm-brand-200:        #BFDBFE;
-  --dm-brand-400:        #60A5FA;
-  --dm-brand-500:        #3B82F6;
-  --dm-brand-600:        #2563EB;
-  --dm-brand-700:        #1D4ED8;
-  --dm-brand-900:        #1E3A8A;
+  --dm-brand-50:         #EEEEFF;
+  --dm-brand-100:        #DDDDFB;
+  --dm-brand-200:        #C5C5F5;
+  --dm-brand-400:        #4D4EAA;
+  --dm-brand-500:        #313491;
+  --dm-brand-600:        #2a2d82;
+  --dm-brand-700:        #22256b;
+  --dm-brand-900:        #14165c;
 
   /* ----------------------------------------------------------
      NAV — ESTADOS
      ---------------------------------------------------------- */
-  --dm-nav-active-bg:    #EFF6FF;
-  --dm-nav-active-text:  #1D4ED8;
-  --dm-nav-active-dot:   #3B82F6;
-  --dm-nav-hover-bg:     #F5F5F5;
-  --dm-nav-hover-text:   #0A0A0A;
-  --dm-nav-default-text: #6B6B6B;
+  --dm-nav-active-bg:    rgba(49,52,145,0.08);
+  --dm-nav-active-text:  #313491;
+  --dm-nav-active-dot:   #313491;
+  --dm-nav-hover-bg:     rgba(49,52,145,0.04);
+  --dm-nav-hover-text:   #313491;
+  --dm-nav-default-text: #707EAE;
 
   /* ----------------------------------------------------------
      BOTÕES
      ---------------------------------------------------------- */
-  --dm-btn-primary-bg:   #3B82F6;
+  --dm-btn-primary-bg:   #313491;
   --dm-btn-primary-text: #FFFFFF;
-  --dm-btn-primary-hover:#2563EB;
-  --dm-btn-ghost-bg:     #EFF6FF;
-  --dm-btn-ghost-text:   #2563EB;
-  --dm-btn-ghost-hover:  #DBEAFE;
-  --dm-btn-destructive-bg:   #DC2626;
+  --dm-btn-primary-hover:#2a2d82;
+  --dm-btn-ghost-bg:     rgba(49,52,145,0.08);
+  --dm-btn-ghost-text:   #313491;
+  --dm-btn-ghost-hover:  rgba(49,52,145,0.14);
+  --dm-btn-destructive-bg:   #EE5D50;
   --dm-btn-destructive-text: #FFFFFF;
-  --dm-btn-destructive-hover:#B91C1C;
+  --dm-btn-destructive-hover:#DC2626;
 
   /* ----------------------------------------------------------
      CATEGORIAS — sistema semântico (mantido)
@@ -147,30 +147,30 @@
   /* ----------------------------------------------------------
      VALORES SEMÂNTICOS (4.3) — positivo / negativo / neutro
      ---------------------------------------------------------- */
-  --dm-value-positive:    #00C48C;
-  --dm-value-positive-bg: #00C48C18;
-  --dm-value-negative:    #FF4D4F;
-  --dm-value-negative-bg: #FF4D4F18;
-  --dm-value-neutral:     #999999;
-  --dm-value-neutral-bg:  #99999918;
+  --dm-value-positive:    #05CD99;
+  --dm-value-positive-bg: rgba(5,205,153,0.10);
+  --dm-value-negative:    #EE5D50;
+  --dm-value-negative-bg: rgba(238,93,80,0.10);
+  --dm-value-neutral:     #A3AED0;
+  --dm-value-neutral-bg:  rgba(163,174,208,0.12);
 
   /* ----------------------------------------------------------
      DATA VIZ
      ---------------------------------------------------------- */
-  --dm-delta-up:       #00C48C;
-  --dm-delta-up-bg:    #00C48C18;
-  --dm-delta-down:     #FF4D4F;
-  --dm-delta-down-bg:  #FF4D4F18;
-  --dm-delta-flat:     #999999;
-  --dm-delta-flat-bg:  #99999918;
+  --dm-delta-up:       #05CD99;
+  --dm-delta-up-bg:    rgba(5,205,153,0.10);
+  --dm-delta-down:     #EE5D50;
+  --dm-delta-down-bg:  rgba(238,93,80,0.10);
+  --dm-delta-flat:     #A3AED0;
+  --dm-delta-flat-bg:  rgba(163,174,208,0.12);
 
-  --dm-chart-1:  #3B82F6;
-  --dm-chart-2:  #059669;
-  --dm-chart-3:  #D97706;
-  --dm-chart-4:  #DC2626;
-  --dm-chart-5:  #7C3AED;
-  --dm-chart-6:  #0284C7;
-  --dm-chart-7:  #A3A3A3;
+  --dm-chart-1:  #313491;
+  --dm-chart-2:  #05CD99;
+  --dm-chart-3:  #FFB547;
+  --dm-chart-4:  #EE5D50;
+  --dm-chart-5:  #6366C8;
+  --dm-chart-6:  #17C1E8;
+  --dm-chart-7:  #A3AED0;
 
   /* ----------------------------------------------------------
      FOCO
@@ -196,23 +196,23 @@
   /* ----------------------------------------------------------
      FUNDAÇÃO
      ---------------------------------------------------------- */
-  --dm-bg-page:          #0C0C0C;
-  --dm-bg-surface:       #161616;
-  --dm-bg-sidebar:       #0C0C0C;
-  --dm-bg-elevated:      #202020;
+  --dm-bg-page:          #0b1437;
+  --dm-bg-surface:       #111c44;
+  --dm-bg-sidebar:       #111c44;
+  --dm-bg-elevated:      #1B254B;
 
-  --dm-border-subtle:    #1A1A1A;
-  --dm-border-default:   #242424;
-  --dm-border-strong:    #333333;
+  --dm-border-subtle:    #1a2a5e;
+  --dm-border-default:   #243062;
+  --dm-border-strong:    #2f3f7a;
 
   /* ----------------------------------------------------------
      TIPOGRAFIA DARK (4.3 — contraste mínimo 4.5:1)
      ---------------------------------------------------------- */
-  --dm-text-primary:     #F5F5F5;  /* ~16:1 on #161616 */
-  --dm-text-secondary:   #A3A3A3;  /* ~4.6:1 on #161616 — AA ✓ */
-  --dm-text-tertiary:    #525252;  /* decorativo */
-  --dm-text-disabled:    #2A2A2A;
-  --dm-text-inverse:     #0C0C0C;
+  --dm-text-primary:     #FFFFFF;  /* on #111c44 navy */
+  --dm-text-secondary:   #A0AEC0;  /* muted blue-gray */
+  --dm-text-tertiary:    #4A5568;  /* decorativo */
+  --dm-text-disabled:    #2D3748;
+  --dm-text-inverse:     #0b1437;
 
   /* ----------------------------------------------------------
      MARCA DARK — Azul mais claro sobre fundo escuro
@@ -229,12 +229,12 @@
   /* ----------------------------------------------------------
      NAV DARK
      ---------------------------------------------------------- */
-  --dm-nav-active-bg:    #0F1B2E;
-  --dm-nav-active-text:  #93C5FD;
+  --dm-nav-active-bg:    rgba(255, 255, 255, 0.12);
+  --dm-nav-active-text:  #FFFFFF;
   --dm-nav-active-dot:   #60A5FA;
-  --dm-nav-hover-bg:     #1A1A1A;
-  --dm-nav-hover-text:   #F5F5F5;
-  --dm-nav-default-text: #909090;
+  --dm-nav-hover-bg:     rgba(255, 255, 255, 0.06);
+  --dm-nav-hover-text:   #FFFFFF;
+  --dm-nav-default-text: #A0AEC0;
 
   /* ----------------------------------------------------------
      BOTÕES DARK
@@ -363,13 +363,13 @@
   --brand-hover: var(--dm-btn-primary-hover);
 }
 
-/* Sombras dark — profundas, sem glow colorido */
-.dark .shadow-sm { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.5); }
-.dark .shadow    { box-shadow: 0 2px 6px 0 rgb(0 0 0 / 0.55); }
-.dark .shadow-md { box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.6); }
-.dark .shadow-lg { box-shadow: 0 8px 20px -4px rgb(0 0 0 / 0.65); }
-.dark .shadow-xl { box-shadow: 0 16px 32px -6px rgb(0 0 0 / 0.7); }
-.dark .shadow-2xl{ box-shadow: 0 24px 48px -8px rgb(0 0 0 / 0.75); }
+/* Sombras dark — navy Horizon palette */
+.dark .shadow-sm { box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.35); }
+.dark .shadow    { box-shadow: 0 2px 6px 0 rgb(0 0 0 / 0.4); }
+.dark .shadow-md { box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.45); }
+.dark .shadow-lg { box-shadow: 0 8px 20px -4px rgb(0 0 0 / 0.5); }
+.dark .shadow-xl { box-shadow: 0 16px 32px -6px rgb(0 0 0 / 0.55); }
+.dark .shadow-2xl{ box-shadow: 0 24px 48px -8px rgb(0 0 0 / 0.6); }
 
 /* Category card hover */
 .dm-cat-card:hover { border-color: var(--dm-cat-card-hover-border) !important; }
@@ -381,13 +381,36 @@
   --color-brand-hover:var(--brand-hover);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
-  --font-display: var(--font-outfit);
+  --font-display: var(--font-poppins);
+}
+
+/* ── Horizon UI signature shadow ── */
+.shadow-horizon {
+  box-shadow: 14px 17px 40px 4px rgba(112, 144, 176, 0.08);
+}
+.dark .shadow-horizon {
+  box-shadow: 14px 17px 40px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* ── Card hover (subtle shadow lift) ── */
+.card-hover {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+.card-hover:hover {
+  box-shadow: 14px 17px 40px 4px rgba(112, 144, 176, 0.18) !important;
+}
+.dark .card-hover:hover {
+  box-shadow: 14px 17px 40px 4px rgba(0, 0, 0, 0.50) !important;
 }
 
 body {
   background: var(--dm-bg-page);
   color: var(--dm-text-primary);
-  font-family: var(--font-inter), Inter, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-inter), "DM Sans", system-ui, -apple-system, sans-serif;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-poppins), "Poppins", var(--font-inter), system-ui, sans-serif;
 }
 
 @keyframes fadeIn {
@@ -418,7 +441,7 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.6);
 }
 .dark .glass-panel {
-  background-color: rgba(22, 22, 22, 0.65);
+  background-color: rgba(17, 28, 68, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 

@@ -1816,11 +1816,12 @@ export function Dashboard({
           <li key={id}>
             <button
               onClick={() => { setMainTab(id); setShowMobileNav(false); }}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition"
+              className="relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150"
               style={mainTab === id
                 ? {
                     backgroundColor: "var(--dm-nav-active-bg)",
                     color: "var(--dm-nav-active-text)",
+                    fontWeight: 700,
                   }
                 : {
                     color: "var(--dm-nav-default-text)",
@@ -1839,6 +1840,9 @@ export function Dashboard({
                 }
               }}
             >
+              {mainTab === id && (
+                <span className="absolute right-0 top-1/2 h-9 w-1 -translate-y-1/2 rounded-l-full bg-[var(--dm-brand-500)]" />
+              )}
               <Icon size={16} className="flex-shrink-0" />
               <span className="truncate">{label}</span>
             </button>
@@ -1891,57 +1895,70 @@ export function Dashboard({
 
       {/* ── Left sidebar ── */}
       <aside
-        className={`glass-panel fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-[240px] flex-col border-r border-[var(--dm-border-default)] transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[86vw] max-w-[240px] flex-col transition-transform duration-300 lg:relative lg:translate-x-0 lg:z-auto ${
           showMobileNav ? "translate-x-0 shadow-2xl" : "-translate-x-full"
-        } lg:flex lg:w-[220px] lg:flex-shrink-0`}
+        } lg:flex lg:w-[220px] lg:flex-shrink-0 bg-white dark:bg-[#111c44] shadow-horizon`}
       >
-        {/* Brand */}
-        <div className="flex h-14 items-center justify-between border-b px-5" style={{ borderColor: "var(--dm-border-default)" }}>
+        {/* Brand — sem border-b, o divider é separado como no Horizon */}
+        <div className="flex items-center justify-between px-6 pt-10 pb-0">
           <button
             type="button"
             onClick={() => { setMainTab("overview"); setShowMobileNav(false); }}
             className="flex items-center gap-2.5 transition hover:opacity-80"
             title="Voltar ao início"
           >
-            <DashMonsterLogo size={32} />
-            <span className="text-sm font-bold text-slate-900 dark:text-slate-100">DashMonster</span>
+            <DashMonsterLogo size={28} />
+            <span
+              className="text-[15px] uppercase tracking-wide"
+              style={{ fontFamily: "var(--font-poppins)", fontWeight: 700, color: "var(--dm-text-primary)" }}
+            >
+              Dash<span style={{ fontWeight: 400 }}>Monster</span>
+            </span>
           </button>
           <button
             onClick={() => setShowMobileNav(false)}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 dark:hover:bg-slate-700 lg:hidden"
+            className="flex h-7 w-7 items-center justify-center rounded-lg transition lg:hidden"
+            style={{ color: "var(--dm-text-tertiary)" }}
           >
             <X size={14} />
           </button>
         </div>
 
+        {/* Horizon divider — `mt-[58px] mb-7 h-px` */}
+        <div className="mx-0 mt-6 mb-4 h-px" style={{ background: "var(--dm-border-default)" }} />
+
         {navContent}
 
-        {/* Footer — estado dos dados */}
-        <div className="border-t px-4 py-4" style={{ borderColor: "var(--dm-border-default)" }}>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider" style={{ color: "var(--dm-text-tertiary)" }}>Dados carregados</p>
-          <div className={`rounded-xl border px-3 py-2.5 ${campaigns.length > 0 ? "border-emerald-200 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-950/30" : "border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/50"}`}>
-            <div className="flex items-start gap-2">
-              <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${campaigns.length > 0 ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"}`} />
-              <div className="min-w-0 flex-1 space-y-1">
-                <p className={`text-xs font-semibold leading-tight ${campaigns.length > 0 ? "text-emerald-900 dark:text-emerald-200" : "text-slate-600 dark:text-slate-400"}`}>
-                  {campaigns.length > 0
-                    ? `${campaigns.length.toLocaleString("pt-BR")} linhas na base`
-                    : "Ainda sem dados na base"}
-                </p>
-                {dataSourcePill ? (
-                  <p className="text-[10px] leading-snug" style={{ color: "var(--dm-text-secondary)" }}>
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">{dataSourcePill.title}</span>
-                    {dataSourcePill.subtitle ? (
-                      <span className="mt-0.5 block truncate opacity-90" title={dataSourcePill.subtitle}>{dataSourcePill.subtitle}</span>
-                    ) : null}
-                  </p>
-                ) : (
-                  <p className="text-[10px] leading-snug" style={{ color: "var(--dm-text-tertiary)" }}>
-                    Conecte Meta, Sheets ou CSV pelo topo ou pelo Painel de Controle (⚙️).
-                  </p>
-                )}
-              </div>
+        {/* Footer — status de dados compacto */}
+        <div className="mx-3 mb-5 mt-2">
+          <div
+            className="rounded-[16px] px-4 py-3"
+            style={{ background: "linear-gradient(135deg, #6366C8 0%, #313491 100%)" }}
+          >
+            {/* Linha 1: dot + status */}
+            <div className="flex items-center gap-2 mb-1.5">
+              <span
+                className="h-2 w-2 flex-shrink-0 rounded-full"
+                style={{ background: campaigns.length > 0 ? "#05CD99" : "rgba(255,255,255,0.35)" }}
+              />
+              <span className="text-[12px] font-bold text-white">
+                {campaigns.length > 0 ? "Dados carregados" : "Sem dados"}
+              </span>
             </div>
+            {/* Linha 2: contagem */}
+            <p className="text-[11px] leading-snug pl-4" style={{ color: "rgba(255,255,255,0.80)" }}>
+              {campaigns.length > 0
+                ? `${campaigns.length.toLocaleString("pt-BR")} linhas`
+                : "Conecte uma fonte pelo painel ⚙️"}
+            </p>
+            {/* Linha 3: fonte */}
+            {dataSourcePill && (
+              <p className="mt-1 text-[11px] pl-4 truncate" style={{ color: "rgba(255,255,255,0.65)" }}
+                title={dataSourcePill.subtitle || dataSourcePill.title}>
+                {dataSourcePill.title}
+                {dataSourcePill.subtitle ? ` · ${dataSourcePill.subtitle}` : ""}
+              </p>
+            )}
           </div>
         </div>
       </aside>
@@ -1950,7 +1967,8 @@ export function Dashboard({
       <div className="flex flex-1 flex-col overflow-hidden">
 
         {/* Top header — contexto em cima, acções agrupadas */}
-        <header className="glass-panel relative z-10 flex-shrink-0 border-b border-[var(--dm-border-default)]">
+        {/* ── Frosted pill navbar — Horizon style ── */}
+        <header className="relative z-10 mx-4 mt-4 mb-1 flex-shrink-0 rounded-2xl border backdrop-blur-xl bg-white/80 dark:bg-[#0b143780] shadow-sm" style={{ borderColor: "var(--dm-border-default)" }}>
           <div className="flex min-h-[3.25rem] flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-4 sm:py-2 md:px-6">
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <button
@@ -2554,14 +2572,14 @@ export function Dashboard({
 
       {/* ── Right sidebar — desktop ── */}
       {showRightPanel && (
-        <aside className="glass-panel relative z-20 hidden w-[280px] flex-shrink-0 border-l border-[var(--dm-border-default)] lg:flex lg:flex-col">
+        <aside className="relative z-20 hidden w-[280px] flex-shrink-0 border-l border-[var(--dm-border-default)] bg-white dark:bg-[#111c44] lg:flex lg:flex-col">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}
 
       {/* ── Right panel — mobile drawer ── */}
       {showRightPanel && showMobilePanel && (
-        <aside className="glass-panel fixed inset-y-0 right-0 z-50 flex w-[86vw] max-w-[320px] flex-col border-l border-[var(--dm-border-default)] shadow-2xl lg:hidden">
+        <aside className="fixed inset-y-0 right-0 z-50 flex w-[86vw] max-w-[320px] flex-col border-l border-[var(--dm-border-default)] bg-white dark:bg-[#111c44] shadow-2xl lg:hidden">
           <CampaignPanel {...campaignPanelProps} />
         </aside>
       )}

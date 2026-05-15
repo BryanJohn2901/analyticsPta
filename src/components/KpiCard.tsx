@@ -61,51 +61,58 @@ export function KpiCard({
 
   return (
     <article
-      className="group relative overflow-hidden rounded-xl border bg-white/80 dark:bg-[#161616]/80 glass-panel shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
+      className="card-hover group relative overflow-hidden rounded-[20px] border bg-white dark:bg-[#111c44] shadow-horizon transition-all duration-300 hover:-translate-y-0.5"
       style={{ borderColor: "var(--dm-border-default)" }}
     >
-      <div className="p-5">
-        {/* Header — 4.1: label 10px / 600 / uppercase / tracking */}
-        <div className="mb-3 flex items-start justify-between">
+      <div className="flex items-center gap-4 p-5">
+        {/* Icon — LEFT, circular, Horizon style */}
+        <span
+          className={`flex h-[46px] w-[46px] flex-shrink-0 items-center justify-center rounded-full ${a.bg} ${a.dark}`}
+        >
+          <Icon size={20} className={a.icon} />
+        </span>
+
+        {/* Text block */}
+        <div className="min-w-0 flex-1">
+          {/* Label */}
           <p
-            className="dm-metric-label"
+            className="dm-metric-label mb-1"
             {...(tooltip ? { "data-dm-tip": tooltip } : {})}
           >
             {title}
           </p>
-          <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${a.bg} ${a.dark}`}>
-            <Icon size={16} className={a.icon} />
-          </span>
-        </div>
 
-        {/* Value — 4.1: 24px / 700 */}
-        <p
-          className="text-2xl font-bold tracking-tight font-[family-name:var(--font-outfit)]"
-          style={{ color: "var(--dm-text-primary)" }}
-        >
-          {value}
-        </p>
+          {/* Value */}
+          <p
+            className="text-xl font-bold leading-tight tracking-tight font-[family-name:var(--font-poppins)]"
+            style={{ color: "var(--dm-text-primary)" }}
+          >
+            {value}
+          </p>
 
-        {/* Trend + subtitle — 4.3: cores semânticas */}
-        <div className="mt-2 flex items-center gap-2">
-          {trend !== undefined && (
-            <span
-              className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[11px] font-semibold"
-              style={deltaStyle}
-            >
-              {isPositiveTrend ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-              {Math.abs(trend).toFixed(1)}%
-            </span>
+          {/* Trend + subtitle */}
+          {(trend !== undefined || subtitle) && (
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              {trend !== undefined && (
+                <span
+                  className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+                  style={deltaStyle}
+                >
+                  {isPositiveTrend ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
+                  {Math.abs(trend).toFixed(1)}%
+                </span>
+              )}
+              {subtitle && (
+                <p className="text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>
+                  {trend !== undefined ? trendLabel : subtitle}
+                </p>
+              )}
+            </div>
           )}
-          {subtitle && (
-            <p className="text-xs" style={{ color: "var(--dm-text-tertiary)" }}>
-              {trend !== undefined ? trendLabel : subtitle}
-            </p>
+          {trend !== undefined && subtitle && (
+            <p className="mt-0.5 text-[10px]" style={{ color: "var(--dm-text-tertiary)" }}>{subtitle}</p>
           )}
         </div>
-        {trend !== undefined && subtitle && (
-          <p className="mt-1 text-xs" style={{ color: "var(--dm-text-tertiary)" }}>{subtitle}</p>
-        )}
       </div>
 
       {/* Goal section */}
