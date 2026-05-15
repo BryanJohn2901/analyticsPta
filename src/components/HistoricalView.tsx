@@ -8,7 +8,7 @@ import {
 } from "recharts";
 import {
   Upload, TrendingUp, ShoppingCart, DollarSign, Target,
-  ArrowRight, CheckCircle2, XCircle, Plus, Pencil, Trash2, X,
+  ArrowRight, CheckCircle2, XCircle, Plus, Pencil, Trash2, X, Copy,
   BarChart2, Package, Cloud, CloudOff, Loader2, CalendarDays, Camera, Repeat, Wallet,
   ArrowUpDown, ArrowUp, ArrowDown, Tag,
 } from "lucide-react";
@@ -861,6 +861,27 @@ export function HistoricalView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, editingIdx, rows, selectedKind, setRows]);
 
+  const handleDuplicate = useCallback(async (idx: number) => {
+    const src = rows[idx];
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { id: _id, ...rest } = src as HistoricalRow & { id?: string };
+    const copy = { ...rest } as HistoricalRow;
+    if (isSupabaseConfigured) {
+      setSyncStatus("loading");
+      try {
+        const saved = await insertHistoricalRow(copy);
+        setRows((prev) => [...prev, saved]);
+        setSyncStatus("synced");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erro ao duplicar.");
+        setSyncStatus("error");
+      }
+    } else {
+      setRows((prev) => [...prev, copy]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, setRows]);
+
   const handleDelete = useCallback(async (idx: number) => {
     if (!confirm("Remover este registro?")) return;
     if (isSupabaseConfigured && rows[idx]?.id) {
@@ -1349,12 +1370,12 @@ export function HistoricalView() {
                 <thead className="bg-slate-50 text-left uppercase tracking-wide text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
                   <tr>
                     {(selectedKind === "instagram"
-                      ? ["Mês","Produto","Seguid. Ganhos","Perdidos","Visitas","Alcance","Cliques","Curtidas","Comentários","Compart.","Tx. Eng.",""]
+                      ? ["Mês","Produto","Seguid. Ganhos","Perdidos","Visitas","Alcance","Cliques","Curtidas","Comentários","Compart.","Tx. Eng.","Ações"]
                       : selectedKind === "perpetuo"
-                      ? ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Leads","Vendas","Receita","MRR","CAC","ROAS",""]
+                      ? ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Leads","Vendas","Receita","MRR","CAC","ROAS","Ações"]
                       : selectedKind === "lancamento"
-                      ? ["Mês","Produto","Imersão","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Fat. Ingresso","Vendas Pós","Fat. Pós","CAC","ROAS",""]
-                      : ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Faturamento","CAC","ROAS",""]
+                      ? ["Mês","Produto","Imersão","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Fat. Ingresso","Vendas Pós","Fat. Pós","CAC","ROAS","Ações"]
+                      : ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Faturamento","CAC","ROAS","Ações"]
                     ).map((h) => (
                       <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">{h}</th>
                     ))}
@@ -1366,11 +1387,14 @@ export function HistoricalView() {
                     const rx = r as unknown as Record<string, number>;
                     const actionBtns = (
                       <td className="whitespace-nowrap px-3 py-2">
-                        <div className="flex items-center gap-1 opacity-0 transition group-hover:opacity-100">
-                          <button onClick={() => openEdit(realIdx)} className="rounded p-1 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400" title="Editar">
+                        <div className="flex items-center gap-0.5">
+                          <button onClick={() => openEdit(realIdx)} className="rounded p-1.5 text-slate-500 hover:bg-blue-50 hover:text-blue-600 dark:text-slate-400 dark:hover:bg-blue-900/30 dark:hover:text-blue-400" title="Editar">
                             <Pencil size={13} />
                           </button>
-                          <button onClick={() => handleDelete(realIdx)} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Excluir">
+                          <button onClick={() => handleDuplicate(realIdx)} className="rounded p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-600 dark:text-slate-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400" title="Duplicar">
+                            <Copy size={13} />
+                          </button>
+                          <button onClick={() => handleDelete(realIdx)} className="rounded p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-500 dark:text-slate-400 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Excluir">
                             <Trash2 size={13} />
                           </button>
                         </div>
