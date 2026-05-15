@@ -148,8 +148,18 @@ const EMPTY_FORM: FormState = {
 
 const p = (s: string): number => {
   if (!s.trim()) return 0;
-  const cleaned = s.replace(/[R$\s]/g, "").replace(/\./g, "").replace(",", ".");
-  return parseFloat(cleaned) || 0;
+  const t = s.replace(/[R$\s]/g, "").trim();
+  if (!t) return 0;
+  if (t.includes(",")) {
+    // Formato BR: pontos = milhar, vírgula = decimal  →  "1.234,56"
+    return parseFloat(t.replace(/\./g, "").replace(",", ".")) || 0;
+  }
+  // Sem vírgula: se o ponto está em posição de decimal (≠ 3 dígitos até o fim), é decimal
+  if (/^\d+\.\d+$/.test(t) && !/\.\d{3}$/.test(t)) {
+    return parseFloat(t) || 0;
+  }
+  // Senão, ponto(s) são separadores de milhar  →  "1.234"  ou "1.234.567"
+  return parseFloat(t.replace(/\./g, "")) || 0;
 };
 
 const buildRow = (form: FormState, kind: HistoricalKind): HistoricalRow => {
@@ -229,7 +239,7 @@ const rowToForm = (r: HistoricalRow): FormState => {
   const rx = r as unknown as Record<string, unknown>;
   const num = (k: string) => (rx[k] as number | undefined) ?? 0;
   const str = (k: string) => num(k) > 0 ? String(num(k)) : "";
-  const money = (n: number) => n > 0 ? formatMoneyInput(String(n)) : "";
+  const money = fmtNum;
 
   return {
     kind: r.kind,
@@ -247,15 +257,15 @@ const rowToForm = (r: HistoricalRow): FormState => {
     // Lançamento extras
     imersao: (rx.imersao as string | undefined) ?? "",
     ingressosVendidos: str("ingressosVendidos"),
-    faturamentoIngresso: num("faturamentoIngresso") > 0 ? formatMoneyInput(String(num("faturamentoIngresso"))) : "",
+    faturamentoIngresso: money(num("faturamentoIngresso")),
     // Retrocompat: se vendasPos não existe, usa sales; se faturamentoPos não existe, usa revenue
     vendasPos: str("vendasPos") || (r.kind === "lancamento" && r.sales > 0 ? String(r.sales) : ""),
     faturamentoPos: num("faturamentoPos") > 0
-      ? formatMoneyInput(String(num("faturamentoPos")))
+      ? money(num("faturamentoPos"))
       : (r.kind === "lancamento" && num("faturamentoIngresso") === 0 && r.revenue > 0 ? money(r.revenue) : ""),
     // Perpetuo
     leads: str("leads"),
-    mrr:   num("mrr") > 0 ? formatMoneyInput(String(num("mrr"))) : "",
+    mrr:   money(num("mrr")),
     churn: str("churn"),
     // Instagram
     followersGained: str("newFollowers"),
@@ -272,9 +282,13 @@ const rowToForm = (r: HistoricalRow): FormState => {
 
 function formatMoneyInput(raw: string): string {
   const n = p(raw);
+  if (!n && raw.replace(/[R$\s.,]/g, "").length > 0) return raw;
   if (!n) return raw;
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
+
+const fmtNum = (n: number) =>
+  n > 0 ? n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 
 // ─── Entry Form modal ─────────────────────────────────────────────────────────
 
