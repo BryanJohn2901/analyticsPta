@@ -1408,6 +1408,16 @@ export function HistoricalView() {
                   ))}
                 </div>
                 <p className="text-xs text-slate-400 dark:text-slate-500">{sortedFiltered.length} registros</p>
+                {Object.keys(colWidths).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setColWidths({})}
+                    className="flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] font-semibold text-slate-400 transition hover:border-blue-300 hover:text-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-500 dark:hover:text-blue-400"
+                    title="Voltar ao ajuste automático"
+                  >
+                    ↺ Redefinir
+                  </button>
+                )}
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -1419,9 +1429,15 @@ export function HistoricalView() {
                   : selectedKind === "lancamento"
                   ? ["Mês","Produto","Imersão","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Fat. Ingresso","Vendas Pós","Fat. Pós","CAC","ROAS","Ações"]
                   : ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Faturamento","CAC","ROAS","Ações"];
-                const totalW = headers.reduce((s, h) => s + (colWidths[h] ?? DEFAULT_COL_WIDTHS[h] ?? 90), 0);
+                const hasCustom = Object.keys(colWidths).length > 0;
+                const totalW = hasCustom
+                  ? headers.reduce((s, h) => s + (colWidths[h] ?? DEFAULT_COL_WIDTHS[h] ?? 90), 0)
+                  : undefined;
                 return (
-              <table style={{ tableLayout: "fixed", width: totalW }} className="divide-y divide-slate-200 text-xs dark:divide-slate-700">
+              <table
+                style={hasCustom ? { tableLayout: "fixed", width: totalW } : { tableLayout: "auto", width: "100%" }}
+                className="divide-y divide-slate-200 text-xs dark:divide-slate-700"
+              >
                 <thead className="bg-slate-50 text-left uppercase tracking-wide text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
                   <tr>
                     {headers.map((h) => {
@@ -1429,8 +1445,8 @@ export function HistoricalView() {
                       return (
                         <th
                           key={h}
-                          style={{ width: w, position: "relative" }}
-                          className="px-3 py-2 font-semibold overflow-hidden text-ellipsis whitespace-nowrap"
+                          style={hasCustom ? { width: w, position: "relative" } : { position: "relative" }}
+                          className="px-3 py-2 font-semibold overflow-hidden text-ellipsis whitespace-nowrap group/th"
                           title={h}
                         >
                           {h}
@@ -1438,11 +1454,17 @@ export function HistoricalView() {
                             <div
                               onMouseDown={(e) => {
                                 e.preventDefault();
-                                startResize(h, e.clientX, w);
+                                const th = e.currentTarget.parentElement as HTMLTableCellElement;
+                                startResize(h, e.clientX, th.offsetWidth);
                               }}
-                              style={{ position: "absolute", right: 0, top: "15%", height: "70%", width: 5, cursor: "col-resize", borderRadius: 2 }}
-                              className="bg-slate-300 hover:bg-blue-400 dark:bg-slate-600 dark:hover:bg-blue-500 transition-colors select-none"
-                            />
+                              style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 8, cursor: "col-resize" }}
+                              className="select-none flex items-center justify-center"
+                            >
+                              <div
+                                style={{ width: 1, height: "60%" }}
+                                className="bg-slate-200 group-hover/th:bg-blue-400 dark:bg-slate-600 dark:group-hover/th:bg-blue-500 transition-colors rounded-full"
+                              />
+                            </div>
                           )}
                         </th>
                       );
