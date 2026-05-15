@@ -87,6 +87,23 @@ const MONTH_LABELS: Record<string, string> = {
   SETEMBRO: "Setembro", OUTUBRO: "Outubro", NOVEMBRO: "Novembro", DEZEMBRO: "Dezembro",
 };
 
+// ─── Column resize defaults ───────────────────────────────────────────────────
+
+const DEFAULT_COL_WIDTHS: Record<string, number> = {
+  "Mês": 68, "Produto": 236, "Imersão": 118,
+  "Investimento": 112, "Alcance": 90, "Cliques": 74, "CTR": 62,
+  "Pag. View": 80, "Pré-chk": 72, "Ingressos": 82,
+  "Fat. Ingresso": 108, "Vendas Pós": 86, "Fat. Pós": 90,
+  "CAC": 100, "ROAS": 65, "Ações": 90,
+  // Perpétuo
+  "Leads": 70, "Vendas": 72, "Receita": 94, "MRR": 88,
+  // Instagram
+  "Seguid. Ganhos": 104, "Perdidos": 72, "Visitas": 72,
+  "Curtidas": 70, "Comentários": 90, "Compart.": 76, "Tx. Eng.": 68,
+  // Evento
+  "Faturamento": 104,
+};
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TableSortKey = "date-asc" | "date-desc" | "invest-desc" | "invest-asc";
@@ -713,6 +730,20 @@ export function HistoricalView() {
     isSupabaseConfigured ? "loading" : "local",
   );
   const inputRef = useRef<HTMLInputElement>(null);
+  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+
+  const startResize = useCallback((col: string, startX: number, startWidth: number) => {
+    const onMove = (e: MouseEvent) => {
+      const newW = Math.max(50, startWidth + (e.clientX - startX));
+      setColWidths((prev) => ({ ...prev, [col]: newW }));
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, []);
 
   // Sort + form state
   const [tableSort, setTableSort]   = useState<TableSortKey>("date-asc");
@@ -1366,19 +1397,42 @@ export function HistoricalView() {
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-xs dark:divide-slate-700">
+              {(() => {
+                const headers = selectedKind === "instagram"
+                  ? ["Mês","Produto","Seguid. Ganhos","Perdidos","Visitas","Alcance","Cliques","Curtidas","Comentários","Compart.","Tx. Eng.","Ações"]
+                  : selectedKind === "perpetuo"
+                  ? ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Leads","Vendas","Receita","MRR","CAC","ROAS","Ações"]
+                  : selectedKind === "lancamento"
+                  ? ["Mês","Produto","Imersão","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Fat. Ingresso","Vendas Pós","Fat. Pós","CAC","ROAS","Ações"]
+                  : ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Faturamento","CAC","ROAS","Ações"];
+                const totalW = headers.reduce((s, h) => s + (colWidths[h] ?? DEFAULT_COL_WIDTHS[h] ?? 90), 0);
+                return (
+              <table style={{ tableLayout: "fixed", width: totalW }} className="divide-y divide-slate-200 text-xs dark:divide-slate-700">
                 <thead className="bg-slate-50 text-left uppercase tracking-wide text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
                   <tr>
-                    {(selectedKind === "instagram"
-                      ? ["Mês","Produto","Seguid. Ganhos","Perdidos","Visitas","Alcance","Cliques","Curtidas","Comentários","Compart.","Tx. Eng.","Ações"]
-                      : selectedKind === "perpetuo"
-                      ? ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Leads","Vendas","Receita","MRR","CAC","ROAS","Ações"]
-                      : selectedKind === "lancamento"
-                      ? ["Mês","Produto","Imersão","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Fat. Ingresso","Vendas Pós","Fat. Pós","CAC","ROAS","Ações"]
-                      : ["Mês","Produto","Investimento","Alcance","Cliques","CTR","Pag. View","Pré-chk","Ingressos","Faturamento","CAC","ROAS","Ações"]
-                    ).map((h) => (
-                      <th key={h} className="px-3 py-2 font-semibold whitespace-nowrap">{h}</th>
-                    ))}
+                    {headers.map((h) => {
+                      const w = colWidths[h] ?? DEFAULT_COL_WIDTHS[h] ?? 90;
+                      return (
+                        <th
+                          key={h}
+                          style={{ width: w, position: "relative" }}
+                          className="px-3 py-2 font-semibold overflow-hidden text-ellipsis whitespace-nowrap"
+                          title={h}
+                        >
+                          {h}
+                          {h !== "Ações" && (
+                            <div
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                startResize(h, e.clientX, w);
+                              }}
+                              style={{ position: "absolute", right: 0, top: "15%", height: "70%", width: 5, cursor: "col-resize", borderRadius: 2 }}
+                              className="bg-slate-300 hover:bg-blue-400 dark:bg-slate-600 dark:hover:bg-blue-500 transition-colors select-none"
+                            />
+                          )}
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700 dark:divide-slate-700 dark:text-slate-300">
@@ -1507,6 +1561,8 @@ export function HistoricalView() {
                   })}
                 </tbody>
               </table>
+                );
+              })()}
             </div>
           </article>
         )}
