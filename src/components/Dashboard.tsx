@@ -1929,40 +1929,36 @@ export function Dashboard({
 
         {navContent}
 
-        {/* Footer — Horizon SidebarCard gradient */}
+        {/* Footer — status de dados compacto */}
         <div className="mx-3 mb-5 mt-2">
           <div
-            className="relative rounded-[20px] px-4 pb-4 pt-0 text-center overflow-visible"
+            className="rounded-[16px] px-4 py-3"
             style={{ background: "linear-gradient(135deg, #6366C8 0%, #313491 100%)" }}
           >
-            {/* Floating avatar circle */}
-            <div
-              className="absolute -top-5 left-1/2 -translate-x-1/2 flex h-12 w-12 items-center justify-center rounded-full border-4 text-xl"
-              style={{
-                background: "linear-gradient(135deg, #6366C8 0%, #313491 100%)",
-                borderColor: "var(--dm-bg-surface)",
-              }}
-            >
-              👾
+            {/* Linha 1: dot + status */}
+            <div className="flex items-center gap-2 mb-1.5">
+              <span
+                className="h-2 w-2 flex-shrink-0 rounded-full"
+                style={{ background: campaigns.length > 0 ? "#05CD99" : "rgba(255,255,255,0.35)" }}
+              />
+              <span className="text-[12px] font-bold text-white">
+                {campaigns.length > 0 ? "Dados carregados" : "Sem dados"}
+              </span>
             </div>
-            <div className="mt-8">
-              <p className="text-[13px] font-bold text-white">PTA Dashboard</p>
-              <p className="mt-1 mb-2 text-[11px] leading-snug" style={{ color: "rgba(255,255,255,0.78)" }}>
-                {campaigns.length > 0
-                  ? `${campaigns.length.toLocaleString("pt-BR")} linhas carregadas`
-                  : "Sem dados carregados"}
-                {dataSourcePill ? ` · ${dataSourcePill.title}` : ""}
+            {/* Linha 2: contagem */}
+            <p className="text-[11px] leading-snug pl-4" style={{ color: "rgba(255,255,255,0.80)" }}>
+              {campaigns.length > 0
+                ? `${campaigns.length.toLocaleString("pt-BR")} linhas`
+                : "Conecte uma fonte pelo painel ⚙️"}
+            </p>
+            {/* Linha 3: fonte */}
+            {dataSourcePill && (
+              <p className="mt-1 text-[11px] pl-4 truncate" style={{ color: "rgba(255,255,255,0.65)" }}
+                title={dataSourcePill.subtitle || dataSourcePill.title}>
+                {dataSourcePill.title}
+                {dataSourcePill.subtitle ? ` · ${dataSourcePill.subtitle}` : ""}
               </p>
-              <div className="flex items-center justify-center gap-1.5">
-                <span
-                  className="h-2 w-2 rounded-full"
-                  style={{ background: campaigns.length > 0 ? "#05CD99" : "rgba(255,255,255,0.4)" }}
-                />
-                <span className="text-[11px] font-semibold" style={{ color: "rgba(255,255,255,0.88)" }}>
-                  {campaigns.length > 0 ? "Sincronizado" : "Aguardando dados"}
-                </span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </aside>
