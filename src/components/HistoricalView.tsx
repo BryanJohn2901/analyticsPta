@@ -212,30 +212,33 @@ const rowToForm = (r: HistoricalRow): FormState => {
   const rx = r as unknown as Record<string, unknown>;
   const num = (k: string) => (rx[k] as number | undefined) ?? 0;
   const str = (k: string) => num(k) > 0 ? String(num(k)) : "";
+  const money = (n: number) => n > 0 ? formatMoneyInput(String(n)) : "";
 
   return {
     kind: r.kind,
     tag: r.tag ?? "",
     product: r.product, turma: r.turma ?? "", month: r.month, year: String(r.year),
     campaignEndDate: r.campaignEndDate ?? "",
-    investment: r.investment > 0 ? String(r.investment) : "",
-    cpm: r.cpm > 0 ? String(r.cpm) : "",
+    investment: money(r.investment),
+    cpm: money(r.cpm),
     reach: r.reach > 0 ? String(r.reach) : "",
     clicks: r.clicks > 0 ? String(r.clicks) : "",
     pageViews: r.pageViews > 0 ? String(r.pageViews) : "",
     preCheckouts: r.preCheckouts > 0 ? String(r.preCheckouts) : "",
     sales: r.sales > 0 ? String(r.sales) : "",
-    revenue: r.revenue > 0 ? String(r.revenue) : "",
+    revenue: money(r.revenue),
     // Lançamento extras
     imersao: (rx.imersao as string | undefined) ?? "",
     ingressosVendidos: str("ingressosVendidos"),
-    faturamentoIngresso: str("faturamentoIngresso"),
+    faturamentoIngresso: num("faturamentoIngresso") > 0 ? formatMoneyInput(String(num("faturamentoIngresso"))) : "",
     // Retrocompat: se vendasPos não existe, usa sales; se faturamentoPos não existe, usa revenue
     vendasPos: str("vendasPos") || (r.kind === "lancamento" && r.sales > 0 ? String(r.sales) : ""),
-    faturamentoPos: str("faturamentoPos") || (r.kind === "lancamento" && num("faturamentoIngresso") === 0 && r.revenue > 0 ? String(r.revenue) : ""),
+    faturamentoPos: num("faturamentoPos") > 0
+      ? formatMoneyInput(String(num("faturamentoPos")))
+      : (r.kind === "lancamento" && num("faturamentoIngresso") === 0 && r.revenue > 0 ? money(r.revenue) : ""),
     // Perpetuo
     leads: str("leads"),
-    mrr:   str("mrr"),
+    mrr:   num("mrr") > 0 ? formatMoneyInput(String(num("mrr"))) : "",
     churn: str("churn"),
     // Instagram
     followersGained: str("newFollowers"),
@@ -644,13 +647,19 @@ function EntryForm({ form, products, isEditing, customTags, onChange, onSubmit, 
 
 // ─── Product + Turma cell ─────────────────────────────────────────────────────
 
-function ProductCell({ product, turma }: { product: string; turma?: string }) {
+function ProductCell({ product, turma, tag }: { product: string; turma?: string; tag?: string }) {
   return (
-    <span className="flex items-center gap-1.5">
+    <span className="flex flex-wrap items-center gap-1.5">
       <span>{product}</span>
       {turma && (
         <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
           T{turma}
+        </span>
+      )}
+      {tag && (
+        <span className="inline-flex items-center gap-0.5 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+          <Tag size={8} />
+          {tag}
         </span>
       )}
     </span>
@@ -1379,7 +1388,7 @@ export function HistoricalView() {
                         <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
                           <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
                           <td className="whitespace-nowrap px-3 py-2">
-                            <ProductCell product={r.product} turma={r.turma} />
+                            <ProductCell product={r.product} turma={r.turma} tag={r.tag} />
                           </td>
                           <td className="whitespace-nowrap px-3 py-2 text-emerald-600 dark:text-emerald-400 font-semibold">{formatNumber(gained)}</td>
                           <td className="whitespace-nowrap px-3 py-2 text-red-500">{lost > 0 ? `-${formatNumber(lost)}` : "—"}</td>
@@ -1401,7 +1410,7 @@ export function HistoricalView() {
                         <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
                           <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
                           <td className="whitespace-nowrap px-3 py-2">
-                            <ProductCell product={r.product} turma={r.turma} />
+                            <ProductCell product={r.product} turma={r.turma} tag={r.tag} />
                           </td>
                           <td className="whitespace-nowrap px-3 py-2">{r.investment > 0 ? formatCurrency(r.investment) : "—"}</td>
                           <td className="whitespace-nowrap px-3 py-2">{r.reach > 0 ? formatNumber(r.reach) : "—"}</td>
@@ -1430,7 +1439,7 @@ export function HistoricalView() {
                         <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
                           <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
                           <td className="whitespace-nowrap px-3 py-2">
-                            <ProductCell product={r.product} turma={r.turma} />
+                            <ProductCell product={r.product} turma={r.turma} tag={r.tag} />
                           </td>
                           <td className="whitespace-nowrap px-3 py-2 max-w-[120px] truncate text-slate-400 dark:text-slate-500" title={imersao}>
                             {imersao ?? "—"}
@@ -1456,7 +1465,7 @@ export function HistoricalView() {
                       <tr key={i} className="group hover:bg-slate-50 dark:hover:bg-slate-700/50">
                         <td className="whitespace-nowrap px-3 py-2 font-medium">{r.monthLabel}</td>
                         <td className="whitespace-nowrap px-3 py-2">
-                          <ProductCell product={r.product} turma={r.turma} />
+                          <ProductCell product={r.product} turma={r.turma} tag={r.tag} />
                         </td>
                         <td className="whitespace-nowrap px-3 py-2">{r.investment > 0 ? formatCurrency(r.investment) : "—"}</td>
                         <td className="whitespace-nowrap px-3 py-2">{r.reach > 0 ? formatNumber(r.reach) : "—"}</td>
