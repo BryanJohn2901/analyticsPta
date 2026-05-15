@@ -8,6 +8,7 @@ import { ControlPanel, type CPTab } from "@/components/ControlPanel";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 import { AuthScreen } from "@/components/AuthScreen";
 import { CampaignData } from "@/types/campaign";
+import { MOCK_CAMPAIGNS, MOCK_SOURCE_LABEL, seedDemoData } from "@/utils/mockData";
 import { fetchCampaignSheetData, parseCampaignCsvFile } from "@/utils/googleSheets";
 import { isSupabaseConfigured, supabaseClient } from "@/lib/supabase";
 import {
@@ -86,6 +87,12 @@ export default function Home() {
     setShowOnboarding(false);
     setControlPanelOpeningTab("accounts");
     setShowControlPanel(true);
+  };
+
+  const handleLoadDemo = () => {
+    seedDemoData();
+    setCampaigns(MOCK_CAMPAIGNS);
+    setDataSource({ type: "meta", label: MOCK_SOURCE_LABEL });
   };
 
   const closeRealtimeChannels = () => {
@@ -483,6 +490,16 @@ export default function Home() {
     if (syncStatus.error) toast.error(syncStatus.error);
   }, [syncStatus.error]);
 
+  // Modo dev sem Supabase — mostra onboarding na primeira visita
+  useEffect(() => {
+    if (isSupabaseConfigured) return;
+    try {
+      const onboarded = localStorage.getItem("pta_onboarding_v1");
+      if (!onboarded) setShowOnboarding(true);
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!session?.user.id || !isSupabaseConfigured) {
       closeRealtimeChannels();
@@ -593,7 +610,10 @@ export default function Home() {
   return (
     <>
       {showOnboarding && (
-        <OnboardingTutorial onComplete={handleOnboardingComplete} />
+        <OnboardingTutorial
+          onComplete={handleOnboardingComplete}
+          onLoadDemo={handleLoadDemo}
+        />
       )}
 
       <Dashboard
