@@ -93,6 +93,7 @@ type TableSortKey = "date-asc" | "date-desc" | "invest-desc" | "invest-asc";
 
 interface FormState {
   kind: HistoricalKind;
+  tag: string;
   product: string; turma: string; month: string; year: string; campaignEndDate: string;
   investment: string; cpm: string; reach: string; clicks: string;
   pageViews: string; preCheckouts: string; sales: string; revenue: string;
@@ -116,6 +117,7 @@ const HISTORY_TABS: Array<{ id: HistoricalKind; icon: React.ElementType }> = [
 
 const EMPTY_FORM: FormState = {
   kind: "lancamento",
+  tag: "",
   product: "", turma: "", month: "JANEIRO", year: String(new Date().getFullYear()), campaignEndDate: "",
   investment: "", cpm: "", reach: "", clicks: "",
   pageViews: "", preCheckouts: "", sales: "", revenue: "",
@@ -155,6 +157,7 @@ const buildRow = (form: FormState, kind: HistoricalKind): HistoricalRow => {
 
   const base = {
     kind,
+    tag: form.tag.trim() || undefined,
     product: form.product.trim(),
     turma: form.turma.trim() || undefined,
     month: form.month, year, monthKey,
@@ -212,6 +215,7 @@ const rowToForm = (r: HistoricalRow): FormState => {
 
   return {
     kind: r.kind,
+    tag: r.tag ?? "",
     product: r.product, turma: r.turma ?? "", month: r.month, year: String(r.year),
     campaignEndDate: r.campaignEndDate ?? "",
     investment: r.investment > 0 ? String(r.investment) : "",
@@ -244,19 +248,47 @@ const rowToForm = (r: HistoricalRow): FormState => {
   };
 };
 
+// ─── Currency mask ────────────────────────────────────────────────────────────
+
+function formatMoneyInput(raw: string): string {
+  const n = p(raw);
+  if (!n) return raw;
+  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // ─── Entry Form modal ─────────────────────────────────────────────────────────
 
 interface EntryFormProps {
   form: FormState; products: string[]; isEditing: boolean;
+  customTags: string[];
   onChange: (f: FormState) => void;
   onSubmit: (e: React.FormEvent) => void;
   onClose: () => void;
+  onAddTag: (tag: string) => void;
 }
 
-function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: EntryFormProps) {
+function EntryForm({ form, products, isEditing, customTags, onChange, onSubmit, onClose, onAddTag }: EntryFormProps) {
+  const [tagDraft, setTagDraft] = useState("");
+  const [showTagInput, setShowTagInput] = useState(false);
+
   const set = (key: keyof FormState) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       onChange({ ...form, [key]: e.target.value });
+
+  const blurMoney = (key: keyof FormState) => () =>
+    onChange({ ...form, [key]: formatMoneyInput(form[key] as string) });
+
+  const allTags = [...PREDEFINED_TAGS[form.kind], ...customTags];
+  const canAddTag = customTags.length < MAX_CUSTOM_TAGS;
+
+  function handleAddTag() {
+    const trimmed = tagDraft.trim();
+    if (!trimmed || allTags.includes(trimmed)) return;
+    onAddTag(trimmed);
+    onChange({ ...form, tag: trimmed });
+    setTagDraft("");
+    setShowTagInput(false);
+  }
 
   const preview = useMemo(() => {
     const inv = p(form.investment), rev = p(form.revenue);
@@ -318,7 +350,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
                   <button
                     key={id}
                     type="button"
-                    onClick={() => onChange({ ...form, kind: id })}
+                    onClick={() => onChange({ ...form, kind: id, tag: "" })}
                     className={`flex items-center justify-center gap-2 rounded-lg border-2 px-3 py-2.5 text-xs font-semibold transition ${colors[id]}`}
                   >
                     <Icon size={14} />
@@ -364,6 +396,55 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
             </div>
           </div>
 
+          {/* ── Categoria / Tag ── */}
+          {allTags.length > 0 || canAddTag ? (
+            <div className="px-4 py-4 sm:px-6">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Categoria / Tag</p>
+              <div className="flex flex-wrap gap-2">
+                {allTags.map((t) => {
+                  const active = form.tag === t;
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => onChange({ ...form, tag: active ? "" : t })}
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition ${
+                        active
+                          ? "border-blue-500 bg-blue-50 text-blue-700 dark:border-blue-500 dark:bg-blue-900/30 dark:text-blue-300"
+                          : "border-slate-200 text-slate-600 hover:border-blue-300 dark:border-slate-600 dark:text-slate-400"
+                      }`}
+                    >
+                      <Tag size={11} />
+                      {t}
+                    </button>
+                  );
+                })}
+                {showTagInput ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={tagDraft}
+                      onChange={(e) => setTagDraft(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddTag(); } if (e.key === "Escape") { setShowTagInput(false); setTagDraft(""); } }}
+                      placeholder="Nome da tag"
+                      className="h-7 w-32 rounded-full border border-blue-400 bg-white px-3 text-xs text-slate-800 outline-none focus:ring-2 focus:ring-blue-100 dark:bg-slate-700 dark:text-slate-200"
+                    />
+                    <button type="button" onClick={handleAddTag} className="rounded-full bg-blue-500 px-2 py-0.5 text-xs font-semibold text-white hover:bg-blue-600">OK</button>
+                    <button type="button" onClick={() => { setShowTagInput(false); setTagDraft(""); }} className="rounded-full border border-slate-300 px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-400">✕</button>
+                  </div>
+                ) : canAddTag ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowTagInput(true)}
+                    className="flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-3 py-1 text-xs text-slate-400 transition hover:border-blue-400 hover:text-blue-500 dark:border-slate-600"
+                  >
+                    <Plus size={11} /> Nova tag
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           {/* ── Kind-contextual fields ── */}
           {form.kind === "instagram" ? (
             /* Instagram: followers & engagement */
@@ -402,14 +483,14 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
             <div className="px-4 py-5 sm:px-6">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Métricas do Mês</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} placeholder="8544.26" className={fieldCls} /></label>
-                <label className={labelCls}>CPM (R$)<input value={form.cpm} onChange={set("cpm")} placeholder="11.47" className={fieldCls} /></label>
+                <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} onBlur={blurMoney("investment")} placeholder="8.544,26" className={fieldCls} /></label>
+                <label className={labelCls}>CPM (R$)<input value={form.cpm} onChange={set("cpm")} onBlur={blurMoney("cpm")} placeholder="11,47" className={fieldCls} /></label>
                 <label className={labelCls}>Alcance<input value={form.reach} onChange={set("reach")} placeholder="744957" className={fieldCls} /></label>
                 <label className={labelCls}>Cliques<input value={form.clicks} onChange={set("clicks")} placeholder="4074" className={fieldCls} /></label>
                 <label className={labelCls}>Leads<input value={form.leads} onChange={set("leads")} placeholder="382" className={fieldCls} /></label>
                 <label className={labelCls}>Vendas do Mês *<input required value={form.sales} onChange={set("sales")} placeholder="46" className={fieldCls} /></label>
-                <label className={labelCls}>Receita do Mês (R$)<input value={form.revenue} onChange={set("revenue")} placeholder="16309.00" className={fieldCls} /></label>
-                <label className={labelCls}>MRR (R$)<input value={form.mrr} onChange={set("mrr")} placeholder="16309.00" className={fieldCls} /></label>
+                <label className={labelCls}>Receita do Mês (R$)<input value={form.revenue} onChange={set("revenue")} onBlur={blurMoney("revenue")} placeholder="16.309,00" className={fieldCls} /></label>
+                <label className={labelCls}>MRR (R$)<input value={form.mrr} onChange={set("mrr")} onBlur={blurMoney("mrr")} placeholder="16.309,00" className={fieldCls} /></label>
                 <label className={labelCls}>Churn (%)<input value={form.churn} onChange={set("churn")} placeholder="2.5" className={fieldCls} /></label>
               </div>
               <div className="mt-3 bg-slate-50 rounded-lg px-3 py-3 dark:bg-slate-700/40">
@@ -437,8 +518,8 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
               <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Funil de tráfego</p>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} placeholder="185665" className={fieldCls} /></label>
-                  <label className={labelCls}>CPM (R$)<input value={form.cpm} onChange={set("cpm")} placeholder="11.47" className={fieldCls} /></label>
+                  <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} onBlur={blurMoney("investment")} placeholder="185.665,00" className={fieldCls} /></label>
+                  <label className={labelCls}>CPM (R$)<input value={form.cpm} onChange={set("cpm")} onBlur={blurMoney("cpm")} placeholder="11,47" className={fieldCls} /></label>
                   <label className={labelCls}>Alcance<input value={form.reach} onChange={set("reach")} placeholder="12027081" className={fieldCls} /></label>
                   <label className={labelCls}>Cliques<input value={form.clicks} onChange={set("clicks")} placeholder="89536" className={fieldCls} /></label>
                   <label className={labelCls}>Visualiz. de Página<input value={form.pageViews} onChange={set("pageViews")} placeholder="67996" className={fieldCls} /></label>
@@ -453,7 +534,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
                 </p>
                 <div className="grid grid-cols-2 gap-3">
                   <label className={labelCls}>Ingressos Vendidos<input value={form.ingressosVendidos} onChange={set("ingressosVendidos")} placeholder="1140" className={fieldCls} /></label>
-                  <label className={labelCls}>Faturamento do Ingresso (R$)<input value={form.faturamentoIngresso} onChange={set("faturamentoIngresso")} placeholder="28213.80" className={fieldCls} /></label>
+                  <label className={labelCls}>Faturamento do Ingresso (R$)<input value={form.faturamentoIngresso} onChange={set("faturamentoIngresso")} onBlur={blurMoney("faturamentoIngresso")} placeholder="28.213,80" className={fieldCls} /></label>
                 </div>
               </div>
 
@@ -462,7 +543,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Pós-graduação</p>
                 <div className="grid grid-cols-2 gap-3">
                   <label className={labelCls}>Vendas de Pós *<input required value={form.vendasPos} onChange={set("vendasPos")} placeholder="93" className={fieldCls} /></label>
-                  <label className={labelCls}>Faturamento do Pós (R$)<input value={form.faturamentoPos} onChange={set("faturamentoPos")} placeholder="16503.00" className={fieldCls} /></label>
+                  <label className={labelCls}>Faturamento do Pós (R$)<input value={form.faturamentoPos} onChange={set("faturamentoPos")} onBlur={blurMoney("faturamentoPos")} placeholder="16.503,00" className={fieldCls} /></label>
                 </div>
               </div>
 
@@ -515,8 +596,8 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
             <div className="px-4 py-5 sm:px-6">
               <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Funil de tráfego</p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} placeholder="8544.26" className={fieldCls} /></label>
-                <label className={labelCls}>CPM (R$)<input value={form.cpm} onChange={set("cpm")} placeholder="11.47" className={fieldCls} /></label>
+                <label className={labelCls}>Investimento (R$) *<input required value={form.investment} onChange={set("investment")} onBlur={blurMoney("investment")} placeholder="8.544,26" className={fieldCls} /></label>
+                <label className={labelCls}>CPM (R$)<input value={form.cpm} onChange={set("cpm")} onBlur={blurMoney("cpm")} placeholder="11,47" className={fieldCls} /></label>
                 <label className={labelCls}>Alcance<input value={form.reach} onChange={set("reach")} placeholder="744957" className={fieldCls} /></label>
                 <label className={labelCls}>Cliques<input value={form.clicks} onChange={set("clicks")} placeholder="4074" className={fieldCls} /></label>
                 <label className={labelCls}>Visualiz. de Página<input value={form.pageViews} onChange={set("pageViews")} placeholder="2107" className={fieldCls} /></label>
@@ -524,7 +605,7 @@ function EntryForm({ form, products, isEditing, onChange, onSubmit, onClose }: E
                 <label className={labelCls}>Ingressos Vendidos *
                   <input required value={form.sales} onChange={set("sales")} placeholder="46" className={fieldCls} />
                 </label>
-                <label className={labelCls}>Faturamento (R$)<input value={form.revenue} onChange={set("revenue")} placeholder="16309.00" className={fieldCls} /></label>
+                <label className={labelCls}>Faturamento (R$)<input value={form.revenue} onChange={set("revenue")} onBlur={blurMoney("revenue")} placeholder="16.309,00" className={fieldCls} /></label>
               </div>
               <div className="mt-3 bg-slate-50 rounded-lg px-3 py-3 dark:bg-slate-700/40">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Calculado automaticamente</p>
@@ -676,11 +757,13 @@ export function HistoricalView() {
   );
 
   const availableTags = useMemo(() => {
+    const matches = (r: HistoricalRow, tag: string) =>
+      r.tag === tag || r.product.toLowerCase().includes(tag.toLowerCase());
     const predefined = PREDEFINED_TAGS[selectedKind].filter((tag) =>
-      kindRows.some((r) => r.product.toLowerCase().includes(tag.toLowerCase())),
+      kindRows.some((r) => matches(r, tag)),
     );
     const custom = (customTags[selectedKind] ?? []).filter((tag) =>
-      kindRows.some((r) => r.product.toLowerCase().includes(tag.toLowerCase())),
+      kindRows.some((r) => matches(r, tag)),
     );
     return [...predefined, ...custom];
   }, [kindRows, selectedKind, customTags]);
@@ -691,7 +774,9 @@ export function HistoricalView() {
   const filtered = useMemo(
     () => (selectedTag === "all"
       ? kindRows
-      : kindRows.filter((r) => r.product.toLowerCase().includes(selectedTag.toLowerCase()))),
+      : kindRows.filter((r) =>
+          r.tag === selectedTag || r.product.toLowerCase().includes(selectedTag.toLowerCase()),
+        )),
     [kindRows, selectedTag],
   );
 
@@ -884,9 +969,15 @@ export function HistoricalView() {
           form={form}
           products={products}
           isEditing={editingIdx !== null}
+          customTags={customTags[form.kind] ?? []}
           onChange={setForm}
           onSubmit={handleFormSubmit}
           onClose={() => { setShowForm(false); setEditingIdx(null); }}
+          onAddTag={async (tag) => {
+            const next = { ...customTags, [form.kind]: [...(customTags[form.kind] ?? []), tag] };
+            setCustomTags(next);
+            if (isSupabaseConfigured) addUserTag(form.kind, tag).catch(() => {});
+          }}
         />
       )}
 

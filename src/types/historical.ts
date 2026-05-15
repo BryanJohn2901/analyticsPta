@@ -37,6 +37,7 @@ interface HistoricalRowBase {
   salesRate: number;
   cac: number;
   roas: number;
+  tag?: string;
 }
 
 // ─── Per-kind extras ──────────────────────────────────────────────────────────
